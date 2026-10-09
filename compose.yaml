@@ -1,0 +1,20 @@
+# node-a instance — base compose owned by this repo, handed to the orchestrator with
+# PUT /api/services/:id/compose (the orchestrator adds Traefik/homepage labels in compose.override.yaml).
+services:
+  standby-status:
+    image: registry.example.com/standby-status:${STANDBY_STATUS_TAG:-0.1.0}
+    container_name: standby-status
+    restart: unless-stopped
+    environment:
+      RACK_ENV: production
+      PORT: "9292"
+    volumes:
+      - ./.env:/app/.env:ro
+    networks:
+      - default
+      - traefik-proxy
+
+networks:
+  default: {}
+  traefik-proxy:
+    external: true

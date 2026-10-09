@@ -1,0 +1,33 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    dotenv (3.2.0)
+    erubi (1.13.1)
+    json (3.0.2)
+    logger (1.7.0)
+    nio4r (2.7.5)
+    puma (8.0.2)
+      nio4r (~> 2.0)
+    rack (3.2.7)
+    rack-unreloader (2.1.0)
+    roda (3.109.0)
+      rack
+    tilt (2.9.0)
+
+PLATFORMS
+  ruby
+  x86_64-linux
+
+DEPENDENCIES
+  dotenv
+  erubi
+  json
+  logger
+  puma
+  rack
+  rack-unreloader
+  roda
+  tilt
+
+BUNDLED WITH
+   2.6.9

@@ -1,0 +1,6 @@
+.env
+*/.env
+**/token
+.webui/
+.tunnel
+compose.override.yaml
