@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Build the image and distribute it like the standby images: push to silver's registry and GHCR,
+# then pre-pull on tiny through its read-only registry mirror. Never prints the GHCR token.
+#
+#   bin/release [tag]        default tag: VERSION file; `sha` uses the git short sha
+#   RELEASE_NO_TINY=1        skip the tiny pre-pull
+#
+# Tunables (env, with defaults): REGISTRY, REGISTRY_MIRROR, GHCR_REPO, GHCR_USER, SERVER_ENV, TINY_SSH.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+REGISTRY="${REGISTRY:-registry.example.internal}"
+REGISTRY_MIRROR="${REGISTRY_MIRROR:-registry.example.internal}"
+GHCR_REPO="${GHCR_REPO:-ghcr.io/rojosinalma/homelab/standby-status}"
+GHCR_USER="${GHCR_USER:-rojosinalma}"
+SERVER_ENV="${SERVER_ENV:-$HOME/.config/opencode/server.env}"
+TINY_SSH="${TINY_SSH:-tiny}"
+NAME=standby-status
+
+tag="${1:-$(tr -d '[:space:]' < VERSION)}"
+[[ "$tag" == sha ]] && tag="$(git rev-parse --short HEAD)"
+built="$(date -u +%Y-%m-%dT%H:%MZ)"
+local_ref="$NAME:$tag"
+
+log() { printf '[release] %s\n' "$*"; }
+fail() { printf '[release] ERROR: %s\n' "$*" >&2; exit 1; }
+
+log "building $local_ref (built $built)"
+docker build -q --build-arg APP_VERSION="$tag" --build-arg BUILD_TIME="$built" \
+  --label "org.opencontainers.image.source=https://github.com/rojosinalma/homelab" -t "$local_ref" . >/dev/null
+
+docker tag "$local_ref" "$REGISTRY/$NAME:$tag"
+log "pushing $REGISTRY/$NAME:$tag"
+docker push -q "$REGISTRY/$NAME:$tag" >/dev/null
+
+[[ -r "$SERVER_ENV" ]] || fail "cannot read $SERVER_ENV for GHCR_TOKEN"
+grep -q '^GHCR_TOKEN=' "$SERVER_ENV" || fail "no GHCR_TOKEN in $SERVER_ENV"
+sed -n 's/^GHCR_TOKEN=//p' "$SERVER_ENV" | head -n1 | tr -d "\"'" \
+  | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1 || fail "docker login ghcr.io failed"
+docker tag "$local_ref" "$GHCR_REPO:$tag"
+log "pushing $GHCR_REPO:$tag"
+docker push -q "$GHCR_REPO:$tag" >/dev/null
+
+if [[ "${RELEASE_NO_TINY:-0}" != 1 ]]; then
+  log "pre-pulling $REGISTRY_MIRROR/$NAME:$tag on tiny"
+  ssh -o BatchMode=yes -o ConnectTimeout=10 "$TINY_SSH" "sudo -n docker pull -q $REGISTRY_MIRROR/$NAME:$tag" >/dev/null \
+    || fail "pre-pull on tiny failed (is the registry mirror up?)"
+fi
+
+log "done: $REGISTRY/$NAME:$tag  $GHCR_REPO:$tag  (tiny: $REGISTRY_MIRROR/$NAME:$tag)"
+echo "$tag"

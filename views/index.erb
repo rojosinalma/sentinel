@@ -1,0 +1,83 @@
+<div class="d-flex align-items-center flex-wrap gap-3 mb-4 page-header">
+  <h4 class="m-0">opencode warm standby</h4>
+  <span id="primary-badge" class="badge badge-tint tint-muted badge-lg"><i class="bi bi-circle-fill status-dot status-dot--muted"></i> primary: <span id="primary-host">…</span></span>
+  <span class="nav-meta" id="primary-since"></span>
+  <span id="flag-hold" class="badge badge-tint tint-yellow d-none" title="state/hold is present on tiny: automatic failback is paused"><i class="bi bi-pause-circle"></i> hold</span>
+  <span id="flag-promoting" class="badge badge-attention d-none"><i class="bi bi-arrow-repeat"></i> promoting</span>
+  <span id="flag-transition" class="badge badge-tint tint-orange d-none"></span>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-4 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header card-header-row"><h6><i class="bi bi-eye"></i> Sentinel</h6><i id="sentinel-dot" class="bi bi-circle-fill status-dot status-dot--muted ms-auto"></i></div>
+      <div class="card-body p-3">
+        <dl class="facts-grid" id="sentinel-facts">
+          <dt>state</dt><dd id="s-state">…</dd>
+          <dt>mode</dt><dd id="s-mode">—</dd>
+          <dt>silver opencode</dt><dd id="s-silver-opencode">—</dd>
+          <dt>silver host</dt><dd id="s-silver-host">—</dd>
+          <dt>quorum</dt><dd id="s-quorum">—</dd>
+          <dt>auto promote</dt><dd id="s-auto-promote">—</dd>
+          <dt>auto failback</dt><dd id="s-auto-failback">—</dd>
+          <dt>flips / window</dt><dd id="s-flips">—</dd>
+          <dt>checked</dt><dd id="s-checked">—</dd>
+        </dl>
+        <div class="timer" id="timer-down">
+          <div class="d-flex justify-content-between"><span class="stat-label">silver down</span><span class="stat-value" id="t-down-text">—</span></div>
+          <div class="progress" style="height:4px;"><div class="progress-bar" id="t-down-bar" role="progressbar"></div></div>
+        </div>
+        <div class="timer" id="timer-stable">
+          <div class="d-flex justify-content-between"><span class="stat-label">silver stable</span><span class="stat-value" id="t-stable-text">—</span></div>
+          <div class="progress" style="height:4px;"><div class="progress-bar" id="t-stable-bar" role="progressbar"></div></div>
+        </div>
+        <div class="stat-sub mt-2" id="s-cooldown"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header card-header-row"><h6><i class="bi bi-hdd-rack"></i> Hosts</h6></div>
+      <div class="card-body p-3">
+        <table class="table table-sm hosts-table m-0">
+          <thead><tr><th></th><th>opencode</th><th>openchamber</th></tr></thead>
+          <tbody>
+            <tr id="host-silver"><th>silver</th><td data-svc="opencode">—</td><td data-svc="openchamber">—</td></tr>
+            <tr id="host-tiny"><th>tiny</th><td data-svc="opencode">—</td><td data-svc="openchamber">—</td></tr>
+          </tbody>
+        </table>
+        <div class="stat-sub mt-2">version from <code>/api/info</code> and <code>/health</code>; a 401 from opencode still counts as up. The standby's services are expected to be stopped while it is not primary.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header card-header-row"><h6><i class="bi bi-globe2"></i> Public DNS</h6></div>
+      <div class="card-body p-3">
+        <dl class="facts-grid" id="dns-facts"></dl>
+        <div class="stat-sub">resolved over DoH; proxied records hide their CNAME, so the target is then inferred from the sentinel's mode.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header card-header-row"><h6><i class="bi bi-database-down"></i> Replica lag</h6><i id="replica-dot" class="bi bi-circle-fill status-dot status-dot--muted ms-auto"></i></div>
+      <div class="card-body p-3">
+        <dl class="facts-grid" id="replica-facts"><dt>opencode.db</dt><dd id="r-opencode">—</dd><dt>memory.db</dt><dd id="r-memory">—</dd><dt>state/mode</dt><dd id="r-mode">—</dd></dl>
+        <div class="stat-sub" id="r-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-8 col-lg-12">
+    <div class="card h-100">
+      <div class="card-header card-header-row"><h6><i class="bi bi-journal-text"></i> Last promote / demote</h6><span class="nav-meta ms-auto" id="e-meta"></span></div>
+      <div class="card-body p-3">
+        <pre class="log-tail m-0" id="e-tail">—</pre>
+      </div>
+    </div>
+  </div>
+</div>

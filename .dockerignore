@@ -1,0 +1,14 @@
+.env
+*/.env
+**/token
+.git
+.gitignore
+.openchamber
+connector/
+tiny/
+tmp-shots/
+README.md
+AGENTS.md
+compose.yaml
+compose.override.yaml
+.tunnel
