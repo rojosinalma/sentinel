@@ -5,8 +5,8 @@ deployed **on both hosts** so the page survives whichever host is down:
 
 | instance | where it runs | URL |
 |---|---|---|
-| node-a | orchestrator service `standby-status` (id 62) | https://status.node-a.example.com |
-| node-b | plain compose project `~/dev/standby-status` on node-b | https://status.node-b.example.com |
+| node-a | orchestrator service `standby-status` (id 62) | https://standby.node-a.example.com |
+| node-b | plain compose project `~/dev/standby-status` on node-b | https://standby.node-b.example.com |
 | either | LAN name with two A records (192.0.2.20 + 192.0.2.50) | https://standby.example.com |
 | either | public, CF Access, dedicated tunnel with a connector on each host | https://standby.example.com |
 
