@@ -8,7 +8,7 @@ deployed **on both hosts** so the page survives whichever host is down:
 | node-a | orchestrator service `standby-status` (id 62) | https://standby.node-a.example.com |
 | node-b | plain compose project `~/dev/standby-status` on node-b | https://standby.node-b.example.com |
 | either | LAN name with two A records (192.0.2.20 + 192.0.2.50) | https://standby.example.com |
-| either | public, CF Access, dedicated tunnel with a connector on each host | https://standby.example.com |
+| either | public, CF Access, via the shared `tunnel` (`~/dev/tunnel`, one connector per host) | https://standby.example.com |
 
 ## What it shows
 
@@ -58,7 +58,11 @@ bin/verify              # both instances, dual-A name, public 302, connector cou
 node-a picks up a new tag via the orchestrator: edit `image:` in `compose.yaml`, `PUT
 /api/services/62/compose`, then `control_service start` (see `AGENTS.md`). `bin/cf-setup` is the
 idempotent one-time Cloudflare setup (tunnel `standby-status`, ingress, CNAME, token files) and
-needs `CF_API_TOKEN CF_ACCOUNT_ID CF_ZONE_TOKEN CF_ZONE_ID` in the environment.
+needs `CF_API_TOKEN CF_ACCOUNT_ID CF_ZONE_TOKEN CF_ZONE_ID` in the environment. Since 2026-10-10 that tunnel
+is `tunnel` (same id, renamed; owned by `~/dev/tunnel`): the node-a connector is `ha-connector` from
+`~/dev/tunnel/connector`, not `connector/` here, and `cf-setup` must not be re-run with its default
+`TUNNEL_NAME` (it would create a second tunnel). Node-b still runs `standby-status-connector` from
+`node-b/compose.yaml` until its reinstall; afterwards it gets an `ha-connector` too (see tunnel's README).
 
 ## Layout
 
@@ -66,7 +70,7 @@ needs `CF_API_TOKEN CF_ACCOUNT_ID CF_ZONE_TOKEN CF_ZONE_ID` in the environment.
 app.rb  config.ru  lib/{config,logger,workers,status}.rb  lib/probes/*.rb   # app
 views/  public/css/{dracula,app}.css  public/js/app.js  public/favicon.svg  # UI (house Dracula design)
 compose.yaml        node-a base compose (handed to the orchestrator)
-connector/          node-a cloudflared replica (plain compose; token file 0600, not in git)
-node-b/compose.yaml   node-b compose project (app + connector), synced by bin/deploy-node-b
+connector/          legacy node-a connector compose (replaced by ~/dev/tunnel/connector on 2026-10-10; kept for reference)
+node-b/compose.yaml   node-b compose project (app + connector of the shared tunnel), synced by bin/deploy-node-b
 bin/{release,deploy-node-b,cf-setup,verify}
 ```
