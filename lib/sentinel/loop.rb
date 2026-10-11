@@ -211,12 +211,12 @@ module Sentinel
 
     def dispatch(action, mode, now)
       case action
-      when :promote, :promote_fast
-        args = ["--auto"]
-        args << "--fast" if action == :promote_fast
-        transition("promote", args, failure_marker: "promote-failed", success_mode: @service.standby)
+      when :promote
+        execute_transition!("promote", ["--auto"])
+      when :promote_fast
+        execute_transition!("promote", ["--auto", "--fast"])
       when :failback
-        transition("demote", ["--yes", "--auto"], failure_marker: "failback-failed", success_mode: @service.primary)
+        execute_transition!("demote", ["--yes", "--auto"])
       when :fence_and_route
         @hooks.run(@service.name, "replicate", "fence") if @hooks.exists?(@service.name, "replicate")
       when :stack_check
@@ -224,10 +224,21 @@ module Sentinel
       end
     end
 
-    def transition(hook, args, failure_marker:, success_mode:)
+    public
+
+    TRANSITION_PLAYS = {
+      "promote" => { marker: "promote-failed", success: :standby },
+      "demote" => { marker: "failback-failed", success: :primary }
+    }.freeze
+
+    # Runs a promote/demote hook under a majority lease (acquire -> renew in the background ->
+    # release), then publishes the resulting mode. Used by the loop's own decisions and by the
+    # API/MCP actions. Returns the Hooks::Result, or nil when the lease was denied / hook missing.
+    def execute_transition!(hook, args = [])
+      play = TRANSITION_PLAYS.fetch(hook) { raise ArgumentError, "unknown transition #{hook}" }
       unless @hooks.exists?(@service.name, hook)
         $log.warn "[loop] hook #{@service.name}/#{hook} missing, cannot act"
-        return
+        return nil
       end
 
       grant = @lease.acquire!(service: @service.name, action: hook)
@@ -244,18 +255,23 @@ module Sentinel
       @store.set("primary.#{@service.name}", mode_after)
       @store.set("primary_at.#{@service.name}", iso(@now.call))
 
+      success_mode = play[:success] == :standby ? @service.standby : @service.primary
       if result.exit_code.zero? || mode_after == success_mode
-        @state.remove!(failure_marker)
+        @state.remove!(play[:marker])
       else
-        @state.touch!(failure_marker)
+        @state.touch!(play[:marker])
       end
       @store.event!("transition.end", "#{hook} rc=#{result.exit_code}, mode=#{mode_after}",
                     level: result.exit_code.zero? ? "info" : "warn",
                     service: @service.name, exit_code: result.exit_code)
+      result
     rescue Lease::Denied => e
       @store.event!("lease.deny", "#{hook} blocked: #{e.message}", level: "warn", service: @service.name)
       notify("#{@config[:label]}: #{hook} blocked", "no majority lease: #{e.reasons.join('; ')}", "warning")
+      nil
     end
+
+    private
 
     def renew_in_background(grant)
       ctl = { grant: grant, queue: Queue.new }
