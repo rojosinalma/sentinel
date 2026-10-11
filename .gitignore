@@ -4,3 +4,4 @@
 .openchamber/
 .tunnel
 compose.override.yaml
+data/

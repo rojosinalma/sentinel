@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Example hook: the real demote (hooks/opencode, phase 2) restores the reverse replica onto
+# the primary and starts it. This one only moves the mode file back.
+set -euo pipefail
+echo "$(date -u +%FT%TZ) [example-demote] args=$* SERVICE=${SERVICE:-} PRIMARY=${PRIMARY:-} STANDBY=${STANDBY:-} DRY_RUN=${DRY_RUN:-}"
+[[ "${DRY_RUN:-false}" == true ]] && exit 0
+printf '%s\n' "${PRIMARY:?PRIMARY unset}" > "${STATE_DIR:?STATE_DIR unset}/mode"
+printf '%s %s\n' "$(date -u +%FT%TZ)" "$PRIMARY" >> "$STATE_DIR/mode.history"
+echo "mode=$PRIMARY written"
+exit 0

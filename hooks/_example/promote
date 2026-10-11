@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Example hook: the real promote (hooks/opencode, phase 2) fences the primary, restores the
+# DBs and starts the standby pair. This one only moves the mode file, like the real one does
+# before starting anything.
+set -euo pipefail
+echo "$(date -u +%FT%TZ) [example-promote] args=$* SERVICE=${SERVICE:-} PRIMARY=${PRIMARY:-} STANDBY=${STANDBY:-} DRY_RUN=${DRY_RUN:-}"
+[[ "${DRY_RUN:-false}" == true ]] && exit 0
+printf '%s\n' "${STANDBY:?STANDBY unset}" > "${STATE_DIR:?STATE_DIR unset}/mode"
+printf '%s %s\n' "$(date -u +%FT%TZ)" "$STANDBY" >> "$STATE_DIR/mode.history"
+echo "mode=$STANDBY written"
+exit 0

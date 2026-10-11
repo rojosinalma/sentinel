@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# sentinel CLI:
+#   bin/sentinel serve            run the app (puma) with the loop
+#   bin/sentinel once             one cycle, print the /status JSON, exit (parity with bash --once)
+#   bin/sentinel status           alias of once
+#   bin/sentinel hold [on|off]    block/release automatic failback; no argument prints the state
+
+require "dotenv"
+Dotenv.load(File.expand_path("../.env", __dir__))
+require_relative "../lib/log"
+require_relative "../lib/sentinel"
+
+cmd = ARGV.shift || "status"
+
+case cmd
+when "serve"
+  port = Sentinel::Config.fetch(:SENTINEL_PORT)
+  exec("bundle", "exec", "puma", "-b", "tcp://0.0.0.0:#{port}",
+       File.expand_path("../config.ru", __dir__))
+when "once", "status"
+  abort "NODE_NAME is not set (see .env.example)" unless Sentinel.enabled?
+  rt = Sentinel.boot!
+  rt[:loop].cycle!
+  puts Sentinel::Status.to_json(
+    Sentinel::Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config])
+  )
+when "hold"
+  state = Sentinel::State.new(Sentinel::Config.fetch(:STATE_DIR))
+  case ARGV.shift
+  when "on"
+    state.hold_on!(ENV.fetch("USER", "?"))
+    puts "hold on"
+  when "off"
+    state.hold_off!
+    puts "hold off"
+  when nil, "status"
+    puts state.hold? ? "on" : "off"
+  else
+    abort "usage: sentinel hold [on|off|status]"
+  end
+else
+  abort "usage: sentinel serve | once | status | hold [on|off|status]"
+end
