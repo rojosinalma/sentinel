@@ -6,11 +6,62 @@
 #   bin/sentinel once             one cycle, print the /status JSON, exit (parity with bash --once)
 #   bin/sentinel status           alias of once
 #   bin/sentinel hold [on|off]    block/release automatic failback; no argument prints the state
+#   bin/sentinel promote [...]    run the service's promote hook under a majority lease
+#                                 (--dry-run skips the lease; flags pass through: --force --fast)
+#   bin/sentinel demote [...]     run the demote hook under a majority lease (asks for the word
+#                                 "demote" unless --yes; --dry-run skips the lease)
 
 require "dotenv"
 Dotenv.load(File.expand_path("../.env", __dir__))
 require_relative "../lib/log"
 require_relative "../lib/sentinel"
+
+def run_transition(cmd)
+  abort "NODE_NAME is not set (see .env.example)" unless Sentinel.enabled?
+  rt = Sentinel.boot!
+  service = rt[:service]
+  cluster = rt[:cluster]
+  unless cluster.node_name == service.standby
+    abort "this node (#{cluster.node_name}) is not the standby of #{service.name} " \
+          "(#{service.standby}); run it there"
+  end
+  hook = File.join(File.expand_path("../hooks", __dir__), service.name, cmd)
+  abort "hook #{hook} missing or not executable" unless File.executable?(hook)
+  env = Sentinel.hook_env(cluster, service, rt[:state])
+
+  exec(env, hook, *ARGV) if ARGV.include?("--dry-run")
+
+  begin
+    grant = rt[:lease].acquire!(service: service.name, action: cmd)
+  rescue Sentinel::Lease::Denied => e
+    abort "majority lease denied: #{e.reasons.join('; ')}"
+  end
+  stop_queue = Queue.new
+  renewer = Thread.new do
+    g = grant
+    loop do
+      break if stop_queue.pop(timeout: Sentinel::Config.fetch(:LEASE_RENEW_S)) == :stop
+
+      begin
+        g = rt[:lease].renew!(g)
+      rescue Sentinel::Lease::Expired => e
+        $log.error "[cli] #{e.message}"
+        break
+      end
+    end
+  end
+
+  system(env, hook, *ARGV)
+  rc = $?.exitstatus || 1 # rubocop:disable Style/SpecialGlobalVars
+  stop_queue << :stop
+  renewer.join(1)
+  rt[:lease].release!(grant)
+
+  mode_after = rt[:state].mode(default: service.primary)
+  rt[:store].set("primary.#{service.name}", mode_after)
+  rt[:store].set("primary_at.#{service.name}", Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ"))
+  exit rc
+end
 
 cmd = ARGV.shift || "status"
 
@@ -26,6 +77,8 @@ when "once", "status"
   puts Sentinel::Status.to_json(
     Sentinel::Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config])
   )
+when "promote", "demote"
+  run_transition(cmd)
 when "hold"
   state = Sentinel::State.new(Sentinel::Config.fetch(:STATE_DIR))
   case ARGV.shift
@@ -41,5 +94,5 @@ when "hold"
     abort "usage: sentinel hold [on|off|status]"
   end
 else
-  abort "usage: sentinel serve | once | status | hold [on|off|status]"
+  abort "usage: sentinel serve | once | status | promote | demote | hold [on|off|status]"
 end

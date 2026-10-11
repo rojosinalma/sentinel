@@ -78,7 +78,7 @@ class StatusTest < Minitest::Test
     assert_equal 0, s["flips_in_window"]
     assert_nil s["tiny_stack"]
     assert_equal "ha-routes", s["route_mode"]
-    assert_nil s["route_primary"]
+    assert_equal "unknown", s["route_primary"], "bash parity: no ha-routes binary -> unknown"
     assert_nil s["ha_connectors"]
     assert_match(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/, s["checked_at"])
     assert_equal 0, s["status_age_s"]

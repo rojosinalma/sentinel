@@ -50,7 +50,7 @@ module Sentinel
         "failback_after_s" => snap[:failback_after_s],
         "failback_retry_left_s" => snap[:failback_retry_left_s],
         "flips_in_window" => snap[:flips_in_window],
-        "tiny_stack" => snap[:stack],
+        "tiny_stack" => doc[:tiny_stack],
         "route_mode" => config[:route_mode],
         "route_primary" => doc[:route_primary],
         "ha_connectors" => doc[:ha_connectors],
