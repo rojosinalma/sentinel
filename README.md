@@ -1,76 +1,86 @@
-# standby-status
+# sentinel
 
-Status page for the opencode warm standby (silver ⇄ tiny). One small Ruby/Roda app, no database,
-deployed **on both hosts** so the page survives whichever host is down:
+The homelab's HA decision layer: one sentinel per participating host — **silver**, **tiny**,
+**witness-1** (witness) — that probes every host, agrees on who is primary by **majority**
+(2-of-3), takes a 30 s **majority lease** before any action, runs per-service bash **hooks**
+(`hooks/opencode/` first) to promote and fail back, records every probe/decision/transition in
+SQLite, and serves `/status` byte-compatible with the bash sentinel it replaces, a Dracula
+dashboard and an MCP endpoint for agents.
 
-| instance | where it runs | URL |
-|---|---|---|
-| silver | deployer service `standby-status` (id 62) | https://standby.node-a.example.internal |
-| tiny | plain compose project `~/dev/standby-status` on tiny | https://standby.node-b.example.internal |
-| either | LAN name with two A records (192.0.2.20 + 192.0.2.50) | https://standby.example.internal |
-| either | public, CF Access, via the shared `ha-tunnel` (`~/dev/ha-tunnel`, one connector per host) | https://standby.example.com |
+This repo is a history-preserving clone of `standby-status` (the status page it absorbs; the
+page still renders on instances without `NODE_NAME`). The design and interfaces are in
+[docs/architecture.md](docs/architecture.md); the phase-4 cutover runbook is
+[docs/cutover.md](docs/cutover.md). Until that cutover the live bash sentinel in
+`~/dev/opencode-tiny/sentinel/` stays armed on tiny.
 
-## What it shows
+## How it decides
 
-- **Primary** (from the sentinel's `mode`, else `state/mode` on tiny), since when, `hold`,
-  `promoting` and `transition` flags, the *silver down* timer against `promote_after_s` and the
-  *silver stable* timer against `failback_after_s`, cooldowns, flips, quorum.
-- **Hosts**: opencode (`/api/info`, version; a 401 still counts as up) and openchamber (`/health`,
-  version) on silver and tiny. The standby's services are shown as *stopped (standby)*.
-- **Public DNS**: where `openchamber.example.com` / `opencode.example.com` point, resolved over DoH.
-  Proxied records hide their CNAME; the target is then inferred from the sentinel's mode.
-- **Replica lag** and the **last promote/demote log tail** — tiny instance only (it reads
-  `$TINY_ROOT` read-only); the silver instance says *n/a on silver*.
-- Footer: build version/time, served-by host, link to the other host's instance.
+```
+every node, every POLL_INTERVAL_S (2 s):
+  probe every host (service /api/info, tcp:22, tcp:443, icmp) in parallel
+  classify the primary: ok | degraded | dead | isolated      (bash classifier, 1:1)
+  gossip: GET <peer>/peer/view from both peers; publish own view
+  agree: a host is DEAD only when 2 of 3 fresh views say so
+  a node without majority contact is ISOLATED and never acts
 
-The page polls `GET /api/status` every `REFRESH_S` seconds and toasts on every state change
-(primary, sentinel reachability, hold/promoting, service up/down, DNS target).
+the ACTING node only (the service's standby, tiny for opencode):
+  down ≥ PROMOTE_AFTER_S (60 s) or DEAD_CONFIRM_POLLS dead cycles
+    → majority lease (POST /peer/lease to both peers, 2 grants incl. self)
+    → hooks/opencode/promote --auto [--fast]        (the ported bash promote)
+  promoted + primary stable ≥ FAILBACK_AFTER_S (30 s; 600 s when flapping)
+    → lease → hooks/opencode/demote --yes --auto
+  while promoted: hooks/opencode/replicate fence|stack every FENCE/STACK interval
+```
 
-## Routes
+Timers, gates (cooldown, retry, hold, flap damping) and notification texts are the bash
+sentinel's, ported 1:1 into `Sentinel::Decider` and verified by table-driven tests.
 
-| route | returns |
+## Endpoints
+
+| Path | What |
 |---|---|
-| `GET /` | the page |
-| `GET /api/status` | all probes, run in parallel with `PROBE_TIMEOUT_S`, coalesced for `STATUS_CACHE_S` |
-| `GET /health` | `{ok:true, served_by, version}` — Gatus target |
+| `GET /status` | Byte-compatible with the bash sentinel (same keys, order, compact JSON; HTTP/1.0 ok). Consumers: both opencode-guards, litestream-guard, Gatus 79, opencode-tiny `bin/verify`, the page itself |
+| `GET /peer/view` | This node's gossip view (hosts, classes, primary, lease, seq) |
+| `POST /peer/lease`, `/peer/lease/release` | Majority-lease grant/release (peers only) |
+| `GET /` | Dashboard: legacy standby cards + cluster view, actions (hold/promote/demote with typed-word confirm), events, transitions |
+| `GET /api/status` | The legacy standby-status probe document (page data) |
+| `GET /api/sentinel`, `/api/events`, `/api/transitions` | Dashboard data |
+| `POST /api/hold`, `/api/promote`, `/api/demote` | Actions (confirm word; `dry_run=true` returns the hook's plan) |
+| `POST /mcp` | MCP (Streamable HTTP, stateless) behind `SENTINEL_MCP_TOKEN`: tools `status cluster events hold promote demote` |
+| `GET /health` | Instance liveness (legacy shape) |
 
-## Configuration
-
-Everything is environment, loaded from `.env` by dotenv (`.env.example` lists every key; defaults
-in `lib/config.rb`). Per host: `HOST_NAME`, `OTHER_INSTANCE_*`, `TINY_ROOT` (tiny only),
-`OPENCODE_SERVER_PASSWORD` (same as silver's `server.env`). `.env` is 0600 and never committed.
-
-## Run locally
-
-```
-docker build -t standby-status:dev .
-docker run --rm -p 9292:9292 -v $PWD/.env:/app/.env:ro standby-status:dev
-```
-
-## Release and deploy
+## CLI
 
 ```
-bin/release [tag|sha]   # build, push registry.example.internal + ghcr.io/rojosinalma/homelab, pre-pull on tiny
-bin/deploy-tiny pull    # sync tiny/compose.yaml to tiny, pull, compose up (secrets installed once)
-bin/verify              # both instances, dual-A name, public 302, connector count (with CF_* env)
+bin/sentinel serve                  # puma + the loop
+bin/sentinel once | status          # one cycle, print /status JSON (bash --once parity)
+bin/sentinel hold [on|off|status]
+bin/sentinel promote --dry-run      # execs the hook directly (no lease on dry runs)
+bin/sentinel promote                # majority lease → hooks/opencode/promote
+bin/sentinel demote                 # majority lease → hook (asks for the word "demote"; --yes skips)
 ```
 
-silver picks up a new tag via the deployer: edit `image:` in `compose.yaml`, `PUT
-/api/services/62/compose`, then `control_service start` (see `AGENTS.md`). `bin/cf-setup` is the
-idempotent one-time Cloudflare setup (tunnel `standby-status`, ingress, CNAME, token files) and
-needs `CF_API_TOKEN CF_ACCOUNT_ID CF_ZONE_TOKEN CF_ZONE_ID` in the environment. Since 2026-10-10 that tunnel
-is `ha-tunnel` (same id, renamed; owned by `~/dev/ha-tunnel`): the silver connector is `ha-connector` from
-`~/dev/ha-tunnel/connector`, not `connector/` here, and `cf-setup` must not be re-run with its default
-`TUNNEL_NAME` (it would create a second tunnel). Tiny still runs `standby-status-connector` from
-`tiny/compose.yaml` until its reinstall; afterwards it gets an `ha-connector` too (see ha-tunnel's README).
+## Deployment (release 1)
 
-## Layout
+| Node | Where | Role | Extras |
+|---|---|---|---|
+| silver | deployer service (ex `standby-status`, id 62), `compose.yaml` | member | port 4197, Traefik `sentinel.node-a.example.internal` |
+| tiny | plain compose `~/dev/sentinel`, `tiny/compose.yaml` | member, **acting** | docker socket, ssh, `$TINY_ROOT` + opencode data mounts, port 4197 |
+| witness-1 | plain compose `/opt/sentinel`, `witness-1/compose.yaml` | witness | GHCR multi-arch image, port 4197 |
+
+`bin/release` builds and distributes: silver registry (amd64) + GHCR
+`ghcr.io/rojosinalma/homelab/sentinel` (amd64+arm64, buildx) + pre-pull on tiny. Config is `.env`
+per instance (`.env.example` lists every tunable); the cluster table `config/cluster.yml` is
+identical on every node and `NODE_NAME` picks the row.
+
+## Development
 
 ```
-app.rb  config.ru  lib/{config,logger,workers,status}.rb  lib/probes/*.rb   # app
-views/  public/css/{dracula,app}.css  public/js/app.js  public/favicon.svg  # UI (house Dracula design)
-compose.yaml        silver base compose (handed to the deployer)
-connector/          legacy silver connector compose (replaced by ~/dev/ha-tunnel/connector on 2026-10-10; kept for reference)
-tiny/compose.yaml   tiny compose project (app + connector of the shared tunnel), synced by bin/deploy-tiny
-bin/{release,deploy-tiny,cf-setup,verify}
+bundle install
+bundle exec rake test          # minitest; fake clock, in-process 3-node cluster, no LAN access
+bin/sentinel once              # one real probe cycle from this host
 ```
+
+The bash hooks under `hooks/opencode/` are a 1:1 port of
+`opencode-tiny/sentinel/bin/{promote,demote}` + `lib/common.sh` (only the env-resolution header
+differs); `hooks/_example/` is the fixture the loop tests run end to end.

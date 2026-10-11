@@ -1,15 +1,20 @@
-# silver instance — base compose owned by this repo, handed to the deployer with
-# PUT /api/services/:id/compose (the deployer adds Traefik/homepage labels in compose.override.yaml).
+# silver instance (NODE_NAME=silver) — base compose owned by this repo, handed to the deployer
+# with PUT /api/services/:id/compose at the phase-4 cutover (the deployer adds Traefik/homepage
+# labels in compose.override.yaml). Port 4197 is the cluster port: guards, gossip and Gatus all
+# speak to <host>:4197. Silver is not the acting node, so no docker socket / ssh mounts here.
 services:
-  standby-status:
-    image: registry.example.internal/standby-status:${STANDBY_STATUS_TAG:-0.1.0}
-    container_name: standby-status
+  sentinel:
+    image: registry.example.internal/sentinel:${SENTINEL_TAG:-0.2.0}
+    container_name: sentinel
     restart: unless-stopped
     environment:
       RACK_ENV: production
       PORT: "9292"
+    ports:
+      - "4197:9292"
     volumes:
       - ./.env:/app/.env:ro
+      - ./data:/app/data
     networks:
       - default
       - traefik-proxy
