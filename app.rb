@@ -63,6 +63,13 @@ class App < Roda
   end
 
   route do |r|
+    # standby.* -> sentinel.* (the page this app absorbed; permanent, path-preserving)
+    if (host = r.host.to_s).start_with?("standby.")
+      response["location"] = "https://#{host.sub(/\Astandby\./, 'sentinel.')}#{r.fullpath}"
+      response.status = 308
+      r.halt response.finish
+    end
+
     r.public
 
     r.get("health") { json_ok("healthy", served_by: ::Config.fetch("HOST_NAME"), version: ::Config.fetch("APP_VERSION")) }

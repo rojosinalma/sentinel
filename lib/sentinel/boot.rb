@@ -85,7 +85,7 @@ module Sentinel
         "PRIMARY" => service.primary,
         "STANDBY" => service.standby,
         "STATE_DIR" => File.expand_path(state.dir),
-        "SN_ENV" => File.expand_path("../../.env", __dir__)
+        "SN_ENV" => ENV.fetch("SN_ENV", File.expand_path("../../.env", __dir__))
       }.freeze
     end
 
