@@ -10,24 +10,33 @@
 #                                 (--dry-run skips the lease; flags pass through: --force --fast)
 #   bin/sentinel demote [...]     run the demote hook under a majority lease (asks for the word
 #                                 "demote" unless --yes; --dry-run skips the lease)
+#
+# --service <name> (default opencode) picks the service for status/promote/demote.
 
 require "dotenv"
 Dotenv.load(File.expand_path("../.env", __dir__))
 require_relative "../lib/log"
 require_relative "../lib/sentinel"
 
+def service_option
+  i = ARGV.index("--service") or return Sentinel::Status::LEGACY_SERVICE
+  ARGV.delete_at(i)
+  ARGV.delete_at(i) or abort "--service needs a name"
+end
+
 def run_transition(cmd)
   abort "NODE_NAME is not set (see .env.example)" unless Sentinel.enabled?
   rt = Sentinel.boot!
-  service = rt[:service]
   cluster = rt[:cluster]
+  name = service_option
+  service = cluster.services[name] or abort "unknown service #{name.inspect} (have #{cluster.services.keys.join(', ')})"
   unless cluster.node_name == service.standby
     abort "this node (#{cluster.node_name}) is not the standby of #{service.name} " \
           "(#{service.standby}); run it there"
   end
   hook = File.join(File.expand_path("../hooks", __dir__), service.name, cmd)
   abort "hook #{hook} missing or not executable" unless File.executable?(hook)
-  env = Sentinel.hook_env(cluster, service, rt[:state])
+  env = Sentinel.hook_env(cluster, rt[:state]).merge("PRIMARY" => service.primary, "STANDBY" => service.standby)
 
   exec(env, hook, *ARGV) if ARGV.include?("--dry-run")
 
@@ -72,10 +81,11 @@ when "serve"
        File.expand_path("../config.ru", __dir__))
 when "once", "status"
   abort "NODE_NAME is not set (see .env.example)" unless Sentinel.enabled?
+  name = service_option
   rt = Sentinel.boot!
   rt[:loop].cycle!
   puts Sentinel::Status.to_json(
-    Sentinel::Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config])
+    Sentinel::Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config], service: name)
   )
 when "promote", "demote"
   run_transition(cmd)

@@ -23,7 +23,10 @@ every node, every POLL_INTERVAL_S (2 s):
   agree: a host is DEAD only when 2 of 3 fresh views say so
   a node without majority contact is ISOLATED and never acts
 
-the ACTING node only (the service's standby, tiny for opencode):
+the ACTING node of a service only (its standby — tiny for opencode; one Loop drives every service
+in cluster.yml, each with its own decider and lease):
+  while watching (mode = primary): `replicate warm` every STACK/WATCH interval keeps one
+    litestream follower per DB at the replica's txid, so a promote renames instead of restoring
   down ≥ PROMOTE_AFTER_S (60 s) or DEAD_CONFIRM_POLLS dead cycles
     → majority lease (POST /peer/lease to both peers, 2 grants incl. self)
     → hooks/opencode/promote --auto [--fast]        (the ported bash promote)
@@ -44,7 +47,8 @@ sentinel's, ported 1:1 into `Sentinel::Decider` and verified by table-driven tes
 | `POST /peer/lease`, `/peer/lease/release` | Majority-lease grant/release (peers only) |
 | `GET /` | Dashboard: legacy standby cards + cluster view, actions (hold/promote/demote with typed-word confirm), events, transitions |
 | `GET /api/status` | The legacy standby-status probe document (page data) |
-| `GET /api/sentinel`, `/api/events`, `/api/transitions` | Dashboard data |
+| `GET /api/v1/status` | All services, neutral names: per-service mode/agreed class/gates, per-host probes |
+| `GET /api/sentinel`, `/api/events`, `/api/transitions` | Dashboard data (`?service=` on /api/sentinel) |
 | `POST /api/hold`, `/api/promote`, `/api/demote` | Actions (confirm word; `dry_run=true` returns the hook's plan) |
 | `POST /mcp` | MCP (Streamable HTTP, stateless) behind `SENTINEL_MCP_TOKEN`: tools `status cluster events hold promote demote` |
 | `GET /health` | Instance liveness (legacy shape) |

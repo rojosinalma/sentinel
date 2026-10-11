@@ -99,6 +99,37 @@ class AppTest < Minitest::Test
     assert_equal "witness", body["roles"]["witness-1"]
   end
 
+  def test_api_sentinel_unknown_service_is_404
+    res = @mock.get("/api/sentinel?service=ghost")
+    assert_equal 404, res.status
+    refute JSON.parse(res.body)["ok"]
+  end
+
+  def test_api_v1_status
+    @rt[:loop].cycle!
+    res = @mock.get("/api/v1/status")
+    assert_equal 200, res.status
+    assert_equal "no-store", res.headers["cache-control"]
+    body = JSON.parse(res.body)
+    assert body["ok"]
+    assert_equal "tiny", body["node"]
+    assert_equal %w[silver tiny witness-1], body["hosts"].keys
+    assert body["hosts"]["silver"]["probes"].key?("ssh")
+    svc = body["services"]["opencode"]
+    assert_equal "silver", svc["primary"]
+    assert_equal "tiny", svc["standby"]
+    assert svc["acting"]
+    assert_equal "silver", svc["mode"]
+    assert svc.key?("gates")
+    refute_match(/silver_|tiny_/, res.body.gsub(/"(silver|tiny|witness-1)"/, ""), "neutral key names")
+  end
+
+  def test_api_promote_unknown_service
+    res = JSON.parse(@mock.post("/api/promote", params: { "dry_run" => "true", "service" => "ghost" }).body)
+    refute res["ok"]
+    assert_match(/unknown service/, res["message"])
+  end
+
   def test_api_hold_roundtrip
     res = JSON.parse(@mock.post("/api/hold", params: { "on" => "true" }).body)
     assert res["ok"]
@@ -166,6 +197,21 @@ class AppTest < Minitest::Test
     res = mcp_rpc("tools/call", { name: "promote", arguments: {} })
     text = res.dig("result", "content", 0, "text")
     assert_includes text, "refused"
+  end
+
+  def test_mcp_service_argument
+    res = mcp_rpc("tools/list", {})
+    promote = res.dig("result", "tools").find { |t| t["name"] == "promote" }
+    assert promote.dig("inputSchema", "properties").key?("service")
+
+    res = mcp_rpc("tools/call", { name: "cluster", arguments: { service: "opencode" } })
+    body = JSON.parse(res.dig("result", "content", 0, "text"))
+    assert_equal "opencode", body["service"]
+    assert_equal ["opencode"], body["services"]
+    assert body["acting"]
+
+    res = mcp_rpc("tools/call", { name: "demote", arguments: { service: "ghost", dry_run: true } })
+    assert_includes res.dig("result", "content", 0, "text"), "unknown service"
   end
 
   def test_legacy_page_still_renders

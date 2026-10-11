@@ -23,13 +23,15 @@ module Sentinel
     end
 
     # -> [ok, message]. dry_run runs the hook synchronously (seconds) and returns its tail.
-    def transition!(runtime, hook, args = [], dry_run: false, who: "api")
-      service = runtime[:service]
+    def transition!(runtime, service_name, hook, args = [], dry_run: false, who: "api")
       return [false, "unknown action #{hook.inspect}"] unless %w[promote demote].include?(hook)
 
-      unless runtime[:loop].acting?
+      service = runtime[:cluster].services[service_name]
+      return [false, "unknown service #{service_name.inspect}"] unless service
+
+      unless runtime[:loop].acting?(service.name)
         return [false, "this node (#{runtime[:cluster].node_name}) is not the acting node " \
-                       "(#{service.standby}); call it there"]
+                       "of #{service.name} (#{service.standby}); call it there"]
       end
       return [false, "hook #{service.name}/#{hook} missing"] unless runtime[:hooks].exists?(service.name, hook)
 
@@ -43,11 +45,11 @@ module Sentinel
       MUTEX.synchronize do
         return [false, "a transition started via the api is already running (#{@running})"] if @running
 
-        @running = hook
+        @running = "#{service.name}/#{hook}"
       end
       runtime[:store].event!("decision", "#{hook} requested by #{who}", service: service.name)
-      Workers.safe_thread("api-#{hook}") do
-        runtime[:loop].execute_transition!(hook, args)
+      Workers.safe_thread("api-#{service.name}-#{hook}") do
+        runtime[:loop].execute_transition!(service.name, hook, args)
       ensure
         MUTEX.synchronize { @running = nil }
       end

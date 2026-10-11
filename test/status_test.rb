@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "test_helper"
+require_relative "loop_test"
 require "json"
 require "yaml"
 
@@ -24,22 +25,27 @@ class StatusTest < Minitest::Test
     store = Sentinel::Store.memory(node: "tiny")
     cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "tiny")
     config = LoopTest::CONFIG.merge(route_mode: "ha-routes")
-    hooks = Sentinel::Hooks.new(dir: File.expand_path("../hooks", __dir__),
+    hooks = Sentinel::Hooks.new(dir: LoopTest.hooks_dir_for(cluster, tmp_state_dir),
                                 log_dir: File.join(tmp_state_dir, "logs"),
-                                env: { "STATE_DIR" => state.dir, "PRIMARY" => "silver", "STANDBY" => "tiny" },
+                                env: { "STATE_DIR" => state.dir },
+                                services_meta: { "_example" => { primary: "silver", standby: "tiny" } },
                                 timeout_s: 10, store: store)
+    deciders = cluster.services.to_h do |name, service|
+      [name, Sentinel::Decider.new(config: LoopTest.decider_config(service).merge(route_mode: "ha-routes"), state: state)]
+    end
     loop_obj = Sentinel::Loop.new(
       config: config, cluster: cluster, store: store, state: state,
       probes: LoopTest::ProbesStub.new, gossip: LoopTest::GossipStub.new,
-      lease: LoopTest::LeaseStub.new, hooks: hooks,
-      decider: Sentinel::Decider.new(config: config, state: state),
+      lease: LoopTest::LeaseStub.new, hooks: hooks, deciders: deciders,
       notifier: ->(*) {}, now: clock.to_proc
     )
     { loop: loop_obj, state: state, config: config, clock: clock }
   end
 
+  # The fixture's service is _example; the live legacy document describes opencode.
   def build_status
-    Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config], now: @h[:clock].now)
+    Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config], now: @h[:clock].now,
+                           service: "_example")
   end
 
   def test_exact_key_order
@@ -105,5 +111,45 @@ class StatusTest < Minitest::Test
     assert_equal "unknown", s["silver_opencode"]
     assert_equal false, s["promoting"]
     assert_equal "no cycle yet", s["note"]
+  end
+
+  def test_unknown_service_raises
+    assert_raises(ArgumentError) do
+      Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config], service: "ghost")
+    end
+  end
+
+  def test_v1_document
+    @h[:loop].cycle!
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now)
+    assert v1[:ok]
+    assert_equal "tiny", v1[:node]
+    assert_equal "up", v1[:quorum]
+    assert_equal 0, v1[:status_age_s]
+    assert_equal %w[silver tiny witness-1], v1[:hosts].keys
+    assert_equal({ ssh: "up", icmp: nil, traefik: nil }, v1[:hosts]["silver"][:probes])
+    assert_equal({ "_example" => "up 1.0" }, v1[:hosts]["silver"][:services])
+    assert_equal({ "_example" => "ok" }, v1[:hosts]["witness-1"][:classes])
+    e = v1[:services]["_example"]
+    assert_equal "silver", e[:primary]
+    assert_equal "tiny", e[:standby]
+    assert e[:acting]
+    assert_equal "silver", e[:mode]
+    assert_equal "ok", e[:agreed_class]
+    assert_equal "ok", e[:classification]
+    assert_equal 0, e[:gates][:dead_polls]
+    assert_equal false, e[:hold]
+    refute v1.key?(:note)
+    json = JSON.generate(v1)
+    refute_match(/silver_|tiny_/, json.gsub(/"(silver|tiny|witness-1)"/, ""), "neutral key names only")
+  end
+
+  def test_v1_before_first_cycle
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now)
+    assert v1[:ok]
+    assert_equal "no cycle yet", v1[:note]
+    assert_equal({}, v1[:hosts])
+    assert_equal "silver", v1[:services]["_example"][:mode]
+    assert_nil v1[:at]
   end
 end

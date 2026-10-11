@@ -144,31 +144,43 @@ class App < Roda
         json_ok("transitions", transitions: rt[:store].transitions(limit: limit))
       end
 
-      # The dashboard's cluster view: richer than /status, local node's perspective.
+      # The generic, versioned document: every host, every service, neutral names.
+      r.get "v1/status" do
+        rt = sentinel!(r)
+        response["cache-control"] = "no-store"
+        ::Sentinel::Status.v1(loop: rt[:loop], state: rt[:state])
+      end
+
+      # The dashboard's cluster view: richer than /status, local node's perspective on one
+      # service (?service=<name>, default opencode).
       r.get "sentinel" do
         rt = sentinel!(r)
         response["cache-control"] = "no-store"
+        name = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
+        service = rt[:cluster].services[name] or halt_json(r, 404, "unknown service #{name.inspect}")
         doc = rt[:loop].last || {}
+        entry = doc.dig(:services, name) || {}
         json_ok("sentinel",
                 node: rt[:cluster].node_name,
-                acting: rt[:loop].acting?,
-                service: rt[:service].name,
-                standby: rt[:service].standby,
-                mode: doc[:mode],
-                agreed_class: doc[:agreed_class],
+                acting: rt[:loop].acting?(name),
+                service: service.name,
+                standby: service.standby,
+                services: rt[:cluster].services.keys,
+                mode: entry[:mode],
+                agreed_class: entry[:agreed_class],
                 quorum: doc[:quorum],
-                busy: doc[:busy] || false,
+                busy: entry[:busy] || false,
                 hold: rt[:state].hold?,
                 transition: rt[:state].transition,
                 reachable_peers: doc[:reachable_peers] || [],
-                classes: doc[:classes] || {},
+                classes: doc.dig(:classes, name) || {},
                 hosts: (doc[:views] || {}).transform_values(&:to_h),
                 roles: rt[:cluster].hosts.transform_values { |h| h.role.to_s },
-                gates: doc[:decider] || {},
-                lease: rt[:store].lease_current(rt[:service].name),
+                gates: entry[:decider] || {},
+                lease: rt[:store].lease_current(service.name),
                 route_primary: doc[:route_primary],
                 ha_connectors: doc[:ha_connectors],
-                tiny_stack: doc[:tiny_stack],
+                tiny_stack: entry[:tiny_stack],
                 action_running: ::Sentinel::Actions.running,
                 checked_at: doc[:at]&.utc&.strftime("%Y-%m-%dT%H:%M:%SZ"))
       end
@@ -182,29 +194,31 @@ class App < Roda
 
       r.post "promote" do
         rt = sentinel!(r)
+        service = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
         args = []
         args << "--fast" if r.params["fast"] == "true"
         args << "--force" if r.params["force"] == "true"
         if r.params["dry_run"] == "true"
-          ok, message = ::Sentinel::Actions.transition!(rt, "promote", args, dry_run: true, who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "promote", args, dry_run: true, who: "dashboard")
         elsif r.params["confirm"] != "promote"
           ok = false
           message = 'confirmation failed: type the word "promote"'
         else
-          ok, message = ::Sentinel::Actions.transition!(rt, "promote", args, who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "promote", args, who: "dashboard")
         end
         ok ? json_ok(message) : json_err(message)
       end
 
       r.post "demote" do
         rt = sentinel!(r)
+        service = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
         if r.params["dry_run"] == "true"
-          ok, message = ::Sentinel::Actions.transition!(rt, "demote", [], dry_run: true, who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", [], dry_run: true, who: "dashboard")
         elsif r.params["confirm"] != "demote"
           ok = false
           message = 'confirmation failed: type the word "demote"'
         else
-          ok, message = ::Sentinel::Actions.transition!(rt, "demote", ["--yes"], who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", ["--yes"], who: "dashboard")
         end
         ok ? json_ok(message) : json_err(message)
       end

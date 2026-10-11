@@ -3,28 +3,31 @@
 require_relative "test_helper"
 
 class ClassifierTest < Minitest::Test
-  def view(opencode:, ssh: "down", icmp: "down", traefik: "down")
-    Sentinel::HostView.new(name: "silver", opencode: opencode, ssh: ssh, icmp: icmp,
-                           traefik: traefik, probed_at: Time.now).freeze
+  def view(ssh: "down", icmp: "down", traefik: "down")
+    Sentinel::HostView.new(name: "silver", ssh: ssh, icmp: icmp, traefik: traefik, probed_at: Time.now).freeze
   end
 
+  def classify(state, quorum:, **probes) = Sentinel::Classifier.classify(state, view(**probes), quorum: quorum)
+
   def test_classify_ok
-    assert_equal :ok, Sentinel::Classifier.classify(view(opencode: "up 2.0.25"), quorum: "up")
-    assert_equal :ok, Sentinel::Classifier.classify(view(opencode: "up auth?"), quorum: "down")
+    assert_equal :ok, classify("up 2.0.25", quorum: "up")
+    assert_equal :ok, classify("up auth?", quorum: "down")
   end
 
   def test_classify_isolated
-    assert_equal :isolated, Sentinel::Classifier.classify(view(opencode: "down"), quorum: "down")
-    assert_equal :isolated, Sentinel::Classifier.classify(view(opencode: "down"), quorum: "n/a")
+    assert_equal :isolated, classify("down", quorum: "down")
+    assert_equal :isolated, classify("down", quorum: "n/a")
+    assert_equal :isolated, classify(nil, quorum: "down")
   end
 
   def test_classify_degraded
-    assert_equal :degraded, Sentinel::Classifier.classify(view(opencode: "down", ssh: "up"), quorum: "up")
-    assert_equal :degraded, Sentinel::Classifier.classify(view(opencode: "down", icmp: "up"), quorum: "up")
+    assert_equal :degraded, classify("down", quorum: "up", ssh: "up")
+    assert_equal :degraded, classify("down", quorum: "up", icmp: "up")
   end
 
   def test_classify_dead
-    assert_equal :dead, Sentinel::Classifier.classify(view(opencode: "down"), quorum: "up")
+    assert_equal :dead, classify("down", quorum: "up")
+    assert_equal :dead, classify(nil, quorum: "up"), "a service the host does not report is down"
   end
 
   def test_agree_majority_dead

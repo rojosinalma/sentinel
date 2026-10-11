@@ -41,14 +41,15 @@ class ProbesTest < Minitest::Test
     with_http_server(200, '{"version":"9.9.9"}') do |svc_port|
       host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "",
                           role: :member, probes: { ssh: ssh_port, traefik: closed_port })
-      view = Sentinel::Probes.host(host, service_url: "http://127.0.0.1:#{svc_port}/api/info", timeout: 1)
-      assert_equal "up 9.9.9", view.opencode
+      view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" },
+                                         timeout: 1)
+      assert_equal "up 9.9.9", view.service_state("opencode")
       assert_equal "up", view.ssh
       assert_equal "down", view.traefik
       assert_nil view.icmp
-      assert view.service_up?
+      assert view.service_up?("opencode")
       assert view.any_host_probe_up?
-      assert_equal "9.9.9", view.version
+      assert_equal "9.9.9", view.version("opencode")
     end
   ensure
     ssh_server&.close
@@ -57,10 +58,10 @@ class ProbesTest < Minitest::Test
   def test_service_401_is_up
     with_http_server(401, "unauthorized") do |port|
       host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
-      view = Sentinel::Probes.host(host, service_url: "http://127.0.0.1:#{port}/api/info", timeout: 1)
-      assert_equal "up auth?", view.opencode
-      assert view.service_up?
-      assert_nil view.version
+      view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{port}/api/info" }, timeout: 1)
+      assert_equal "up auth?", view.service_state("opencode")
+      assert view.service_up?("opencode")
+      assert_nil view.version("opencode")
     end
   end
 
@@ -69,10 +70,28 @@ class ProbesTest < Minitest::Test
     port = server.addr[1]
     server.close
     host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
-    view = Sentinel::Probes.host(host, service_url: "http://127.0.0.1:#{port}/api/info", timeout: 1)
-    assert_equal "down", view.opencode
-    refute view.service_up?
+    view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{port}/api/info" }, timeout: 1)
+    assert_equal "down", view.service_state("opencode")
+    refute view.service_up?("opencode")
     refute view.any_host_probe_up?
+  end
+
+  def test_two_services_probed_in_one_pass
+    closed = TCPServer.new("127.0.0.1", 0)
+    closed_port = closed.addr[1]
+    closed.close
+    with_http_server(200, '{"version":"1.2.3"}') do |up_port|
+      host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
+      view = Sentinel::Probes.host(host, service_urls: { "a" => "http://127.0.0.1:#{up_port}/api/info",
+                                                         "b" => "http://127.0.0.1:#{closed_port}/api/info" },
+                                         timeout: 1)
+      assert_equal({ "a" => "up 1.2.3", "b" => "down" }, view.services)
+    end
+  end
+
+  def test_no_services_gives_empty_map
+    host = FakeHost.new(name: "witness-1", address: "127.0.0.1", sentinel_url: "", role: :witness, probes: {})
+    assert_equal({}, Sentinel::Probes.host(host, timeout: 1).services)
   end
 
   def test_quorum

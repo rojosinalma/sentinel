@@ -5,7 +5,9 @@ require "fileutils"
 module Sentinel
   # Runs the per-service bash hooks (hooks/<service>/{health,replicate,promote,demote}) with a
   # bounded lifetime and a log file per run. Exit codes pass through untouched: 0 done, 1 nothing
-  # changed, 2 done but degraded — the bash promote/demote contract.
+  # changed, 2 done but degraded — the bash promote/demote contract. services_meta
+  # ({service => {primary:, standby:}}) supplies PRIMARY/STANDBY per run; env holds the
+  # node-wide variables (ACTING_NODE, STATE_DIR, SN_ENV).
   class Hooks
     Result = Struct.new(:exit_code, :log_file, :duration_s, :output_tail, keyword_init: true)
 
@@ -14,10 +16,11 @@ module Sentinel
     TRANSITION_HOOKS = %w[promote demote].freeze
     ROTATE_BYTES = 5 * 1024 * 1024
 
-    def initialize(dir:, log_dir:, env: {}, timeout_s: 900, store: nil)
+    def initialize(dir:, log_dir:, env: {}, services_meta: {}, timeout_s: 900, store: nil)
       @dir = dir
       @log_dir = log_dir
       @env = env
+      @services_meta = services_meta
       @timeout_s = timeout_s
       @store = store
       FileUtils.mkdir_p(log_dir)
@@ -32,7 +35,7 @@ module Sentinel
       path = hook_path(service, hook)
       ts = Time.now.utc.strftime("%Y%m%dT%H%M%SZ")
       log_file = log_file_for(hook, ts)
-      env = @env.merge("SERVICE" => service, "DRY_RUN" => dry_run ? "true" : "false")
+      env = @env.merge(service_env(service), "SERVICE" => service, "DRY_RUN" => dry_run ? "true" : "false")
       transition_id = record_start(service, hook, log_file)
 
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -49,6 +52,12 @@ module Sentinel
     private
 
     def hook_path(service, hook) = File.join(@dir, service, hook)
+
+    def service_env(service)
+      meta = @services_meta[service] or return {}
+
+      { "PRIMARY" => meta[:primary], "STANDBY" => meta[:standby] }
+    end
 
     # promote/demote get one file per run (bash parity: logs/promote-<ts>.log); the frequent
     # hooks (health, replicate) share one appended file, rotated once past ROTATE_BYTES.
