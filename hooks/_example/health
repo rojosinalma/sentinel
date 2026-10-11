@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Example hook: proves the wiring end to end without touching real infrastructure.
+set -euo pipefail
+echo "$(date -u +%FT%TZ) [example-health] args=$* SERVICE=${SERVICE:-} ACTING_NODE=${ACTING_NODE:-}"
+exit 0

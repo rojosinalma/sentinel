@@ -2,7 +2,7 @@
 
 require "json"
 require "roda"
-require_relative "lib/logger"
+require_relative "lib/log"
 require_relative "lib/config"
 require_relative "lib/workers"
 
@@ -32,15 +32,76 @@ class App < Roda
   def json_ok(message, **data) = { ok: true, message: message, **data }
   def json_err(message, **data) = { ok: false, message: message, **data }
 
+  # The sentinel runtime (nil on a plain standby-status instance without NODE_NAME).
+  def sentinel
+    defined?(::Sentinel) && ::Sentinel.enabled? ? ::Sentinel.runtime : nil
+  end
+
   route do |r|
     r.public
 
     r.get("health") { json_ok("healthy", served_by: ::Config.fetch("HOST_NAME"), version: ::Config.fetch("APP_VERSION")) }
 
+    # --- sentinel: byte-compatible with the bash sentinel's :4197/status
+    r.get "status" do
+      rt = sentinel
+      unless rt
+        response.status = 503
+        next json_err("sentinel not enabled on this instance (NODE_NAME unset)")
+      end
+      response["content-type"] = "application/json"
+      response["cache-control"] = "no-store"
+      ::Sentinel::Status.to_json(
+        ::Sentinel::Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config])
+      )
+    end
+
+    r.on "peer" do
+      rt = sentinel
+      unless rt
+        response.status = 503
+        next json_err("sentinel not enabled on this instance (NODE_NAME unset)")
+      end
+
+      r.get "view" do
+        response["content-type"] = "application/json"
+        response["cache-control"] = "no-store"
+        JSON.generate(rt[:loop].peer_view || {})
+      end
+
+      r.post "lease" do
+        status, body = rt[:lease].handle_request(JSON.parse(r.body.read))
+        response.status = status
+        body
+      rescue JSON::ParserError
+        response.status = 400
+        json_err("invalid JSON body")
+      end
+
+      r.post "lease/release" do
+        status, body = rt[:lease].handle_release(JSON.parse(r.body.read))
+        response.status = status
+        body
+      rescue JSON::ParserError
+        response.status = 400
+        json_err("invalid JSON body")
+      end
+    end
+
     r.on "api" do
       r.get("status") do
         response["cache-control"] = "no-store"
         ::Status.current
+      end
+
+      r.get "events" do
+        rt = sentinel
+        unless rt
+          response.status = 503
+          next json_err("sentinel not enabled on this instance (NODE_NAME unset)")
+        end
+        limit = (r.params["limit"] || 200).to_i.clamp(1, 1000)
+        json_ok("events", events: rt[:store].events(limit: limit, kind: r.params["kind"]))
       end
     end
 

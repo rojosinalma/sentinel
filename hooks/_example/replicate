@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Example hook: in a real service this re-asserts the fence and the public routes.
+set -euo pipefail
+echo "$(date -u +%FT%TZ) [example-replicate] args=$* SERVICE=${SERVICE:-} DRY_RUN=${DRY_RUN:-}"
+exit 0
