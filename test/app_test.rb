@@ -37,6 +37,7 @@ File.write(File.join(APP_TEST_ROOT, "cluster.yml"), APP_CLUSTER)
   "OPENCODE_CONFIG_DIR" => File.join(APP_TEST_ROOT, "config"),
   "NODE_A_HOST" => "127.0.0.1",
   "NODE_A_OPENCODE_URL" => "http://127.0.0.1:1",
+  "SN_ENV" => "/nonexistent-env",
   "TCP_TIMEOUT_S" => "1",
   "HTTP_TIMEOUT_S" => "1",
   "PEER_TIMEOUT_S" => "1",
