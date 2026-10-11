@@ -7,7 +7,7 @@
   probes/http probes/tcp probes/icmp probes host_view classifier
   transport gossip lease routes
   hooks decider loop
-  status boot
+  status actions mcp_server boot
 ].each do |name|
   path = File.expand_path("sentinel/#{name}.rb", __dir__)
   require path if File.exist?(path)

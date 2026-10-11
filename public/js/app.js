@@ -188,4 +188,171 @@
   setInterval(tick, refreshMs);
   setInterval(() => { if (previous) render(previous); }, 1000); // keep the timers ticking between polls
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+  window.appToast = toast;
+  window.appEsc = esc;
+  window.appFmtAgo = fmtAgo;
+  window.appFmtDur = fmtDur;
+})();
+
+// sentinel cluster view: polls /api/sentinel + events/transitions on instances that run the
+// sentinel (NODE_NAME set); a 503 means this is a plain status instance and the row stays hidden.
+(function () {
+  const refreshMs = Math.max(2, Number(window.STANDBY.refreshS || 10)) * 1000;
+  const $ = (id) => document.getElementById(id);
+  const esc = window.appEsc, toast = window.appToast, fmtAgo = window.appFmtAgo;
+  let enabled = null; // null = unknown yet
+  let holdBusy = false;
+
+  const classTint = { ok: 'val-ok', degraded: 'val-warn', dead: 'val-bad', isolated: 'val-warn' };
+  const kindTint = {
+    'decision': 'tint-orange', 'transition.start': 'tint-orange', 'transition.end': 'tint-purple',
+    'lease.grant': 'tint-cyan', 'lease.deny': 'tint-red', 'class.change': 'tint-yellow',
+    'notify': 'tint-pink', 'hold': 'tint-yellow', 'boot': 'tint-green', 'heartbeat': 'tint-muted'
+  };
+
+  async function getJSON(url) {
+    const r = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (r.status === 503) { enabled = false; return null; }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  async function post(url, data) {
+    const body = new URLSearchParams();
+    Object.entries(data || {}).forEach(([k, v]) => body.append(k, v));
+    const r = await fetch(url, { method: 'POST', body });
+    return r.json();
+  }
+
+  function renderCluster(d) {
+    $('sn-row').classList.remove('d-none');
+    $('sn-node').textContent = `${d.node}${d.acting ? ' · acting node' : ''}`;
+    $('sn-acting').textContent = d.acting ? '' : `read-only: acting node is ${d.standby}`;
+    $('flag-quorum').classList.toggle('d-none', d.quorum === 'up');
+
+    const rows = Object.entries(d.hosts || {}).map(([name, h]) => {
+      const cls = (d.classes || {})[name] || '?';
+      const probes = ['ssh', 'icmp', 'traefik'].filter((p) => h[p])
+        .map((p) => `<span class="${h[p] === 'up' ? 'val-ok' : 'val-bad'}" title="${p}">${p}</span>`).join(' ');
+      const svc = h.opencode ? `<span class="${h.opencode.startsWith('up') ? 'val-ok' : 'val-bad'}">${esc(h.opencode)}</span>` : '<span class="val-muted">—</span>';
+      const peer = name === d.node ? '<span class="val-muted">self</span>'
+        : (d.reachable_peers || []).includes(name) ? '<span class="val-ok">reachable</span>' : '<span class="val-bad">unreachable</span>';
+      const role = (d.roles || {})[name] === 'witness' ? ' <span class="stat-sub">witness</span>' : '';
+      return `<tr><th>${esc(name)}${role}</th><td><span class="${classTint[cls] || 'val-muted'}">${esc(cls)}</span> ${svc}</td><td>${probes}</td><td>${peer}</td></tr>`;
+    });
+    $('sn-cluster').innerHTML = rows.join('');
+    $('sn-quorum').innerHTML = `quorum <span class="${d.quorum === 'up' ? 'val-ok' : 'val-bad'}">${esc(d.quorum)}</span> · agreed class of ${esc(Object.keys(d.hosts || {})[0] || 'primary')}: <span class="${classTint[d.agreed_class] || ''}">${esc(d.agreed_class)}</span>${d.busy ? ' · <span class="val-warn">transition in progress</span>' : ''}`;
+    $('sn-lease').textContent = d.lease
+      ? `lease: ${d.lease.holder} ${d.lease.action} until ${d.lease.expires_at}`
+      : 'lease: none';
+    const routes = [];
+    if (d.route_primary) routes.push(`routes → ${d.route_primary}`);
+    if (d.ha_connectors != null) routes.push(`${d.ha_connectors} tunnel connectors`);
+    if (d.standby_stack) routes.push(`stack ${d.standby_stack}`);
+    $('sn-routes').textContent = routes.join(' · ');
+
+    if (!holdBusy) $('sn-hold-switch').checked = !!d.hold;
+    ['sn-promote', 'sn-demote', 'sn-promote-dry', 'sn-demote-dry'].forEach((id) => {
+      $(id).disabled = !d.acting || d.busy || !!d.action_running;
+    });
+  }
+
+  function renderEvents(events) {
+    const rows = (events || []).filter((e) => e.kind !== 'heartbeat').slice(0, 15).map((e) =>
+      `<tr><td class="text-nowrap stat-sub" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
+      `<td class="text-nowrap"><span class="badge badge-tint ${kindTint[e.kind] || 'tint-muted'}">${esc(e.kind)}</span></td>` +
+      `<td>${esc(e.message)}</td></tr>`);
+    $('sn-events').innerHTML = rows.join('');
+    $('sn-events-empty').classList.toggle('d-none', rows.length > 0);
+    $('sn-events-meta').textContent = rows.length ? `${rows.length} shown · heartbeats hidden` : '';
+  }
+
+  function renderTransitions(transitions) {
+    const rows = (transitions || []).slice(0, 6).map((t) => {
+      const ok = t.result === 'ok';
+      const dur = t.data && t.data.duration_s ? ` · ${t.data.duration_s}s` : '';
+      return `<dt>${esc(t.action)}</dt><dd><span class="${ok ? 'val-ok' : 'val-bad'}">${esc(t.result || 'running…')}</span>` +
+        `<span class="stat-sub"> ${fmtAgo(t.started_at)}${dur} · ${esc(t.node || '')}</span></dd>`;
+    });
+    $('sn-transitions').innerHTML = rows.join('');
+    $('sn-transitions-empty').classList.toggle('d-none', rows.length > 0);
+  }
+
+  async function tick() {
+    if (enabled === false) return;
+    try {
+      const d = await getJSON('/api/sentinel');
+      if (!d) return;
+      enabled = true;
+      renderCluster(d);
+      const [ev, tr] = await Promise.all([getJSON('/api/events?limit=40'), getJSON('/api/transitions?limit=6')]);
+      if (ev) renderEvents(ev.events);
+      if (tr) renderTransitions(tr.transitions);
+    } catch (e) { /* the stale badge of the main poller covers it */ }
+  }
+
+  // ---- actions
+  const modal = () => bootstrap.Modal.getOrCreateInstance($('sn-modal'));
+
+  function openConfirm(action) {
+    $('sn-modal-title').textContent = `Confirm ${action}`;
+    $('sn-modal-text').textContent = action === 'demote'
+      ? 'Hands the primary back: stops the standby pair, restores the reverse replica onto the primary and starts it. Type the word to confirm.'
+      : 'Makes the standby primary: fences the current primary, restores the replica and starts the standby pair. Type the word to confirm.';
+    const input = $('sn-modal-input');
+    input.classList.remove('d-none'); input.value = ''; input.placeholder = action;
+    $('sn-modal-output').classList.add('d-none');
+    const go = $('sn-modal-go');
+    go.classList.remove('d-none'); go.disabled = true; go.dataset.action = action;
+    input.oninput = () => { go.disabled = input.value.trim() !== action; };
+    modal().show();
+    setTimeout(() => input.focus(), 300);
+  }
+
+  function openOutput(title, text) {
+    $('sn-modal-title').textContent = title;
+    $('sn-modal-text').textContent = '';
+    $('sn-modal-input').classList.add('d-none');
+    $('sn-modal-go').classList.add('d-none');
+    const out = $('sn-modal-output');
+    out.classList.remove('d-none'); out.textContent = text;
+    modal().show();
+  }
+
+  document.querySelectorAll('#sn-promote, #sn-demote, #sn-promote-dry, #sn-demote-dry').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const action = btn.dataset.action;
+      if (btn.dataset.dry) {
+        btn.disabled = true;
+        try {
+          const res = await post(`/api/${action}`, { dry_run: 'true' });
+          openOutput(`${action} --dry-run`, res.message || '(no output)');
+        } finally { btn.disabled = false; }
+      } else {
+        openConfirm(action);
+      }
+    });
+  });
+
+  $('sn-modal-go').addEventListener('click', async () => {
+    const action = $('sn-modal-go').dataset.action;
+    $('sn-modal-go').disabled = true;
+    const data = { confirm: action };
+    const res = await post(`/api/${action}`, data);
+    modal().hide();
+    toast(res.ok ? 'warning' : 'error', res.message);
+    tick();
+  });
+
+  $('sn-hold-switch').addEventListener('change', async (e) => {
+    holdBusy = true;
+    try {
+      const res = await post('/api/hold', { on: e.target.checked ? 'true' : 'false' });
+      toast(res.ok ? (e.target.checked ? 'warning' : 'success') : 'error', res.message);
+      if (!res.ok) e.target.checked = !e.target.checked;
+    } finally { holdBusy = false; }
+  });
+
+  tick();
+  setInterval(tick, refreshMs);
 })();
