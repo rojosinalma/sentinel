@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Build the image and distribute it like the standby images: push to node-a's registry and GHCR,
-# then pre-pull on node-b through its read-only registry mirror. Never prints the GHCR token.
+# Build the image and distribute it: amd64 to node-a's registry (+ pre-pull on node-b), multi-arch
+# (amd64 + arm64 for the witness-1 witness) to GHCR via buildx. Never prints the GHCR token.
 #
 #   bin/release [tag]        default tag: VERSION file; `sha` uses the git short sha
 #   RELEASE_NO_STANDBY=1        skip the node-b pre-pull
+#   RELEASE_NO_GHCR=1        skip the multi-arch GHCR push (local + node-a registry only)
 #
 # Tunables (env, with defaults): REGISTRY, REGISTRY_MIRROR, GHCR_REPO, GHCR_USER, SERVER_ENV, NODE_B_SSH.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REGISTRY="${REGISTRY:-registry.example.com}"
-REGISTRY_MIRROR="${REGISTRY_MIRROR:-registry.example.com}"
-GHCR_REPO="${GHCR_REPO:-ghcr.io/rojosinalma/standby-status}"
+GHCR_REPO="${GHCR_REPO:-ghcr.io/rojosinalma/sentinel}"
 GHCR_USER="${GHCR_USER:-rojosinalma}"
 SERVER_ENV="${SERVER_ENV:-$HOME/.config/opencode/server.env}"
 NODE_B_SSH="${NODE_B_SSH:-node-b}"
-NAME=standby-status
+NAME=sentinel
 
 tag="${1:-$(tr -d '[:space:]' < VERSION)}"
 [[ "$tag" == sha ]] && tag="$(git rev-parse --short HEAD)"
@@ -33,19 +33,23 @@ docker tag "$local_ref" "$REGISTRY/$NAME:$tag"
 log "pushing $REGISTRY/$NAME:$tag"
 docker push -q "$REGISTRY/$NAME:$tag" >/dev/null
 
-[[ -r "$SERVER_ENV" ]] || fail "cannot read $SERVER_ENV for GHCR_TOKEN"
-grep -q '^GHCR_TOKEN=' "$SERVER_ENV" || fail "no GHCR_TOKEN in $SERVER_ENV"
-sed -n 's/^GHCR_TOKEN=//p' "$SERVER_ENV" | head -n1 | tr -d "\"'" \
-  | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1 || fail "docker login ghcr.io failed"
-docker tag "$local_ref" "$GHCR_REPO:$tag"
-log "pushing $GHCR_REPO:$tag"
-docker push -q "$GHCR_REPO:$tag" >/dev/null
-
-if [[ "${RELEASE_NO_STANDBY:-0}" != 1 ]]; then
-  log "pre-pulling $REGISTRY_MIRROR/$NAME:$tag on node-b"
-  ssh -o BatchMode=yes -o ConnectTimeout=10 "$NODE_B_SSH" "sudo -n docker pull -q $REGISTRY_MIRROR/$NAME:$tag" >/dev/null \
-    || fail "pre-pull on node-b failed (is the registry mirror up?)"
+if [[ "${RELEASE_NO_GHCR:-0}" != 1 ]]; then
+  [[ -r "$SERVER_ENV" ]] || fail "cannot read $SERVER_ENV for GHCR_TOKEN"
+  grep -q '^GHCR_TOKEN=' "$SERVER_ENV" || fail "no GHCR_TOKEN in $SERVER_ENV"
+  sed -n 's/^GHCR_TOKEN=//p' "$SERVER_ENV" | head -n1 | tr -d "\"'" \
+    | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1 || fail "docker login ghcr.io failed"
+  log "pushing $GHCR_REPO:$tag (multi-arch amd64+arm64 via buildx)"
+  docker buildx build --platform linux/amd64,linux/arm64 \
+    --build-arg APP_VERSION="$tag" --build-arg BUILD_TIME="$built" \
+    --label "org.opencontainers.image.source=https://github.com/rojosinalma/sentinel" \
+    -t "$GHCR_REPO:$tag" --push . >/dev/null 2>&1 || fail "buildx multi-arch push failed"
 fi
 
-log "done: $REGISTRY/$NAME:$tag  $GHCR_REPO:$tag  (node-b: $REGISTRY_MIRROR/$NAME:$tag)"
+if [[ "${RELEASE_NO_STANDBY:-0}" != 1 ]]; then
+  log "pre-pulling $REGISTRY/$NAME:$tag on node-b"
+  ssh -o BatchMode=yes -o ConnectTimeout=10 "$NODE_B_SSH" "docker pull -q $REGISTRY/$NAME:$tag" >/dev/null \
+    || fail "pre-pull on node-b failed"
+fi
+
+log "done: $REGISTRY/$NAME:$tag  $GHCR_REPO:$tag"
 echo "$tag"
