@@ -92,23 +92,34 @@ class GossipTest < Minitest::Test
   end
 
   def test_agreement
-    hosts = { "node-a" => { "class" => "dead" } }
+    hosts = { "node-a" => { "classes" => { "opencode" => "dead" } } }
     apps = { "http://node-a:4197" => ->(*) { raise "down" },
              "http://witness-1:4197" => ->(*) { [200, view_body("witness-1", at: iso(@clock.now), hosts: hosts)] } }
     g = gossip(apps)
     g.poll!
-    assert_equal({ "node-b" => :dead, "witness-1" => :dead }, g.classes_for("node-a", :dead))
-    assert_equal :dead, g.agreed_class("node-a", :dead)
-    assert_equal :ok, g.agreed_class("node-a", :ok), "1 dead vote of 2 present is no dead majority"
+    assert_equal({ "node-b" => :dead, "witness-1" => :dead }, g.classes_for("opencode", "node-a", :dead))
+    assert_equal :dead, g.agreed_class("opencode", "node-a", :dead)
+    assert_equal :ok, g.agreed_class("opencode", "node-a", :ok), "1 dead vote of 2 present is no dead majority"
+  end
+
+  def test_agreement_is_per_service
+    hosts = { "node-a" => { "classes" => { "opencode" => "dead", "other" => "ok" } } }
+    apps = { "http://node-a:4197" => ->(*) { raise "down" },
+             "http://witness-1:4197" => ->(*) { [200, view_body("witness-1", at: iso(@clock.now), hosts: hosts)] } }
+    g = gossip(apps)
+    g.poll!
+    assert_equal :dead, g.agreed_class("opencode", "node-a", :dead)
+    assert_equal :ok, g.agreed_class("other", "node-a", :dead), "the peer's vote on 'other' is ok"
+    assert_equal({ "node-b" => :dead }, g.classes_for("unknown", "node-a", :dead), "no peer vote on an unknown service")
   end
 
   def test_agreement_disagreeing_peer
-    hosts = { "node-a" => { "class" => "ok" } }
+    hosts = { "node-a" => { "classes" => { "opencode" => "ok" } } }
     apps = { "http://node-a:4197" => ->(*) { raise "down" },
              "http://witness-1:4197" => ->(*) { [200, view_body("witness-1", at: iso(@clock.now), hosts: hosts)] } }
     g = gossip(apps)
     g.poll!
-    assert_equal :ok, g.agreed_class("node-a", :dead), "1 dead vote of 2 present is no majority"
+    assert_equal :ok, g.agreed_class("opencode", "node-a", :dead), "1 dead vote of 2 present is no majority"
   end
 
   def test_primary_newest_wins
@@ -130,18 +141,23 @@ class GossipTest < Minitest::Test
 
   def test_local_view_shape_and_seq
     g = gossip({ "http://node-a:4197" => ->(*) { raise "x" }, "http://witness-1:4197" => ->(*) { raise "x" } })
-    hosts = { "node-a" => Sentinel::HostView.new(name: "node-a", opencode: "down", ssh: "up",
-                                                 icmp: "up", traefik: "up", probed_at: @clock.now) }
+    hosts = { "node-a" => Sentinel::HostView.new(name: "node-a", services: { "opencode" => "down", "other" => "up 1" },
+                                                 ssh: "up", icmp: "up", traefik: "up", probed_at: @clock.now),
+              "witness-1" => Sentinel::HostView.new(name: "witness-1", ssh: "up", probed_at: @clock.now) }
+    classes = { "opencode" => { "node-a" => :degraded, "witness-1" => :ok }, "other" => { "node-a" => :ok } }
     2.times do |i|
-      body = g.local_view(hosts: hosts, classes: { "node-a" => :degraded },
+      body = g.local_view(hosts: hosts, classes: classes,
                           primary: { "opencode" => "node-a" },
                           primary_at: { "opencode" => iso(@clock.now) },
                           hold: false, transition: nil, quorum: "up")
       assert_equal "node-b", body["node"]
       assert_equal i + 1, body["seq"]
-      assert_equal "degraded", body.dig("hosts", "node-a", "class")
+      assert_equal({ "opencode" => "degraded", "other" => "ok" }, body.dig("hosts", "node-a", "classes"))
+      assert_equal({ "opencode" => "ok" }, body.dig("hosts", "witness-1", "classes"), "no entry for a service without a vote")
+      assert_equal({ "opencode" => "down", "other" => "up 1" }, body.dig("hosts", "node-a", "services"))
       assert_equal "up", body.dig("hosts", "node-a", "ssh")
       refute body.dig("hosts", "node-a").key?("name")
+      refute body.dig("hosts", "node-a").key?("class"), "schema v2 has no single class"
       assert body.key?("lease")
       assert_equal "2026-01-01T12:00:00Z", body["at"]
     end

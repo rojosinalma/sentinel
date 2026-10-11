@@ -234,7 +234,8 @@
       const cls = (d.classes || {})[name] || '?';
       const probes = ['ssh', 'icmp', 'traefik'].filter((p) => h[p])
         .map((p) => `<span class="${h[p] === 'up' ? 'val-ok' : 'val-bad'}" title="${p}">${p}</span>`).join(' ');
-      const svc = h.opencode ? `<span class="${h.opencode.startsWith('up') ? 'val-ok' : 'val-bad'}">${esc(h.opencode)}</span>` : '<span class="val-muted">—</span>';
+      const st = (h.services || {})[d.service];
+      const svc = st ? `<span class="${st.startsWith('up') ? 'val-ok' : 'val-bad'}">${esc(st)}</span>` : '<span class="val-muted">—</span>';
       const peer = name === d.node ? '<span class="val-muted">self</span>'
         : (d.reachable_peers || []).includes(name) ? '<span class="val-ok">reachable</span>' : '<span class="val-bad">unreachable</span>';
       const role = (d.roles || {})[name] === 'witness' ? ' <span class="stat-sub">witness</span>' : '';

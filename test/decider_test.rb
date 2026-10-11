@@ -17,6 +17,14 @@ class DeciderTest < Minitest::Test
     @decider = Sentinel::Decider.new(config: CONFIG, state: @state)
   end
 
+  # Primary mode has a maintenance cadence (:watch_maintenance) that never changes who is
+  # primary; these tests care about transitions, so both count as "no transition".
+  NO_TRANSITION = %i[none watch_maintenance].freeze
+
+  def assert_no_transition(result)
+    assert_includes NO_TRANSITION, result.action
+  end
+
   def step(mode: "node-a", agreed_class: :ok, quorum: "up", auto_promote: "on",
            auto_failback: "on", host_health: nil, **extra)
     @decider.step(now: @clock.now, mode: mode, agreed_class: agreed_class, quorum: quorum,
@@ -25,13 +33,13 @@ class DeciderTest < Minitest::Test
   end
 
   def test_promote_after_sustained_degraded
-    assert_equal :none, step.action
+    assert_no_transition step
     r = step(agreed_class: :degraded)
-    assert_equal :none, r.action
+    assert_no_transition r
     assert(r.log.any? { |l| l.include?("DOWN: degraded") })
 
     @clock.advance(59)
-    assert_equal :none, step(agreed_class: :degraded).action
+    assert_no_transition step(agreed_class: :degraded)
 
     @clock.advance(2)
     r = step(agreed_class: :degraded)
@@ -41,7 +49,7 @@ class DeciderTest < Minitest::Test
 
   def test_dead_path_promote_fast
     4.times do
-      assert_equal :none, step(agreed_class: :dead).action
+      assert_no_transition step(agreed_class: :dead)
       @clock.advance(2)
     end
     r = step(agreed_class: :dead)
@@ -61,13 +69,13 @@ class DeciderTest < Minitest::Test
 
   def test_isolated_notifies_once_and_never_acts
     r = step(agreed_class: :isolated, quorum: "down")
-    assert_equal :none, r.action
+    assert_no_transition r
     assert_equal 1, r.notify.size
     assert_match(/isolated/, r.notify.first[0])
 
     @clock.advance(300)
     r = step(agreed_class: :isolated, quorum: "down")
-    assert_equal :none, r.action
+    assert_no_transition r
     assert(r.notify.none? { |(t, _b, _y)| t.include?("isolated") }, "isolated notify is once")
   end
 
@@ -94,7 +102,7 @@ class DeciderTest < Minitest::Test
     step(agreed_class: :degraded)
     @clock.advance(61)
     r = step(agreed_class: :degraded, auto_promote: "off")
-    assert_equal :none, r.action
+    assert_no_transition r
     assert(r.log.any? { |l| l.include?("AUTO_PROMOTE=off") })
   end
 
@@ -102,7 +110,7 @@ class DeciderTest < Minitest::Test
     step(agreed_class: :degraded)
     @clock.advance(61)
     r = step(agreed_class: :degraded, quorum: "down")
-    assert_equal :none, r.action
+    assert_no_transition r
     assert(r.log.any? { |l| l.include?("no quorum") })
   end
 
@@ -112,7 +120,7 @@ class DeciderTest < Minitest::Test
     step(agreed_class: :degraded)
     @clock.advance(61)
     r = step(agreed_class: :degraded)
-    assert_equal :none, r.action
+    assert_no_transition r
     assert_operator r.gates[:promote_cooldown_left_s], :>, 0
     assert(r.log.any? { |l| l.include?("cooldown") })
   end
@@ -123,7 +131,7 @@ class DeciderTest < Minitest::Test
     step(agreed_class: :degraded)
     @clock.advance(61)
     r = step(agreed_class: :degraded)
-    assert_equal :none, r.action
+    assert_no_transition r
     assert(r.log.any? { |l| l.include?("retry in") })
 
     # marker aging past PROMOTE_RETRY_S unblocks
@@ -210,6 +218,38 @@ class DeciderTest < Minitest::Test
     assert_equal 0, snap[:dead_polls]
     assert_equal 30, snap[:failback_after_s]
     assert_includes snap.keys, :promote_cooldown_left_s
+  end
+
+  def test_watch_maintenance_cadence_in_primary_mode
+    assert_equal :watch_maintenance, step.action, "first primary cycle runs the warm upkeep"
+    @clock.advance(2)
+    assert_equal :none, step.action
+    @clock.advance(27)
+    assert_equal :none, step.action, "29s in: not due"
+    @clock.advance(1)
+    assert_equal :watch_maintenance, step.action, "STACK_CHECK_INTERVAL_S reached"
+    @clock.advance(30)
+    assert_equal :watch_maintenance, step(agreed_class: :degraded).action, "fires regardless of class"
+    @clock.advance(30)
+    assert_equal :watch_maintenance, step(agreed_class: :isolated, quorum: "down").action
+  end
+
+  def test_watch_maintenance_yields_to_promote
+    step(agreed_class: :degraded)
+    @clock.advance(61)
+    assert_equal :promote, step(agreed_class: :degraded).action, "the transition wins the action slot"
+  end
+
+  def test_watch_maintenance_not_in_standby_mode_and_resets_on_return
+    step
+    @clock.advance(30)
+    assert_equal :fence_and_route, step(mode: "node-b", host_health: "up").action
+    @clock.advance(2)
+    assert_equal :stack_check, step(mode: "node-b", host_health: "up").action
+    @clock.advance(2)
+    assert_equal :none, step(mode: "node-b", host_health: "up").action
+    @clock.advance(2)
+    assert_equal :watch_maintenance, step.action, "back in primary mode: the timer restarted"
   end
 
   def test_mode_switch_resets

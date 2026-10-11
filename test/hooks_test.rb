@@ -37,6 +37,18 @@ class HooksTest < Minitest::Test
     refute_nil row[:finished_at]
   end
 
+  def test_services_meta_supplies_primary_standby_per_service
+    hooks = Sentinel::Hooks.new(
+      dir: File.expand_path("../hooks", __dir__), log_dir: @log_dir,
+      env: { "ACTING_NODE" => "node-b", "STATE_DIR" => @state_dir },
+      services_meta: { "_example" => { primary: "alpha", standby: "beta" } },
+      timeout_s: 5, store: @store
+    )
+    result = hooks.run("_example", "promote")
+    assert(result.output_tail.any? { |l| l.include?("PRIMARY=alpha STANDBY=beta") })
+    assert_equal "beta\n", File.read(File.join(@state_dir, "mode"))
+  end
+
   def test_demote_writes_primary_back
     @hooks.run("_example", "promote")
     @hooks.run("_example", "demote", "--yes")

@@ -13,8 +13,9 @@ module Sentinel
       return @runtime if @runtime
 
       cluster = Config.cluster
-      service = cluster.services.values.first or raise Config::Error, "no services in cluster.yml"
-      tunables = loop_config(cluster, service)
+      raise Config::Error, "no services in cluster.yml" if cluster.services.empty?
+
+      tunables = loop_config(cluster)
       store = Store.open(Config.fetch(:DB_PATH), node: cluster.node_name)
       state = State.new(Config.fetch(:STATE_DIR))
       gossip = Gossip.new(cluster: cluster, transport: Transport::Http.new(timeout: Config.fetch(:PEER_TIMEOUT_S)),
@@ -22,18 +23,21 @@ module Sentinel
       lease = Lease.new(cluster: cluster, transport: Transport::Http.new(timeout: Config.fetch(:PEER_TIMEOUT_S)),
                         store: store, ttl_s: Config.fetch(:LEASE_TTL_S))
       hooks = Hooks.new(dir: File.expand_path("../../hooks", __dir__), log_dir: Config.fetch(:LOG_DIR),
-                        env: hook_env(cluster, service, state), timeout_s: Config.fetch(:HOOK_TIMEOUT_S),
-                        store: store)
-      decider = Decider.new(config: tunables, state: state)
+                        env: hook_env(cluster, state), services_meta: services_meta(cluster),
+                        timeout_s: Config.fetch(:HOOK_TIMEOUT_S), store: store)
+      deciders = cluster.services.to_h do |name, service|
+        [name, Decider.new(config: decider_config(tunables, service), state: state)]
+      end
       loop = Loop.new(config: tunables, cluster: cluster, store: store, state: state,
                       probes: Probes, gossip: gossip, lease: lease, hooks: hooks,
-                      decider: decider, notifier: notifier)
+                      deciders: deciders, notifier: notifier)
 
-      @runtime = { cluster: cluster, service: service, config: tunables, store: store,
+      @runtime = { cluster: cluster, config: tunables, store: store,
                    state: state, gossip: gossip, lease: lease, hooks: hooks, loop: loop }.freeze
-      store.event!("boot", "sentinel up on #{cluster.node_name} (acting=#{loop.acting?})")
-      $log.info "[boot] sentinel node=#{cluster.node_name} service=#{service.name} " \
-                "acting=#{loop.acting?} majority=#{cluster.majority}"
+      acting = loop.acting_services
+      store.event!("boot", "sentinel up on #{cluster.node_name} (acting for #{acting.empty? ? 'none' : acting.join(',')})")
+      $log.info "[boot] sentinel node=#{cluster.node_name} services=#{cluster.services.keys.join(',')} " \
+                "acting=#{acting.join(',')} majority=#{cluster.majority}"
       @runtime
     end
 
@@ -42,7 +46,8 @@ module Sentinel
       @runtime[:loop].start! if @runtime
     end
 
-    def loop_config(cluster, service)
+    # The node-wide tunables; the per-service Decider gets these plus decider_config.
+    def loop_config(cluster)
       basic = Config.fetch(:OPENCODE_SERVER_PASSWORD).then do |pass|
         pass.empty? ? nil : [Config.fetch(:OPENCODE_SERVER_USERNAME), pass]
       end
@@ -56,10 +61,7 @@ module Sentinel
         auto_promote: Config.fetch(:AUTO_PROMOTE),
         auto_failback: Config.fetch(:AUTO_FAILBACK),
         basic: basic,
-        primary: service.primary,
-        standby: service.standby,
-        service: service.name,
-        label: "#{service.name}-#{service.standby}",
+        events_keep_days: Config.fetch(:EVENTS_KEEP_DAYS),
         quorum_targets: cluster.quorum_tcp,
         route_mode: Config.fetch(:ROUTE_MODE),
         ha_routes_bin: Config.fetch(:HA_ROUTES_BIN),
@@ -79,14 +81,26 @@ module Sentinel
       }.freeze
     end
 
-    def hook_env(cluster, service, state)
+    def decider_config(tunables, service)
+      tunables.merge(
+        primary: service.primary,
+        standby: service.standby,
+        service: service.name,
+        label: "#{service.name}-#{service.standby}"
+      ).freeze
+    end
+
+    # Node-wide hook environment; PRIMARY/STANDBY come from services_meta per run.
+    def hook_env(cluster, state)
       {
         "ACTING_NODE" => cluster.node_name,
-        "PRIMARY" => service.primary,
-        "STANDBY" => service.standby,
         "STATE_DIR" => File.expand_path(state.dir),
         "SN_ENV" => ENV.fetch("SN_ENV", File.expand_path("../../.env", __dir__))
       }.freeze
+    end
+
+    def services_meta(cluster)
+      cluster.services.transform_values { |s| { primary: s.primary, standby: s.standby }.freeze }.freeze
     end
 
     # Best-effort, the bash notify(): Discord and/or Apprise when configured, otherwise a log line.

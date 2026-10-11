@@ -26,6 +26,7 @@ module Sentinel
       @classification = :ok
       @flips = 0
       @stack = nil
+      @last_watch = nil
       reset_primary_watch!
       reset_standby_watch!
     end
@@ -65,6 +66,7 @@ module Sentinel
     def reset_for_mode!(_mode)
       reset_primary_watch!
       reset_standby_watch!
+      @last_watch = nil
       @classification = :ok
     end
 
@@ -74,6 +76,9 @@ module Sentinel
 
     def primary_cycle(now, cls, quorum, auto_promote, probes_str, version)
       reset_standby_watch!
+      # Warm-follower upkeep (hooks/<service>/replicate warm) runs on the primary's own cadence
+      # regardless of class; promotions outrank it in the single action slot.
+      watch_due = @last_watch.nil? || now - @last_watch >= @c[:stack_check_interval_s]
 
       if cls == :ok
         if @down_since
@@ -86,7 +91,7 @@ module Sentinel
         end
         reset_primary_watch!
         @classification = :ok
-        return result(:none)
+        return watch_or_none(now, watch_due)
       end
 
       unless @down_since
@@ -134,7 +139,14 @@ module Sentinel
         return result(:promote)
       end
 
-      result(:none)
+      watch_or_none(now, watch_due)
+    end
+
+    def watch_or_none(now, watch_due)
+      return result(:none) unless watch_due
+
+      @last_watch = now
+      result(:watch_maintenance)
     end
 
     # The bash gate order: AUTO_PROMOTE -> quorum -> cooldown -> retry. Each block logs, throttled.
@@ -157,6 +169,7 @@ module Sentinel
 
     def standby_cycle(now, host_health, auto_failback)
       reset_primary_watch!
+      @last_watch = nil
       @classification = :ok
       @host_health = host_health
 

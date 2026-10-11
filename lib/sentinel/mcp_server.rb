@@ -49,8 +49,9 @@ module Sentinel
                       "node's view (byte-compatible with the bash sentinel's /status); events and " \
                       "the transitions inside it are the SQLite audit trail. hold blocks automatic " \
                       "failback; promote/demote run the service hooks under a majority lease and " \
-                      "only work on the acting node (node-b for opencode). Both are destructive: " \
-                      "pass confirm with the action name, or dry_run true to see the plan.",
+                      "only work on the acting node of the service (its standby). Both are destructive: " \
+                      "pass confirm with the action name, or dry_run true to see the plan. Every " \
+                      "service-scoped tool takes an optional service (default opencode).",
         tools: TOOLS
       )
     end
@@ -63,20 +64,28 @@ module Sentinel
       text(Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config]))
     end
 
+    SERVICE_ARG = { type: "string", description: "Service name from cluster.yml (default opencode)" }.freeze
+
+    def service_arg(args) = (args[:service] || Status::LEGACY_SERVICE).to_s
+
     register "cluster",
-             "The cluster view: every host's probes and agreed class, reachable peers, quorum, " \
-             "current lease, last transitions.",
-             { properties: {}, required: [] } do
+             "The cluster view for one service: every host's probes and agreed class, reachable " \
+             "peers, quorum, current lease, last transitions. Lists every configured service.",
+             { properties: { service: SERVICE_ARG }, required: [] } do |args|
       rt = runtime
+      name = service_arg(args)
+      service = rt[:cluster].services[name] or raise ArgumentError, "unknown service #{name.inspect}"
       doc = rt[:loop].last || {}
+      entry = doc.dig(:services, name) || {}
       text({
-             node: rt[:cluster].node_name, acting: rt[:loop].acting?, mode: doc[:mode],
-             agreed_class: doc[:agreed_class], quorum: doc[:quorum],
-             reachable_peers: doc[:reachable_peers], classes: doc[:classes],
+             node: rt[:cluster].node_name, service: name, services: rt[:cluster].services.keys,
+             acting: rt[:loop].acting?(name), mode: entry[:mode],
+             agreed_class: entry[:agreed_class], quorum: doc[:quorum],
+             reachable_peers: doc[:reachable_peers], classes: doc.dig(:classes, name),
              hosts: (doc[:views] || {}).transform_values(&:to_h),
-             lease: rt[:store].lease_current(rt[:service].name),
+             lease: rt[:store].lease_current(service.name),
              hold: rt[:state].hold?, transition: rt[:state].transition,
-             transitions: rt[:store].transitions(limit: 5)
+             transitions: rt[:store].transitions(service: name, limit: 5)
            })
     end
 
@@ -109,6 +118,7 @@ module Sentinel
              "lease. Destructive: requires confirm=\"promote\" (or dry_run). Only works on the " \
              "acting node. Runs in the background; follow it with events.",
              { properties: {
+                 service: SERVICE_ARG,
                  confirm: { type: "string", description: "Must be the word \"promote\"" },
                  dry_run: { type: "boolean", description: "Print the plan, change nothing" },
                  fast: { type: "boolean", description: "Skip the ssh fence (host confirmed dead)" },
@@ -118,12 +128,12 @@ module Sentinel
       args_list << "--fast" if args[:fast]
       args_list << "--force" if args[:force]
       if args[:dry_run]
-        ok, message = Actions.transition!(runtime, "promote", args_list, dry_run: true, who: "mcp")
+        ok, message = Actions.transition!(runtime, service_arg(args), "promote", args_list, dry_run: true, who: "mcp")
       elsif args[:confirm] != "promote"
         ok = false
         message = 'refused: pass confirm="promote" (or dry_run=true)'
       else
-        ok, message = Actions.transition!(runtime, "promote", args_list, who: "mcp")
+        ok, message = Actions.transition!(runtime, service_arg(args), "promote", args_list, who: "mcp")
       end
       text({ ok: ok, message: message })
     end
@@ -132,16 +142,17 @@ module Sentinel
              "Hand the primary back by running the demote hook under a majority lease. " \
              "Destructive: requires confirm=\"demote\" (or dry_run). Only works on the acting node.",
              { properties: {
+                 service: SERVICE_ARG,
                  confirm: { type: "string", description: "Must be the word \"demote\"" },
                  dry_run: { type: "boolean", description: "Print the plan, change nothing" }
                }, required: [] } do |args|
       if args[:dry_run]
-        ok, message = Actions.transition!(runtime, "demote", [], dry_run: true, who: "mcp")
+        ok, message = Actions.transition!(runtime, service_arg(args), "demote", [], dry_run: true, who: "mcp")
       elsif args[:confirm] != "demote"
         ok = false
         message = 'refused: pass confirm="demote" (or dry_run=true)'
       else
-        ok, message = Actions.transition!(runtime, "demote", ["--yes"], who: "mcp")
+        ok, message = Actions.transition!(runtime, service_arg(args), "demote", ["--yes"], who: "mcp")
       end
       text({ ok: ok, message: message })
     end

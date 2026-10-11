@@ -63,17 +63,18 @@ module Sentinel
     # its own eyes. Without it the node is the isolated one and never acts.
     def quorum? = reachable_peers.size + 1 >= @cluster.majority
 
-    def classes_for(host_name, local_class)
+    # Votes on one service of one host: {"node" => :sym} from this node plus every fresh view.
+    def classes_for(service_name, host_name, local_class)
       classes = { @cluster.node_name => local_class }
       views.each do |node, body|
-        cls = body.dig("hosts", host_name, "class")
+        cls = body.dig("hosts", host_name, "classes", service_name)
         classes[node] = cls.to_sym if cls
       end
       classes
     end
 
-    def agreed_class(host_name, local_class)
-      Classifier.agree(classes_for(host_name, local_class), majority: @cluster.majority)
+    def agreed_class(service_name, host_name, local_class)
+      Classifier.agree(classes_for(service_name, host_name, local_class), majority: @cluster.majority)
     end
 
     # The replicated primary: newest primary_at wins across fresh views and the local store.
@@ -90,7 +91,8 @@ module Sentinel
       candidates.max_by(&:first)&.last
     end
 
-    # The body /peer/view serves. seq is monotonic and survives restarts via the store.
+    # The body /peer/view serves (schema v2: every host carries "classes" {service => class}).
+    # classes: {service => {host => :sym}}. seq is monotonic and survives restarts via the store.
     def local_view(hosts:, classes:, primary:, primary_at:, hold:, transition:, quorum:)
       seq = @store.get("gossip.seq").to_i + 1
       @store.set("gossip.seq", seq)
@@ -101,7 +103,8 @@ module Sentinel
         "primary" => primary,
         "primary_at" => primary_at,
         "hosts" => hosts.to_h do |name, view|
-          [name, view.to_h.except("name").merge("class" => classes[name].to_s)]
+          host_classes = classes.filter_map { |service, by_host| [service, by_host[name].to_s] if by_host[name] }.to_h
+          [name, view.to_h.except("name").merge("classes" => host_classes)]
         end,
         "quorum" => quorum,
         "reachable_peers" => reachable_peers,
