@@ -104,6 +104,14 @@ module Sentinel
       nil
     end
 
+    # Content of a state file, stripped, or nil when absent (e.g. stack from the hooks).
+    def read(name)
+      content = File.read(path(name)).strip
+      content.empty? ? nil : content
+    rescue Errno::ENOENT
+      nil
+    end
+
     # Mode changes within the window, from the last HISTORY_TAIL lines of mode.history
     # (lines: "<iso> <mode>"), exactly the bash flips_in_window.
     def flips_in_window(window_s, now: Time.now)

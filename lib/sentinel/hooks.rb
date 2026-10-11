@@ -11,6 +11,8 @@ module Sentinel
 
     TAIL_LINES = 20
     TERM_GRACE_S = 10
+    TRANSITION_HOOKS = %w[promote demote].freeze
+    ROTATE_BYTES = 5 * 1024 * 1024
 
     def initialize(dir:, log_dir:, env: {}, timeout_s: 900, store: nil)
       @dir = dir
@@ -29,7 +31,7 @@ module Sentinel
     def run(service, hook, *args, dry_run: false)
       path = hook_path(service, hook)
       ts = Time.now.utc.strftime("%Y%m%dT%H%M%SZ")
-      log_file = File.join(@log_dir, "#{hook}-#{ts}.log")
+      log_file = log_file_for(hook, ts)
       env = @env.merge("SERVICE" => service, "DRY_RUN" => dry_run ? "true" : "false")
       transition_id = record_start(service, hook, log_file)
 
@@ -47,6 +49,16 @@ module Sentinel
     private
 
     def hook_path(service, hook) = File.join(@dir, service, hook)
+
+    # promote/demote get one file per run (bash parity: logs/promote-<ts>.log); the frequent
+    # hooks (health, replicate) share one appended file, rotated once past ROTATE_BYTES.
+    def log_file_for(hook, ts)
+      return File.join(@log_dir, "#{hook}-#{ts}.log") if TRANSITION_HOOKS.include?(hook)
+
+      file = File.join(@log_dir, "#{hook}.log")
+      File.rename(file, "#{file}.1") if File.exist?(file) && File.size(file) > ROTATE_BYTES
+      file
+    end
 
     def execute(path, args, env, log_file)
       File.open(log_file, "a") do |out|

@@ -5,7 +5,7 @@
 %w[
   config workers store state
   probes/http probes/tcp probes/icmp probes host_view classifier
-  transport gossip lease
+  transport gossip lease routes
   hooks decider loop
   status boot
 ].each do |name|

@@ -46,6 +46,11 @@ module Sentinel
       "DISCORD_WEBHOOK_URL"     => "",
       "APPRISE_URL"             => "",
       "ROUTE_MODE"              => "ha-routes",
+      "HA_ROUTES_BIN"           => "",
+      "HA_TUNNEL_ID"            => "",
+      "CF_API_TOKEN"            => "",
+      "CF_ACCOUNT_ID"           => "",
+      "ROUTE_TIMEOUT_S"         => 60,
       "LOG_LEVEL"               => "info"
     }.freeze
 

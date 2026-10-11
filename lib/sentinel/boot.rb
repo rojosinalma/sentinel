@@ -62,6 +62,8 @@ module Sentinel
         label: "#{service.name}-#{service.standby}",
         quorum_targets: cluster.quorum_tcp,
         route_mode: Config.fetch(:ROUTE_MODE),
+        ha_routes_bin: Config.fetch(:HA_ROUTES_BIN),
+        route_timeout_s: Config.fetch(:ROUTE_TIMEOUT_S),
         promote_after_s: Config.fetch(:PROMOTE_AFTER_S),
         failback_after_s: Config.fetch(:FAILBACK_AFTER_S),
         promote_cooldown_s: Config.fetch(:PROMOTE_COOLDOWN_S),
@@ -82,7 +84,8 @@ module Sentinel
         "ACTING_NODE" => cluster.node_name,
         "PRIMARY" => service.primary,
         "STANDBY" => service.standby,
-        "STATE_DIR" => File.expand_path(state.dir)
+        "STATE_DIR" => File.expand_path(state.dir),
+        "SN_ENV" => File.expand_path("../../.env", __dir__)
       }.freeze
     end
 

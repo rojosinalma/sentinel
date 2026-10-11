@@ -12,7 +12,7 @@ module Sentinel
   # plus everything the Decider takes.
   class Loop
     def initialize(config:, cluster:, store:, state:, probes:, gossip:, lease:, hooks:, decider:,
-                   notifier:, now: -> { Time.now })
+                   notifier:, routes: Routes, now: -> { Time.now })
       @config = config
       @cluster = cluster
       @store = store
@@ -23,6 +23,7 @@ module Sentinel
       @hooks = hooks
       @decider = decider
       @notifier = notifier
+      @routes = routes
       @now = now
       @service = cluster.services.values.first or raise ArgumentError, "no service configured"
       @acting = cluster.node_name == @service.standby
@@ -34,6 +35,9 @@ module Sentinel
       @last_health_probe = nil
       @last_heartbeat = nil
       @prev_agreed = nil
+      @route_primary = nil
+      @ha_connectors = nil
+      @last_route_probe = nil
     end
 
     attr_reader :service
@@ -92,6 +96,7 @@ module Sentinel
       # 7: decide and act (acting node only)
       if @acting
         refresh_host_health(now, mode, views)
+        refresh_routes(now)
         result = @decider.step(
           now: now, mode: mode, agreed_class: agreed, quorum: quorum,
           host_health: @host_health, auto_promote: @config[:auto_promote],
@@ -178,10 +183,28 @@ module Sentinel
       @last_health_probe = now
       @host_health =
         if @hooks.exists?(@service.name, "health")
-          @hooks.health(@service.name).exit_code.zero? ? "up" : "down health-hook"
+          parse_health(@hooks.health(@service.name))
         else
           "up"
         end
+    end
+
+    # The health hook prints "up" or "down <reason>" as its last line.
+    def parse_health(result)
+      line = result.output_tail.reverse.find { |l| l == "up" || l.start_with?("down") }
+      line || (result.exit_code.zero? ? "up" : "down health-hook")
+    end
+
+    # route_primary / ha_connectors at the host-health cadence, bash refresh_route_primary.
+    def refresh_routes(now)
+      return if @last_route_probe && (now - @last_route_probe) < @config[:host_health_interval_s]
+
+      @last_route_probe = now
+      @route_primary = @routes.primary_current(bin: @config[:ha_routes_bin],
+                                               timeout: @config[:route_timeout_s],
+                                               route_mode: @config[:route_mode])
+      @ha_connectors = @routes.connectors_current(bin: @config[:ha_routes_bin],
+                                                  timeout: @config[:http_timeout_s])
     end
 
     # ---------------------------------------------------------------- actions
@@ -195,9 +218,9 @@ module Sentinel
       when :failback
         transition("demote", ["--yes", "--auto"], failure_marker: "failback-failed", success_mode: @service.primary)
       when :fence_and_route
-        @hooks.replicate(@service.name) if @hooks.exists?(@service.name, "replicate")
+        @hooks.run(@service.name, "replicate", "fence") if @hooks.exists?(@service.name, "replicate")
       when :stack_check
-        @hooks.health(@service.name) if @hooks.exists?(@service.name, "health")
+        @hooks.run(@service.name, "replicate", "stack") if @hooks.exists?(@service.name, "replicate")
       end
     end
 
@@ -265,7 +288,9 @@ module Sentinel
         at: now, node: @cluster.node_name, mode: mode, service: @service.name,
         acting: @acting, busy: busy, views: views, classes: classes, agreed_class: agreed,
         quorum: quorum, reachable_peers: @gossip.reachable_peers, decider: snapshot,
-        hold: @state.hold?, transition: @state.transition
+        hold: @state.hold?, transition: @state.transition,
+        route_primary: @route_primary, ha_connectors: @ha_connectors,
+        standby_stack: mode == @service.standby ? @state.read("stack") : nil
       }
       @mutex.synchronize do
         @last = doc
