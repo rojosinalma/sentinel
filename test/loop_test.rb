@@ -291,6 +291,24 @@ class LoopTest < Minitest::Test
     assert_empty File.readlines(File.join(h[:log_dir], "replicate.log")).grep(/SERVICE=_example2/)
   end
 
+  def test_standby_with_service_stopped_is_standby_not_degraded
+    h = build_loop
+    h[:probes].take_down("node-b", "_example")
+    h[:loop].cycle!
+    assert_equal :standby, h[:loop].last[:classes]["_example"]["node-b"]
+    assert_equal :ok, svc(h)[:agreed_class], "the primary is what gets judged"
+
+    # once promoted, node-b is the one in charge: its stopped service is a real degradation
+    h[:probes].take_down("node-a", "_example")
+    h[:loop].cycle!
+    h[:clock].advance(61)
+    h[:loop].cycle!
+    assert_equal "node-b", svc(h)[:mode]
+    h[:loop].cycle!
+    assert_equal :degraded, h[:loop].last[:classes]["_example"]["node-b"]
+    assert_equal :degraded, h[:loop].last[:classes]["_example"]["node-a"], "the primary host is never relabelled"
+  end
+
   def test_two_services_outage_of_one_leaves_the_other_alone
     h = build_loop(cluster_yml: TWO_SERVICES_YML)
     h[:loop].cycle!

@@ -25,6 +25,15 @@ class ClassifierTest < Minitest::Test
     assert_equal :degraded, classify("down", quorum: "up", icmp: "up")
   end
 
+  def test_classify_standby
+    view = view(ssh: "up")
+    assert_equal :standby, Sentinel::Classifier.classify("down", view, quorum: "up", standing_by: true)
+    assert_equal :ok, Sentinel::Classifier.classify("up 2.0.25", view, quorum: "up", standing_by: true)
+    assert_equal :isolated, Sentinel::Classifier.classify("down", view, quorum: "down", standing_by: true)
+    assert_equal :dead, Sentinel::Classifier.classify("down", view(), quorum: "up", standing_by: true),
+                 "a dark standby host is dead, whatever its role"
+  end
+
   def test_classify_dead
     assert_equal :dead, classify("down", quorum: "up")
     assert_equal :dead, classify(nil, quorum: "up"), "a service the host does not report is down"
