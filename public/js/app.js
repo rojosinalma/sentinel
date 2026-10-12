@@ -203,7 +203,7 @@
   let enabled = null; // null = unknown yet
   let holdBusy = false;
 
-  const classTint = { ok: 'val-ok', degraded: 'val-warn', dead: 'val-bad', isolated: 'val-warn' };
+  const classTint = { ok: 'val-ok', standby: 'val-muted', degraded: 'val-warn', dead: 'val-bad', isolated: 'val-warn' };
   const kindTint = {
     'decision': 'tint-orange', 'transition.start': 'tint-orange', 'transition.end': 'tint-purple',
     'lease.grant': 'tint-cyan', 'lease.deny': 'tint-red', 'class.change': 'tint-yellow',

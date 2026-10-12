@@ -90,15 +90,17 @@ module Sentinel
     def cycle!
       now = @now.call
 
-      # 1+2: probe every host in parallel, classify every service on every host locally
+      # 1+2: probe every host in parallel, classify every service on every host locally (the
+      # standby label needs the current mode, so gossip is polled first)
       views = probe_all(now)
       tcp_quorum = @probes.quorum(@cluster.quorum_tcp, timeout: @config[:tcp_timeout_s])
+      @gossip.poll!
+      modes = @services.to_h { |name, service| [name, current_mode(service)] }
       classes = @services.to_h do |name, service|
-        [name, views.to_h { |host, view| [host, classify_host(service, host, view, tcp_quorum)] }]
+        [name, views.to_h { |host, view| [host, classify_host(service, host, view, tcp_quorum, modes[name])] }]
       end
 
-      # 3+4: gossip, agreement
-      @gossip.poll!
+      # 3+4: agreement
       quorum = @gossip.quorum? && tcp_quorum != "down" ? "up" : "down"
       busy = @state.busy?
 
@@ -109,7 +111,7 @@ module Sentinel
       actions = {}
       @services.each do |name, service|
         agreed = @gossip.agreed_class(name, service.primary, classes[name][service.primary])
-        mode = current_mode(service)
+        mode = modes[name]
         entries[name] = entry(service, mode: mode, agreed: agreed, busy: busy, now: now)
         next if busy
 
@@ -169,10 +171,13 @@ module Sentinel
     end
 
     # The bash classifier is service-centric and applies to hosts that carry the service; a
-    # host without one (witness) is judged on reachability alone.
-    def classify_host(service, host_name, view, quorum)
+    # host without one (witness) is judged on reachability alone. The standby of a service whose
+    # primary is in charge is expected to have the service stopped, so it is `standby`, not
+    # degraded; the primary host itself is never relabelled (the decider reads its class).
+    def classify_host(service, host_name, view, quorum, mode)
       if service.health.key?(host_name)
-        return Classifier.classify(view.service_state(service.name), view, quorum: quorum)
+        standing_by = host_name == service.standby && mode != service.standby
+        return Classifier.classify(view.service_state(service.name), view, quorum: quorum, standing_by: standing_by)
       end
       return :ok if view.any_host_probe_up?
 
