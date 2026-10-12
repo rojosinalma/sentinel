@@ -4,7 +4,7 @@
 # speak to <host>:4197. Node-a is not the acting node, so no docker socket / ssh mounts here.
 services:
   sentinel:
-    image: registry.example.com/sentinel:${SENTINEL_TAG:-0.3.0}
+    image: registry.example.com/sentinel:${SENTINEL_TAG:-0.3.1}
     container_name: sentinel
     restart: unless-stopped
     environment:
