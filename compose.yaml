@@ -4,7 +4,7 @@
 # speak to <host>:4197. Silver is not the acting node, so no docker socket / ssh mounts here.
 services:
   sentinel:
-    image: registry.example.internal/sentinel:${SENTINEL_TAG:-0.4.0}
+    image: registry.example.internal/sentinel:${SENTINEL_TAG:-0.4.1}
     container_name: sentinel
     restart: unless-stopped
     environment:
@@ -20,6 +20,13 @@ services:
       - type: bind
         source: ./hooks
         target: /app/hooks
+        read_only: true
+        bind:
+          create_host_path: false
+      # cluster.yml from the checkout too: a voter change is a file drop + restart, no release
+      - type: bind
+        source: ./config
+        target: /app/config
         read_only: true
         bind:
           create_host_path: false
