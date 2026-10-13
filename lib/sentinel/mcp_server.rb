@@ -50,8 +50,8 @@ module Sentinel
                       "lease, hold); status is the legacy single-service /status document (pass " \
                       "service for another one); events and transitions are the SQLite audit trail, " \
                       "filterable by service. hold blocks automatic failback, node-wide or for one " \
-                      "service; promote/demote run that service's hooks under a majority lease and " \
-                      "only work on its acting node (its standby). Both are destructive: pass confirm " \
+                      "service; promote/demote run that service's hooks under a majority lease on its acting " \
+                      "node (its standby) - any node forwards there. Both are destructive: pass confirm " \
                       "with the action name, or dry_run true to see the plan. service defaults to " \
                       "the legacy service where a default is stated.",
         tools: TOOLS
@@ -131,8 +131,8 @@ module Sentinel
 
     register "promote",
              "Make the standby primary by running the service's promote hook under a majority " \
-             "lease. Destructive: requires confirm=\"promote\" (or dry_run). Only works on the " \
-             "acting node. Runs in the background; follow it with events.",
+             "lease. Destructive: requires confirm=\"promote\" (or dry_run). Forwarded to the " \
+             "acting node when called elsewhere. Runs in the background; follow it with events.",
              { properties: {
                  service: SERVICE_ARG,
                  confirm: { type: "string", description: "Must be the word \"promote\"" },
@@ -156,7 +156,7 @@ module Sentinel
 
     register "demote",
              "Hand the primary back by running the demote hook under a majority lease. " \
-             "Destructive: requires confirm=\"demote\" (or dry_run). Only works on the acting node.",
+             "Destructive: requires confirm=\"demote\" (or dry_run). Forwarded to the acting node when called elsewhere.",
              { properties: {
                  service: SERVICE_ARG,
                  confirm: { type: "string", description: "Must be the word \"demote\"" },

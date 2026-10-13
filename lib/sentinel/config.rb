@@ -32,6 +32,7 @@ module Sentinel
       "TCP_TIMEOUT_S"           => 2,
       "HTTP_TIMEOUT_S"          => 5,
       "PEER_TIMEOUT_S"          => 2,
+      "FORWARD_TIMEOUT_S"       => 60,
       "PEER_STALE_S"            => 10,
       "LEASE_TTL_S"             => 30,
       "LEASE_RENEW_S"           => 10,
