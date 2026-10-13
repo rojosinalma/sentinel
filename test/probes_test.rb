@@ -168,6 +168,49 @@ class ProbesTest < Minitest::Test
   end
 
   # A one-shot HTTP server: accepts connections and writes a canned response.
+
+  # tunables.probe_timeout_s: a service answering slower than the node-wide budget is still "up"
+  # when its own budget allows it (2026-10-13: a loaded opencode at >3 s read as degraded).
+  def test_per_service_timeout_lets_a_slow_service_pass
+    with_slow_http_server(200, '{"version":"9.9.9"}', delay: 1.5) do |svc_port|
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
+                          role: :member, probes: {})
+      urls = { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" }
+
+      slow = Sentinel::Probes.host(host, service_urls: urls, timeout: 1)
+      assert_equal "down", slow.service_state("opencode"), "node-wide 1 s budget: killed"
+    end
+    with_slow_http_server(200, '{"version":"9.9.9"}', delay: 1.5) do |svc_port|
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
+                          role: :member, probes: {})
+      urls = { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" }
+      view = Sentinel::Probes.host(host, service_urls: urls, timeout: 1,
+                                         service_timeouts: { "opencode" => 4 })
+      assert_equal "up 9.9.9", view.service_state("opencode"), "its own 4 s budget: up"
+    end
+  end
+
+  def with_slow_http_server(code, body, delay:)
+    server = TCPServer.new("127.0.0.1", 0)
+    port = server.addr[1]
+    thread = Thread.new do
+      loop do
+        client = server.accept
+        client.readpartial(4096) rescue nil
+        sleep delay
+        client.write("HTTP/1.1 #{code} OK\r\nContent-Type: application/json\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}")
+        client.close
+      end
+    rescue IOError, Errno::EBADF
+      nil
+    end
+    yield port
+  ensure
+    server&.close
+    thread&.kill
+  end
+
   def with_http_server(code, body)
     server = TCPServer.new("127.0.0.1", 0)
     port = server.addr[1]

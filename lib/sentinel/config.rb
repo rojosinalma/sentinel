@@ -14,6 +14,7 @@ module Sentinel
       "CLUSTER_FILE"            => "config/cluster.yml",
       "POLL_INTERVAL_S"         => 2,
       "DEAD_CONFIRM_POLLS"      => 5,
+      "DEGRADED_CONFIRM_POLLS"  => 1,
       "PROMOTE_AFTER_S"         => 60,
       "FAILBACK_AFTER_S"        => 30,
       "PROMOTE_COOLDOWN_S"      => 120,
@@ -66,9 +67,13 @@ module Sentinel
     end
 
     # Decider timers a service may override in cluster.yml (`tunables:`); the rest is node-wide.
+    # probe_timeout_s is consumed by the probe fan-out (loop), degraded_confirm_polls by the
+    # decider: both exist because one service (opencode under load) needs a laxer probe than
+    # the node-wide 2 s without touching every other check.
     SERVICE_TUNABLES = %i[promote_after_s failback_after_s promote_cooldown_s promote_retry_s
                           failback_retry_s flap_flips flap_window_s flap_failback_after_s
-                          dead_confirm_polls notify_down_after_s fence_interval_s
+                          dead_confirm_polls degraded_confirm_polls probe_timeout_s
+                          notify_down_after_s fence_interval_s
                           stack_check_interval_s host_health_interval_s].freeze
 
     # How a service's public hostnames follow its primary: mode ha-routes (the core runs

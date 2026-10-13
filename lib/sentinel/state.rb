@@ -158,7 +158,11 @@ module Sentinel
     end
 
     # Mode changes within the window, from the last HISTORY_TAIL lines of mode.history
-    # (lines: "<iso> <mode>"), exactly the bash flips_in_window.
+    # (lines: "<iso> <mode>"), exactly the bash flips_in_window. Deliberate: a failed demote
+    # writes two lines (primary at start, standby at rollback) and therefore counts as two
+    # flips — conservative on purpose, since a rollback is itself a sign of instability and the
+    # only effect is a longer failback_after. A pattern-based dedupe was tried on 2026-10-14 and
+    # rejected: it cannot tell a rollback from a quick re-attempt and undercounts a flip storm.
     def flips_in_window(window_s, now: Time.now)
       f = path("mode.history")
       return 0 unless File.file?(f)

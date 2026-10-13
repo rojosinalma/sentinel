@@ -11,7 +11,7 @@ module Sentinel
   module Probes
     module_function
 
-    def host(host, service_urls: {}, service_probes: {}, timeout:, now: Time.now)
+    def host(host, service_urls: {}, service_probes: {}, timeout:, service_timeouts: {}, now: Time.now)
       jobs = {}
       if (ssh_port = host.probes[:ssh])
         jobs[:ssh] = -> { Tcp.open?(host.address, ssh_port, timeout: timeout) }
@@ -24,15 +24,18 @@ module Sentinel
       end
       service_urls = service_urls || {}
       service_probes = service_probes || {}
+      service_timeouts = service_timeouts || {}
       service_urls.each do |service, url|
         probe = service_probes[service]
+        svc_timeout = service_timeouts[service] || timeout
         jobs[[:service, service]] = lambda do
           service_status(url, basic: probe&.basic, headers: probe&.headers,
-                              resolve_ip: probe&.resolve_ip(host.name), timeout: timeout)
+                              resolve_ip: probe&.resolve_ip(host.name), timeout: svc_timeout)
         end
       end
 
-      results = Workers.parallel(jobs, timeout: timeout + 1.0)
+      deadline = [timeout, *service_timeouts.values].max
+      results = Workers.parallel(jobs, timeout: deadline + 1.0)
       HostView.new(
         name: host.name,
         services: service_urls.keys.to_h do |service|

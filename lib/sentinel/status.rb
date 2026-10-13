@@ -29,7 +29,11 @@ module Sentinel
       state = state.for(service)
 
       {
-        "mode" => entry[:mode],
+        # Live from the state file, not the cycle snapshot: a transition hook writes the mode
+        # mid-run while the loop is blocked inside it, and both service-guards' ExecCondition
+        # act on this field. Serving the stale snapshot kept node-b's unit skipped through the
+        # whole 2026-10-13 promote (and node-a's through both auto-demotes).
+        "mode" => state.mode(default: svc.primary),
         "since" => iso_or_nil(state.mode_since),
         "primary_service" => view&.service_state(service) || "down",
         "primary_service_version" => view&.version(service),
@@ -102,7 +106,7 @@ module Sentinel
         sstate = state.for(name)
         [name, {
           primary: svc.primary, standby: svc.standby, acting: loop.acting?(name),
-          mode: entry ? entry[:mode] : sstate.mode(default: svc.primary),
+          mode: sstate.mode(default: svc.primary), # live file, same reason as the legacy doc
           since: (store && store.get("primary_at.#{name}")) || iso_or_nil(sstate.mode_since),
           agreed_class: entry && entry[:agreed_class]&.to_s,
           classification: entry&.dig(:decider, :classification),

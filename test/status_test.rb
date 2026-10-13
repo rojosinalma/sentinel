@@ -211,4 +211,24 @@ class StatusTest < Minitest::Test
     assert_nil e[:action_running]
     refute_match(/"token"/, JSON.generate(v1))
   end
+
+  # The mode is read live from the state file, not the cycle snapshot: a transition hook moves
+  # it while the loop is blocked inside the hook, and the guards' ExecCondition act on this
+  # field (2026-10-13: the stale snapshot kept the standby refusing to start for 593 s).
+  def test_mode_is_live_while_a_hook_holds_the_cycle
+    @h[:loop].cycle!
+    doc = Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config],
+                                 now: @h[:clock].now, service: "_example")
+    assert_equal "node-a", doc["mode"]
+
+    @h[:state].for("_example").set_mode!("node-b", now: @h[:clock].now) # what a running hook does
+    doc = Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config],
+                                 now: @h[:clock].now, service: "_example")
+    assert_equal "node-b", doc["mode"], "no new cycle ran, the mode must still be the live file"
+
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now,
+                             config: @h[:config])
+    assert_equal "node-b", v1[:services]["_example"][:mode]
+  end
+
 end

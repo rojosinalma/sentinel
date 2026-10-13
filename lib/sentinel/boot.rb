@@ -72,6 +72,7 @@ module Sentinel
         flap_window_s: Config.fetch(:FLAP_WINDOW_S),
         flap_failback_after_s: Config.fetch(:FLAP_FAILBACK_AFTER_S),
         dead_confirm_polls: Config.fetch(:DEAD_CONFIRM_POLLS),
+        degraded_confirm_polls: Config.fetch(:DEGRADED_CONFIRM_POLLS),
         notify_down_after_s: Config.fetch(:NOTIFY_DOWN_AFTER_S),
         fence_interval_s: Config.fetch(:FENCE_INTERVAL_S),
         stack_check_interval_s: Config.fetch(:STACK_CHECK_INTERVAL_S)
