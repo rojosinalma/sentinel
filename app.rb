@@ -56,6 +56,14 @@ class App < Roda
     halt_json(r, 401, "Unauthorized: missing or invalid bearer token")
   end
 
+  # The optional ?service= / {service} argument, validated against cluster.yml; nil when absent.
+  def service_param(r, rt)
+    name = r.params["service"].to_s
+    return nil if name.empty?
+
+    rt[:cluster].services.key?(name) ? name : halt_json(r, 404, "unknown service #{name.inspect}")
+  end
+
   def halt_json(r, status, message)
     response.status = status
     response["content-type"] = "application/json"
@@ -132,16 +140,18 @@ class App < Roda
         ::Status.current
       end
 
+      # ?service= narrows both to one service; absent = every service (and node-level rows).
       r.get "events" do
         rt = sentinel!(r)
         limit = (r.params["limit"] || 200).to_i.clamp(1, 1000)
-        json_ok("events", events: rt[:store].events(limit: limit, kind: r.params["kind"]))
+        json_ok("events", events: rt[:store].events(limit: limit, kind: r.params["kind"],
+                                                    service: service_param(r, rt)))
       end
 
       r.get "transitions" do
         rt = sentinel!(r)
         limit = (r.params["limit"] || 50).to_i.clamp(1, 200)
-        json_ok("transitions", transitions: rt[:store].transitions(limit: limit))
+        json_ok("transitions", transitions: rt[:store].transitions(limit: limit, service: service_param(r, rt)))
       end
 
       # The generic, versioned document: every host, every service, neutral names.
@@ -170,26 +180,29 @@ class App < Roda
                 agreed_class: entry[:agreed_class],
                 quorum: doc[:quorum],
                 busy: entry[:busy] || false,
-                hold: rt[:state].hold?,
-                transition: rt[:state].transition,
+                hold: rt[:state].for(name).hold?,
+                transition: rt[:state].for(name).transition,
                 reachable_peers: doc[:reachable_peers] || [],
                 classes: doc.dig(:classes, name) || {},
                 hosts: (doc[:views] || {}).transform_values(&:to_h),
                 roles: rt[:cluster].hosts.transform_values { |h| h.role.to_s },
                 gates: entry[:decider] || {},
                 lease: rt[:store].lease_current(service.name),
-                route_primary: doc[:route_primary],
+                route_primary: ::Sentinel::Status.route_primary_for(doc, name),
                 ha_connectors: doc[:ha_connectors],
                 tiny_stack: entry[:tiny_stack],
                 action_running: ::Sentinel::Actions.running,
                 checked_at: doc[:at]&.utc&.strftime("%Y-%m-%dT%H:%M:%SZ"))
       end
 
+      # {on, service?}: without service the hold is node-wide (every service this node acts for).
       r.post "hold" do
         rt = sentinel!(r)
         on = %w[1 true yes on].include?(r.params["on"].to_s.downcase)
-        ok, message = ::Sentinel::Actions.hold!(rt, on: on, who: "dashboard")
-        ok ? json_ok(message, hold: rt[:state].hold?) : json_err(message)
+        service = service_param(r, rt)
+        ok, message = ::Sentinel::Actions.hold!(rt, on: on, who: "dashboard", service: service)
+        hold = service ? rt[:state].for(service).hold? : rt[:state].hold?
+        ok ? json_ok(message, hold: hold, service: service) : json_err(message)
       end
 
       r.post "promote" do

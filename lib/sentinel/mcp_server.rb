@@ -44,29 +44,41 @@ module Sentinel
         name: "sentinel",
         title: "sentinel",
         version: "1.0.0",
-        instructions: "The homelab's HA decision layer: one sentinel per host (silver, tiny, " \
-                      "witness-1 witness) agreeing on who is primary by majority. status shows this " \
-                      "node's view (byte-compatible with the bash sentinel's /status); events and " \
-                      "the transitions inside it are the SQLite audit trail. hold blocks automatic " \
-                      "failback; promote/demote run the service hooks under a majority lease and " \
-                      "only work on the acting node of the service (its standby). Both are destructive: " \
-                      "pass confirm with the action name, or dry_run true to see the plan. Every " \
-                      "service-scoped tool takes an optional service (default opencode).",
+        instructions: "The homelab's HA decision layer: one sentinel per cluster host (members plus " \
+                      "a witness) agreeing on who is primary for each service by majority. cluster " \
+                      "lists the configured services and shows one service's view (hosts, classes, " \
+                      "lease, hold); status is the legacy single-service /status document (pass " \
+                      "service for another one); events and transitions are the SQLite audit trail, " \
+                      "filterable by service. hold blocks automatic failback, node-wide or for one " \
+                      "service; promote/demote run that service's hooks under a majority lease and " \
+                      "only work on its acting node (its standby). Both are destructive: pass confirm " \
+                      "with the action name, or dry_run true to see the plan. service defaults to " \
+                      "the legacy service where a default is stated.",
         tools: TOOLS
       )
     end
 
-    register "status",
-             "This node's sentinel status: mode (who is primary), probe/classification state, " \
-             "quorum, gates, routes. The same document consumers read from /status.",
-             { properties: {}, required: [] } do
-      rt = runtime
-      text(Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config]))
-    end
-
-    SERVICE_ARG = { type: "string", description: "Service name from cluster.yml (default opencode)" }.freeze
+    SERVICE_ARG = { type: "string", description: "Service name from cluster.yml (default: the legacy service)" }.freeze
+    SERVICE_FILTER = { type: "string", description: "Only this service's rows (default: every service)" }.freeze
 
     def service_arg(args) = (args[:service] || Status::LEGACY_SERVICE).to_s
+
+    # nil when absent; an unknown name raises (the tool answers with the error text).
+    def service_filter(args)
+      name = args[:service].to_s
+      return nil if name.empty?
+
+      runtime[:cluster].services.key?(name) ? name : raise(ArgumentError, "unknown service #{name.inspect}")
+    end
+
+    register "status",
+             "This node's sentinel status for one service: mode (who is primary), " \
+             "probe/classification state, quorum, gates, routes. Without service it is the exact " \
+             "document consumers read from /status.",
+             { properties: { service: SERVICE_ARG }, required: [] } do |args|
+      rt = runtime
+      text(Status.build(loop: rt[:loop], state: rt[:state], config: rt[:config], service: service_arg(args)))
+    end
 
     register "cluster",
              "The cluster view for one service: every host's probes and agreed class, reachable " \
@@ -84,7 +96,7 @@ module Sentinel
              reachable_peers: doc[:reachable_peers], classes: doc.dig(:classes, name),
              hosts: (doc[:views] || {}).transform_values(&:to_h),
              lease: rt[:store].lease_current(service.name),
-             hold: rt[:state].hold?, transition: rt[:state].transition,
+             hold: rt[:state].for(name).hold?, transition: rt[:state].for(name).transition,
              transitions: rt[:store].transitions(service: name, limit: 5)
            })
     end
@@ -94,23 +106,27 @@ module Sentinel
              "lease grants/denies, transitions, notifications.",
              { properties: {
                  limit: { type: "integer", description: "Max rows (default 50, cap 500)" },
-                 kind: { type: "string", description: "Filter by kind, e.g. decision, lease.deny, transition.end" }
+                 kind: { type: "string", description: "Filter by kind, e.g. decision, lease.deny, transition.end" },
+                 service: SERVICE_FILTER
                }, required: [] } do |args|
       limit = (args[:limit] || 50).clamp(1, 500)
-      text(runtime[:store].events(limit: limit, kind: args[:kind]))
+      text(runtime[:store].events(limit: limit, kind: args[:kind], service: service_filter(args)))
     end
 
     register "hold",
              "Query or set the failback hold. With no argument reports the current state; " \
-             "on=true blocks automatic failback until released.",
+             "on=true blocks automatic failback until released. Without service the hold is " \
+             "node-wide (every service); with service it applies to that service only, and the " \
+             "answer folds the node-wide hold in.",
              { properties: {
-                 on: { type: "boolean", description: "true = block automatic failback, false = release" }
+                 on: { type: "boolean", description: "true = block automatic failback, false = release" },
+                 service: { type: "string", description: "Hold one service instead of the whole node" }
                }, required: [] } do |args|
       rt = runtime
-      if args.key?(:on)
-        Actions.hold!(rt, on: args[:on], who: "mcp")
-      end
-      text({ hold: rt[:state].hold? })
+      service = service_filter(args)
+      Actions.hold!(rt, on: args[:on], who: "mcp", service: service) if args.key?(:on)
+      hold = service ? rt[:state].for(service).hold? : rt[:state].hold?
+      text({ hold: hold, service: service, node_hold: rt[:state].hold? })
     end
 
     register "promote",

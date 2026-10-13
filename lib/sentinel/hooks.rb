@@ -3,11 +3,12 @@
 require "fileutils"
 
 module Sentinel
-  # Runs the per-service bash hooks (hooks/<service>/{health,replicate,promote,demote}) with a
-  # bounded lifetime and a log file per run. Exit codes pass through untouched: 0 done, 1 nothing
-  # changed, 2 done but degraded — the bash promote/demote contract. services_meta
-  # ({service => {primary:, standby:}}) supplies PRIMARY/STANDBY per run; env holds the
-  # node-wide variables (ACTING_NODE, STATE_DIR, SN_ENV).
+  # Runs the per-service bash hooks (hooks/<service>/{health,replicate,promote,demote}, or the
+  # service's hooks_dir) with a bounded lifetime and a log file per run. Exit codes pass through
+  # untouched: 0 done, 1 nothing changed, 2 done but degraded — the bash promote/demote contract.
+  # services_meta ({service => {primary:, standby:, hooks_dir:}}) supplies PRIMARY/STANDBY (and
+  # the hooks dir) per run; env holds the node-wide variables (ACTING_NODE, STATE_DIR, SN_ENV).
+  # The hook sees STATE_DIR=<node state dir>/<service> and NODE_STATE_DIR=<node state dir>.
   class Hooks
     Result = Struct.new(:exit_code, :log_file, :duration_s, :output_tail, keyword_init: true)
 
@@ -28,13 +29,15 @@ module Sentinel
 
     def exists?(service, hook) = File.executable?(hook_path(service, hook))
 
+    def hooks_dir(service) = @services_meta.dig(service, :hooks_dir) || File.join(@dir, service)
+
     def health(service) = run(service, "health")
     def replicate(service) = run(service, "replicate")
 
     def run(service, hook, *args, dry_run: false)
       path = hook_path(service, hook)
       ts = Time.now.utc.strftime("%Y%m%dT%H%M%SZ")
-      log_file = log_file_for(hook, ts)
+      log_file = log_file_for(service, hook, ts)
       env = @env.merge(service_env(service), "SERVICE" => service, "DRY_RUN" => dry_run ? "true" : "false")
       transition_id = record_start(service, hook, log_file)
 
@@ -51,20 +54,28 @@ module Sentinel
 
     private
 
-    def hook_path(service, hook) = File.join(@dir, service, hook)
+    def hook_path(service, hook) = File.join(hooks_dir(service), hook)
 
     def service_env(service)
-      meta = @services_meta[service] or return {}
-
-      { "PRIMARY" => meta[:primary], "STANDBY" => meta[:standby] }
+      env = {}
+      if (meta = @services_meta[service])
+        env["PRIMARY"] = meta[:primary]
+        env["STANDBY"] = meta[:standby]
+      end
+      if (node_dir = @env["STATE_DIR"])
+        env["NODE_STATE_DIR"] = node_dir
+        env["STATE_DIR"] = File.join(node_dir, service)
+        FileUtils.mkdir_p(env["STATE_DIR"])
+      end
+      env
     end
 
-    # promote/demote get one file per run (bash parity: logs/promote-<ts>.log); the frequent
-    # hooks (health, replicate) share one appended file, rotated once past ROTATE_BYTES.
-    def log_file_for(hook, ts)
-      return File.join(@log_dir, "#{hook}-#{ts}.log") if TRANSITION_HOOKS.include?(hook)
+    # promote/demote get one file per run (logs/<service>-promote-<ts>.log); the frequent hooks
+    # (health, replicate) share one appended file, rotated once past ROTATE_BYTES.
+    def log_file_for(service, hook, ts)
+      return File.join(@log_dir, "#{service}-#{hook}-#{ts}.log") if TRANSITION_HOOKS.include?(hook)
 
-      file = File.join(@log_dir, "#{hook}.log")
+      file = File.join(@log_dir, "#{service}-#{hook}.log")
       File.rename(file, "#{file}.1") if File.exist?(file) && File.size(file) > ROTATE_BYTES
       file
     end

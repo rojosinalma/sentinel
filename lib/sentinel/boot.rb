@@ -18,6 +18,7 @@ module Sentinel
       tunables = loop_config(cluster)
       store = Store.open(Config.fetch(:DB_PATH), node: cluster.node_name)
       state = State.new(Config.fetch(:STATE_DIR))
+      state.migrate_legacy!(Status::LEGACY_SERVICE)
       gossip = Gossip.new(cluster: cluster, transport: Transport::Http.new(timeout: Config.fetch(:PEER_TIMEOUT_S)),
                           store: store, stale_s: Config.fetch(:PEER_STALE_S))
       lease = Lease.new(cluster: cluster, transport: Transport::Http.new(timeout: Config.fetch(:PEER_TIMEOUT_S)),
@@ -26,7 +27,7 @@ module Sentinel
                         env: hook_env(cluster, state), services_meta: services_meta(cluster),
                         timeout_s: Config.fetch(:HOOK_TIMEOUT_S), store: store)
       deciders = cluster.services.to_h do |name, service|
-        [name, Decider.new(config: decider_config(tunables, service), state: state)]
+        [name, Decider.new(config: decider_config(tunables, service), state: state.for(name))]
       end
       loop = Loop.new(config: tunables, cluster: cluster, store: store, state: state,
                       probes: Probes, gossip: gossip, lease: lease, hooks: hooks,
@@ -48,9 +49,6 @@ module Sentinel
 
     # The node-wide tunables; the per-service Decider gets these plus decider_config.
     def loop_config(cluster)
-      basic = Config.fetch(:OPENCODE_SERVER_PASSWORD).then do |pass|
-        pass.empty? ? nil : [Config.fetch(:OPENCODE_SERVER_USERNAME), pass]
-      end
       {
         poll_interval_s: Config.fetch(:POLL_INTERVAL_S),
         tcp_timeout_s: Config.fetch(:TCP_TIMEOUT_S),
@@ -60,7 +58,6 @@ module Sentinel
         lease_renew_s: Config.fetch(:LEASE_RENEW_S),
         auto_promote: Config.fetch(:AUTO_PROMOTE),
         auto_failback: Config.fetch(:AUTO_FAILBACK),
-        basic: basic,
         events_keep_days: Config.fetch(:EVENTS_KEEP_DAYS),
         quorum_targets: cluster.quorum_tcp,
         route_mode: Config.fetch(:ROUTE_MODE),
@@ -81,12 +78,14 @@ module Sentinel
       }.freeze
     end
 
+    # Node-wide tunables, overridden by the service's cluster.yml `tunables`/`auto_promote`.
     def decider_config(tunables, service)
-      tunables.merge(
+      tunables.merge(service.tunables || {}).merge(
         primary: service.primary,
         standby: service.standby,
         service: service.name,
-        label: "#{service.name}-#{service.standby}"
+        label: "#{service.name}-#{service.standby}",
+        auto_promote: service.auto_promote.nil? ? tunables[:auto_promote] : (service.auto_promote ? "on" : "off")
       ).freeze
     end
 
@@ -99,8 +98,13 @@ module Sentinel
       }.freeze
     end
 
+    # hooks_dir from cluster.yml, relative to the repo root (default hooks/<service>).
     def services_meta(cluster)
-      cluster.services.transform_values { |s| { primary: s.primary, standby: s.standby }.freeze }.freeze
+      root = File.expand_path("../..", __dir__)
+      cluster.services.transform_values do |s|
+        { primary: s.primary, standby: s.standby,
+          hooks_dir: File.expand_path(s.hooks_dir || File.join("hooks", s.name), root) }.freeze
+      end.freeze
     end
 
     # Best-effort, the bash notify(): Discord and/or Apprise when configured, otherwise a log line.

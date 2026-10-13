@@ -43,13 +43,14 @@ module Sentinel
       id
     end
 
-    def events(limit: 200, since: nil, kind: nil)
+    def events(limit: 200, since: nil, kind: nil, service: nil)
       ds = @db[:events].reverse(:id).limit(limit)
       if since
         cutoff = iso(since)
         ds = ds.where { at >= cutoff }
       end
       ds = ds.where(kind: kind.to_s) if kind
+      ds = ds.where(service: service.to_s) if service
       ds.all.map { |row| row_with_data(row) }
     end
 

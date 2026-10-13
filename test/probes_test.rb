@@ -94,6 +94,39 @@ class ProbesTest < Minitest::Test
     assert_equal({}, Sentinel::Probes.host(host, timeout: 1).services)
   end
 
+  # The fake server echoes the request head back, so the test sees Host and Authorization.
+  def test_resolve_ip_keeps_the_url_host
+    with_echo_server do |port|
+      res = Sentinel::Probes::Http.get("http://sentinel-test.invalid:#{port}/health", resolve_ip: "127.0.0.1",
+                                                                                      timeout: 2)
+      assert_equal 200, res[:code], res.inspect
+      assert_match(/^Host: sentinel-test\.invalid:#{port}/m, res[:body])
+    end
+  end
+
+  def test_unresolvable_host_without_resolve_ip_errors
+    res = Sentinel::Probes::Http.get("http://sentinel-test.invalid:1/health", timeout: 1)
+    assert res[:error]
+  end
+
+  def test_per_service_credentials_and_headers
+    with_echo_server do |port|
+      host = FakeHost.new(name: "tiny", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
+      a = Sentinel::Config::Probe.new(basic: %w[alice pw-a], headers: { "X-Probe" => "a" }, resolve: {})
+      b = Sentinel::Config::Probe.new(basic: nil, headers: {}, resolve: { "tiny" => "127.0.0.1" })
+      urls = { "a" => "http://127.0.0.1:#{port}/a", "b" => "http://sentinel-test.invalid:#{port}/b" }
+      view = Sentinel::Probes.host(host, service_urls: urls, service_probes: { "a" => a, "b" => b }, timeout: 2)
+      assert_equal "up ?", view.service_state("a")
+      assert_equal "up ?", view.service_state("b"), "resolve ip for tiny made the bogus hostname reachable"
+
+      heads = @requests.join
+      assert_includes heads, "Authorization: Basic #{['alice:pw-a'].pack('m0')}"
+      assert_includes heads, "X-Probe: a"
+      assert_includes heads, "Host: sentinel-test.invalid:#{port}"
+      refute_includes @requests.find { |h| h.start_with?("GET /b") }, "Authorization", "b has no credential"
+    end
+  end
+
   def test_quorum
     server = TCPServer.new("127.0.0.1", 0)
     open_port = server.addr[1]
@@ -110,6 +143,29 @@ class ProbesTest < Minitest::Test
   end
 
   private
+
+  # Answers 200 with the request head as body and records every head in @requests.
+  def with_echo_server
+    @requests = []
+    server = TCPServer.new("127.0.0.1", 0)
+    port = server.addr[1]
+    thread = Thread.new do
+      loop do
+        client = server.accept
+        head = client.readpartial(4096) rescue ""
+        @requests << head
+        client.write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: #{head.bytesize}\r\n" \
+                     "Connection: close\r\n\r\n#{head}")
+        client.close
+      end
+    rescue IOError, Errno::EBADF
+      nil
+    end
+    yield port
+  ensure
+    server&.close
+    thread&.kill
+  end
 
   # A one-shot HTTP server: accepts connections and writes a canned response.
   def with_http_server(code, body)

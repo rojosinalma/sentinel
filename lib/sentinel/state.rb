@@ -7,21 +7,55 @@ module Sentinel
   # The bash-compatible state/ directory. The hooks (bash) and opencode-tiny's bin/verify read
   # and write these files exactly as the bash sentinel did; this class is the only Ruby-side
   # accessor. Nothing here caches: every call reads the filesystem, like the bash did.
+  #
+  # The node root holds the cluster-wide `hold`; every service owns `STATE_DIR/<service>/`
+  # (`for(service)` -> ServiceState) with its mode, transition, lock and markers. The legacy
+  # single-service layout is moved into `<service>/` once by `migrate_legacy!`, which leaves
+  # `mode` as a symlink so external readers (`cat state/mode` over ssh) keep working.
   class State
     class Corrupt < StandardError; end
 
     ABSENT_AGE = 999_999_999
     MODE_RE = /\A(?:primary=)?([a-z][a-z0-9_-]*)/
+    SERVICE_RE = /\A[a-z_][a-z0-9_-]*\z/
     HISTORY_TAIL = 50
+    LEGACY_FILES = %w[mode mode.history transition promote.lock promote-failed failback-failed
+                      tiny-stack warm.json known_hosts].freeze
 
     attr_reader :dir
 
     def initialize(dir)
       @dir = dir
+      @services = {}
+      @services_mutex = Mutex.new
       FileUtils.mkdir_p(dir)
     end
 
     def path(name) = File.join(@dir, name)
+
+    def for(service)
+      raise ArgumentError, "invalid service name #{service.inspect}" unless service.is_a?(String) && service.match?(SERVICE_RE)
+
+      @services_mutex.synchronize do
+        @services[service] ||= ServiceState.new(path(service), service: service, node: self)
+      end
+    end
+
+    # One-off: the opencode-era files at the root move into <service>/ and `mode` becomes a
+    # relative symlink to <service>/mode. No-op once done (or when there is nothing to move).
+    # Returns the moved file names.
+    def migrate_legacy!(service)
+      legacy = path("mode")
+      target = self.for(service)
+      return [] if File.symlink?(legacy) || !File.file?(legacy) || File.file?(target.path("mode"))
+
+      names = (LEGACY_FILES + Dir.children(@dir).grep(/\Alast-/)).uniq
+      moved = names.select { |n| File.file?(path(n)) && !File.symlink?(path(n)) }
+      moved.each { |n| File.rename(path(n), target.path(n)) }
+      File.symlink(File.join(service, "mode"), legacy)
+      $log.info "[state] migrated legacy #{service} state into #{target.dir} (#{moved.join(', ')}); mode -> #{service}/mode"
+      moved
+    end
 
     # "silver" | "tiny" (any lowercase word); the legacy "primary=<mode>" form is accepted.
     # Absent file -> default. Unparseable -> Corrupt, like the bash `die`.
@@ -72,6 +106,17 @@ module Sentinel
     rescue Errno::ENOENT
       nil
     end
+
+    def set_transition!(hook, ts = Time.now.utc.strftime("%Y%m%dT%H%M%SZ"))
+      File.write(path("transition"), "#{hook} #{ts}\n")
+      nil
+    end
+
+    def clear_transition! = remove!("transition")
+
+    # The standby stack marker the replicate hook writes ("healthy" | "degraded: …"); the
+    # opencode hooks call it tiny-stack, the generic name is stack.
+    def stack = read("tiny-stack") || read("stack")
 
     # A bash hook holds promote.lock via flock for its lifetime. flock locks conflict across
     # file descriptors, so probing with LOCK_NB is exact even from another process.
@@ -137,5 +182,22 @@ module Sentinel
       lines = File.readlines(file, chomp: true)
       lines.last(count)
     end
+  end
+
+  # One service's slice of the state dir (STATE_DIR/<service>/): the same files and methods as
+  # the node root, plus the node-wide hold folded into hold?. Hooks get this dir as STATE_DIR.
+  class ServiceState < State
+    attr_reader :service, :node
+
+    def initialize(dir, service:, node:)
+      super(dir)
+      @service = service
+      @node = node
+    end
+
+    undef_method :for, :migrate_legacy!
+
+    # A hold set on the node (all services) or on this service alone.
+    def hold? = super || @node.hold?
   end
 end

@@ -1,4 +1,4 @@
-/* standby-status components — loaded after dracula.css */
+/* sentinel dashboard components — loaded after dracula.css */
 
 .brand { color: var(--drac-purple); font-weight: 700; letter-spacing: .03em; text-decoration: none; }
 .brand:hover { color: var(--drac-cyan); }
@@ -13,6 +13,7 @@
 .badge-tint.tint-yellow { --tint: var(--drac-yellow); }
 .badge-tint.tint-purple { --tint: var(--drac-purple); }
 .badge-tint.tint-cyan   { --tint: var(--drac-cyan); }
+.badge-tint.tint-pink   { --tint: var(--drac-pink); }
 .badge-tint.tint-muted  { --tint: var(--drac-comment); }
 .badge-attention { background-color: var(--drac-orange); color: var(--drac-bg); border: 1px solid var(--drac-orange); font-weight: 600;
                    box-shadow: 0 0 0 2px color-mix(in srgb, var(--drac-orange) 25%, transparent); }
@@ -34,17 +35,29 @@
 .stat-sub   { font-size: .72rem; color: var(--drac-muted); }
 .timer { margin-top: .5rem; }
 .timer.idle { opacity: .45; }
+.timer-bar { height: 4px; }
+.timer-bar .bar-green  { background: var(--drac-green); }
+.timer-bar .bar-orange { background: var(--drac-orange); }
+.timer-bar .bar-red    { background: var(--drac-red); }
 
 .hosts-table th { color: var(--drac-cyan); font-weight: 500; }
 .hosts-table td { vertical-align: middle; }
 .svc { display: inline-flex; align-items: center; gap: .4rem; }
 .svc .ver { font-family: monospace; font-size: .78rem; color: var(--drac-muted); }
 
+/* service card: hosts coloured by their role in that service (primary / standby / down) */
+.service-hosts th { font-weight: 500; white-space: nowrap; }
+.service-hosts tr.host-green  th { color: var(--drac-green); }
+.service-hosts tr.host-yellow th { color: var(--drac-yellow); }
+.service-hosts tr.host-red    th { color: var(--drac-red); }
+.service-actions { border-top: 1px solid var(--drac-selection); padding-top: .75rem; }
+.text-purple { color: var(--drac-purple); }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: .5rem; padding: 3rem 1rem; color: var(--drac-muted); text-align: center; }
+.empty-state .bi { font-size: 2rem; color: var(--drac-comment); }
+
 .log-tail { font-size: .74rem; line-height: 1.35; max-height: 22rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
-            background: var(--drac-bg-dark); border: 1px solid var(--drac-selection); border-radius: 6px; padding: .6rem .75rem; color: var(--drac-fg);
-            scrollbar-width: thin; scrollbar-color: var(--drac-comment) transparent; }
-.log-tail::-webkit-scrollbar { width: 6px; }
-.log-tail::-webkit-scrollbar-thumb { background: var(--drac-comment); border-radius: 3px; }
+            background: var(--drac-bg-dark); border: 1px solid var(--drac-selection); border-radius: 6px; padding: .6rem .75rem; color: var(--drac-fg); }
 
 .val-ok { color: var(--drac-green); }
 .val-warn { color: var(--drac-orange); }

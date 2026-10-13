@@ -17,10 +17,11 @@ module Sentinel
   class Decider
     Result = Struct.new(:action, :notify, :log, :gates, keyword_init: true)
 
-    attr_reader :classification
+    attr_reader :classification, :config
 
     def initialize(config:, state:)
       @c = config
+      @config = config
       @state = state
       @log_every_last = {}
       @classification = :ok

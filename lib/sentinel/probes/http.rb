@@ -7,16 +7,20 @@ require "uri"
 module Sentinel
   module Probes
     # One bounded GET. Returns { code:, body:, ms: } or { error: "Class: msg", ms: }; never raises.
+    # resolve_ip connects to that address while the Host header and TLS SNI stay the URL's host
+    # (curl --resolve), for one hostname that lives on several hosts.
     module Http
       module_function
 
-      def get(url, basic: nil, timeout:, tls_verify: true)
+      def get(url, basic: nil, headers: nil, resolve_ip: nil, timeout:, tls_verify: true)
         uri = URI.parse(url)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         req = Net::HTTP::Get.new(uri)
         req.basic_auth(*basic) if basic
         req["Accept"] = "application/json"
+        headers&.each { |k, v| req[k] = v }
         http = Net::HTTP.new(uri.host, uri.port)
+        http.ipaddr = resolve_ip if resolve_ip
         http.open_timeout = timeout
         http.read_timeout = timeout
         http.write_timeout = timeout if http.respond_to?(:write_timeout=)

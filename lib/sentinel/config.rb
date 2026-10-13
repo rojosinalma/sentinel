@@ -41,8 +41,6 @@ module Sentinel
       "DB_PATH"                 => "data/sentinel.db",
       "EVENTS_KEEP_DAYS"        => 30,
       "SENTINEL_PORT"           => 4197,
-      "OPENCODE_SERVER_USERNAME" => "opencode",
-      "OPENCODE_SERVER_PASSWORD" => "",
       "DISCORD_WEBHOOK_URL"     => "",
       "APPRISE_URL"             => "",
       "ROUTE_MODE"              => "ha-routes",
@@ -58,13 +56,36 @@ module Sentinel
       def witness? = role == :witness
     end
 
-    Service = Struct.new(:name, :primary, :standby, :health, :hooks_dir, keyword_init: true)
+    # How a service's health URLs are probed: basic = [user, pass] resolved from the env vars
+    # named in cluster.yml (nil when the password is empty), extra request headers, and
+    # resolve = {host => ip} for URLs whose hostname is the same on every host.
+    Probe = Struct.new(:basic, :headers, :resolve, keyword_init: true) do
+      def resolve_ip(host) = resolve[host]
+    end
+
+    # Decider timers a service may override in cluster.yml (`tunables:`); the rest is node-wide.
+    SERVICE_TUNABLES = %i[promote_after_s failback_after_s promote_cooldown_s promote_retry_s
+                          failback_retry_s flap_flips flap_window_s flap_failback_after_s
+                          dead_confirm_polls notify_down_after_s fence_interval_s
+                          stack_check_interval_s host_health_interval_s].freeze
+
+    # How a service's public hostnames follow its primary: mode ha-routes (the core runs
+    # `ha-routes set <host> --group <group>`), pihole (the hooks rewrite Pi-hole records; the core
+    # does nothing) or off. group defaults to the service name; pihole_names are informational.
+    ROUTE_MODES = %w[ha-routes pihole off].freeze
+    ServiceRoutes = Struct.new(:mode, :group, :pihole_names, keyword_init: true) do
+      def ha_routes? = mode == "ha-routes"
+    end
+
+    # auto_promote: true/false from cluster.yml, nil = the node-wide AUTO_PROMOTE.
+    Service = Struct.new(:name, :primary, :standby, :health, :hooks_dir, :probe, :auto_promote, :tunables,
+                         :routes, keyword_init: true)
 
     # The parsed cluster.yml plus the identity of this node.
     class Cluster
       attr_reader :node_name, :hosts, :services, :quorum_tcp
 
-      def initialize(doc, node_name:)
+      def initialize(doc, node_name:, env: ENV)
         @node_name = node_name
         @hosts = (doc["hosts"] || {}).to_h do |name, h|
           probes = (h["probes"] || {}).to_h { |k, v| [k.to_sym, v] }.freeze
@@ -74,10 +95,44 @@ module Sentinel
         @services = (doc["services"] || {}).to_h do |name, s|
           [name, Service.new(name: name, primary: s["primary"], standby: s["standby"],
                              health: (s["health"] || {}).freeze,
-                             hooks_dir: s["hooks_dir"] || "hooks/#{name}").freeze]
+                             hooks_dir: s["hooks_dir"] || "hooks/#{name}",
+                             probe: parse_probe(s["probe"] || {}, env),
+                             auto_promote: s.key?("auto_promote") ? s["auto_promote"] == true : nil,
+                             tunables: parse_tunables(name, s["tunables"] || {}),
+                             routes: parse_routes(name, s["routes"] || {})).freeze]
         end.freeze
         @quorum_tcp = (doc["quorum_tcp"] || []).freeze
         raise Error, "node #{node_name.inspect} not in cluster hosts #{@hosts.keys}" unless @hosts.key?(node_name)
+      end
+
+      def parse_routes(service, r)
+        mode = r.fetch("mode", "ha-routes")
+        mode = "off" if mode == false # YAML 1.1 reads a bare `off` as false
+        mode = mode.to_s
+        raise Error, "service #{service}: routes.mode #{mode.inspect} not in #{ROUTE_MODES}" unless ROUTE_MODES.include?(mode)
+
+        ServiceRoutes.new(mode: mode, group: (r["group"] || service).to_s,
+                          pihole_names: Array(r["pihole_names"]).map(&:to_s).freeze).freeze
+      end
+
+      def parse_probe(p, env)
+        user = (p["username_env"] && env[p["username_env"]]).to_s
+        user = p["username"].to_s if user.empty?
+        pass = (p["password_env"] && env[p["password_env"]]).to_s
+        Probe.new(basic: pass.empty? ? nil : [user, pass].freeze,
+                  headers: (p["headers"] || {}).transform_values(&:to_s).freeze,
+                  resolve: (p["resolve"] || {}).freeze).freeze
+      end
+
+      def parse_tunables(service, t)
+        t.to_h do |k, v|
+          key = k.to_sym
+          raise Error, "service #{service}: unknown tunable #{k.inspect}" unless SERVICE_TUNABLES.include?(key)
+
+          [key, Integer(v)]
+        end.freeze
+      rescue ArgumentError, TypeError => e
+        raise Error, "service #{service}: tunables must be integers (#{e.message})"
       end
 
       def host(name) = @hosts.fetch(name) { raise Error, "unknown host #{name.inspect}" }
@@ -111,20 +166,20 @@ module Sentinel
 
     def node_name
       name = fetch(:NODE_NAME)
-      raise Error, "NODE_NAME is required (silver | tiny | witness-1)" if name.empty?
+      raise Error, "NODE_NAME is required (one of #{cluster_doc.fetch('hosts', {}).keys.join(' | ')})" if name.empty?
 
       name
     end
 
     def cluster
-      @cluster ||= load_cluster
+      @cluster ||= Cluster.new(cluster_doc, node_name: node_name)
     end
 
-    def load_cluster
+    def cluster_doc
       file = fetch(:CLUSTER_FILE)
       raise Error, "cluster file #{file.inspect} not found" unless File.file?(file)
 
-      Cluster.new(YAML.safe_load_file(file) || {}, node_name: node_name)
+      YAML.safe_load_file(file) || {}
     end
 
     def acting_node?(service)
