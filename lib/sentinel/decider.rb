@@ -95,6 +95,18 @@ module Sentinel
         return watch_or_none(now, watch_due)
       end
 
+      # Degraded confirmation: the promote clock starts only after N consecutive non-ok polls
+      # (tunable degraded_confirm_polls, default 1 = immediately). One slow/killed probe must
+      # not open a 60 s promote window — on 2026-10-13 a loaded primary flapped ok<->degraded
+      # for half an hour until 62 s of bad luck promoted the standby.
+      @nonok_polls += 1
+      if @nonok_polls < @c.fetch(:degraded_confirm_polls, 1)
+        throttle(:unconfirmed, now) do
+          "#{@c[:primary]} #{@c[:service]} #{cls} (#{@nonok_polls}/#{@c[:degraded_confirm_polls]} polls, not yet confirmed)"
+        end
+        return watch_or_none(now, watch_due)
+      end
+
       unless @down_since
         @down_since = now
         @log << "#{@c[:primary]} #{@c[:service]} DOWN: #{cls}#{probes_str ? " (#{probes_str} quorum=#{quorum})" : ''}"
@@ -277,6 +289,7 @@ module Sentinel
     def reset_primary_watch!
       @down_since = nil
       @dead_polls = 0
+      @nonok_polls = 0
       @notified_down = false
       @isolated_notified = false
     end

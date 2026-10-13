@@ -4,7 +4,7 @@
 # speak to <host>:4197. Silver is not the acting node, so no docker socket / ssh mounts here.
 services:
   sentinel:
-    image: registry.example.internal/sentinel:${SENTINEL_TAG:-0.4.4}
+    image: registry.example.internal/sentinel:${SENTINEL_TAG:-0.4.5}
     container_name: sentinel
     restart: unless-stopped
     environment:

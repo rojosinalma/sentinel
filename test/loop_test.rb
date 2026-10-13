@@ -35,7 +35,7 @@ class LoopTest < Minitest::Test
     def take_down(host, service) = @down << "#{host}/#{service}"
     def restore(host, service) = @down.delete("#{host}/#{service}")
 
-    def host(host, service_urls: {}, service_probes: {}, timeout: nil, now: Time.now)
+    def host(host, service_urls: {}, service_probes: {}, timeout: nil, service_timeouts: {}, now: Time.now)
       services = service_urls.keys.to_h do |svc|
         [svc, @down.include?("#{host.name}/#{svc}") ? "down" : "up 1.0"]
       end
@@ -485,5 +485,45 @@ class LoopTest < Minitest::Test
     assert_includes gets, [:get, "custom", "ha-routes"]
     assert_includes gets, [:get, "_pihole", "off"]
     assert_equal 3, h[:loop].last[:ha_connectors]
+  end
+
+  # A hook that moves the mode but exits 2 (transitioned, health wait failed): the routes stay
+  # put, the failure marker stays, and the user hears about the degraded takeover (2026-10-13:
+  # rc=2 still routed the public hostnames to a tiny whose opencode never started).
+  def test_rc2_transition_keeps_routes_and_marker_and_notifies
+    routes = RoutesStub.new
+    h = build_loop(routes: routes, config: ROUTE_CONFIG)
+    dir = h[:hooks].hooks_dir("_example")
+    File.unlink(dir)
+    FileUtils.mkdir_p(dir)
+    File.write(File.join(dir, "promote"),
+               "#!/usr/bin/env bash\nprintf 'tiny\\n' > \"$STATE_DIR/mode\"\nexit 2\n")
+    FileUtils.chmod(0o755, File.join(dir, "promote"))
+
+    result = h[:loop].execute_transition!("_example", "promote", ["--auto"])
+    assert_equal 2, result.exit_code
+    assert_equal "tiny", h[:state].for("_example").mode(default: "silver"), "the hook owns the mode"
+    assert_empty routes.sets, "rc=2 must not move the public routes"
+    assert h[:state].for("_example").file_age_s("promote-failed"), "marker stays for the gates"
+    assert(h[:notifications].any? { |(t, _b, y)| t.include?("DEGRADED") && y == "failure" })
+  end
+
+  # While an acting service's routes disagree with the mode, the core re-asserts them — but only
+  # when the mode host's service actually answers (so an rc=2 promote stays un-routed until the
+  # standby's service comes up, then the routes follow).
+  def test_reassert_routes_follows_the_mode_once_the_service_answers
+    routes = RoutesStub.new
+    h = build_loop(routes: routes, config: ROUTE_CONFIG)
+    h[:state].for("_example").set_mode!("tiny", now: h[:clock].now)
+
+    h[:probes].take_down("tiny", "_example")
+    h[:loop].cycle! # RoutesStub reports silver; tiny's service down -> no re-assert
+    assert_empty routes.sets, "no re-assert while the mode host's service is down"
+
+    h[:probes].restore("tiny", "_example")
+    h[:clock].advance(16) # past host_health_interval_s so refresh_routes re-reads
+    h[:loop].cycle!
+    assert_equal [:set, "tiny", "_example", "ha-routes"], routes.sets.last,
+                 "routes follow the mode once the service answers there"
   end
 end

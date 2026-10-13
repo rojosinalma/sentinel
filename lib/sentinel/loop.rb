@@ -106,6 +106,7 @@ module Sentinel
       # 5-7: per service, who is primary and what to do (acting node only); a hook holding the
       # service's promote.lock means observe only for that service
       refresh_routes(now) if busy_by.values.none? && !acting_services.empty?
+      reassert_routes(views, modes) if busy_by.values.none?
       entries = {}
       actions = {}
       @services.each do |name, service|
@@ -163,11 +164,18 @@ module Sentinel
         carried = @services.select { |_, s| s.health[host.name] }
         urls = carried.transform_values { |s| s.health[host.name] }
         probes = carried.transform_values(&:probe)
+        # A service may need a laxer probe than the node-wide TCP timeout (cluster.yml
+        # tunables.probe_timeout_s): a loaded opencode answered /api/info in >3 s on
+        # 2026-10-13 and got classified degraded for half an hour.
+        timeouts = carried.transform_values { |s| s.tunables[:probe_timeout_s] || timeout }
         [host.name, lambda do
-          @probes.host(host, service_urls: urls, service_probes: probes, timeout: timeout, now: now)
+          @probes.host(host, service_urls: urls, service_probes: probes,
+                             service_timeouts: timeouts, timeout: timeout, now: now)
         end]
       end
-      Workers.parallel(jobs, timeout: @config[:http_timeout_s] + 1.0).to_h do |name, view|
+      deadline = [@config[:http_timeout_s],
+                  *@services.values.map { |s| s.tunables[:probe_timeout_s] }.compact].max
+      Workers.parallel(jobs, timeout: deadline + 1.0).to_h do |name, view|
         view = HostView.new(name: name, probed_at: now).freeze unless view.is_a?(HostView)
         [name, view]
       end
@@ -251,6 +259,27 @@ module Sentinel
                                                   timeout: @config[:http_timeout_s])
     end
 
+    # Keep the public routes on the mode host (bash re-asserted them every fence cycle; under
+    # HOOK_ROUTE_MODE=core the hooks' route_primary is a no-op, so the core owns this). Runs at
+    # the refresh_routes cadence, acting services with ha-routes only, and only re-points when
+    # the mode host's service actually answers — a promote that ended rc=2 leaves the routes
+    # alone until the standby's service comes up (see execute_transition!).
+    def reassert_routes(views, modes)
+      acting_services.each do |name|
+        service = @services[name]
+        next unless service.routes.ha_routes?
+
+        desired = modes[name]
+        actual = @route_primary[name]
+        next if desired == actual || !@cluster.hosts.key?(desired)
+        next unless actual.is_a?(String) && @cluster.hosts.key?(actual) # unknown/failed/n/a: nothing trustworthy to correct
+        next unless views[desired]&.service_state(name).to_s.start_with?("up")
+
+        $log.warn "[loop] #{name}: routes point at #{actual}, mode is #{desired} and #{name} answers there — re-asserting"
+        switch_routes!(service, desired)
+      end
+    end
+
     # After a successful promote/demote: the core moves the service's public hostnames to the
     # host the hook made primary (ha-routes mode only; pihole is the hooks' business, off nothing).
     def switch_routes!(service, target)
@@ -322,11 +351,21 @@ module Sentinel
       @store.set("primary_at.#{service.name}", iso(@now.call))
 
       success_mode = play[:success] == :standby ? service.standby : service.primary
-      if result.exit_code.zero? || mode_after == success_mode
+      if result.exit_code.zero?
         state.remove!(play[:marker])
         switch_routes!(service, mode_after)
       else
+        # rc=2 "transitioned but degraded" no longer routes: a promote whose health wait failed
+        # (standby service never up) must not point the public hostnames at a dead stack
+        # (2026-10-13: openchamber up + opencode down = UI with no brain). The marker stays so
+        # the gates keep throttling; reassert_routes moves the routes once the mode host's
+        # service actually answers.
         state.touch!(play[:marker])
+        if mode_after == success_mode
+          notify("#{service.name}-#{service.standby}: #{hook} DEGRADED",
+                 "mode=#{mode_after} but #{hook} rc=#{result.exit_code}; public routes NOT moved — " \
+                 "they follow as soon as #{service.name} answers on #{mode_after}", "failure")
+        end
       end
       @store.event!("transition.end", "#{hook} rc=#{result.exit_code}, mode=#{mode_after}",
                     level: result.exit_code.zero? ? "info" : "warn",

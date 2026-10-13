@@ -210,6 +210,37 @@ class DeciderTest < Minitest::Test
     assert_equal 1, all_notifies.count { |(t, _b, _y)| t.include?("flapping") }, "flap notify once"
   end
 
+
+  # degraded_confirm_polls: single bad polls (a killed probe under load) never start the promote
+  # clock; only N consecutive non-ok polls open the window (2026-10-13).
+  def test_degraded_needs_confirmation_when_configured
+    decider = Sentinel::Decider.new(config: CONFIG.merge(degraded_confirm_polls: 3), state: @state)
+    stepper = lambda do |cls|
+      decider.step(now: @clock.now, mode: "silver", agreed_class: cls, quorum: "up",
+                   auto_promote: "on", auto_failback: "on", host_health: nil)
+    end
+
+    2.times { stepper.call(:degraded); @clock.advance(2) }
+    stepper.call(:ok) # a good poll resets the counter
+    @clock.advance(2)
+    2.times { stepper.call(:degraded); @clock.advance(2) }
+    assert_nil decider.snapshot(now: @clock.now)[:down_since], "2/3 polls: clock not started"
+
+    r = stepper.call(:degraded) # third consecutive: confirmed, clock starts
+    assert(r.log.any? { |l| l.include?("DOWN") })
+    refute_nil decider.snapshot(now: @clock.now)[:down_since]
+
+    @clock.advance(61)
+    r = stepper.call(:degraded)
+    assert_equal :promote, r.action, "promote 60s after the CONFIRMED start"
+  end
+
+  def test_degraded_confirm_default_is_immediate
+    r = step(agreed_class: :degraded)
+    refute_nil @decider.snapshot(now: @clock.now)[:down_since], "default 1: first bad poll starts the clock"
+    assert(r.log.any? { |l| l.include?("DOWN: degraded") })
+  end
+
   def test_snapshot_fields
     step(agreed_class: :degraded)
     snap = @decider.snapshot(now: @clock.now)
