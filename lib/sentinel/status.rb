@@ -113,6 +113,7 @@ module Sentinel
           action_running: action_running[name],
           route_primary: doc && route_primary_for(doc, name),
           routes: svc.routes && { mode: svc.routes.mode, group: svc.routes.group, pihole_names: svc.routes.pihole_names },
+          url: svc.url, host_urls: svc.host_urls,
           lease: store && lease_public(store.lease_current(name, now: now)),
           last_transition: store && store.transitions(service: name, limit: 1).first
         }]

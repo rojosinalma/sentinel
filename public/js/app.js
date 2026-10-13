@@ -128,6 +128,8 @@
     badge.querySelector('i').className = `bi bi-circle-fill status-dot status-dot--${known ? (onConfigured ? 'running' : 'degraded') : 'muted'}`;
     badge.title = onConfigured ? 'running on its configured primary' : known ? `failed over to ${svc.mode} (configured primary: ${svc.primary})` : 'primary unknown';
     f('mode').textContent = known ? svc.mode : 'unknown';
+    const link = f('url');
+    if (svc.url) { link.href = svc.url; link.classList.remove('d-none'); link.title = `Open ${name} (${svc.url})`; } else link.classList.add('d-none');
     f('since').textContent = svc.since ? `primary since ${new Date(svc.since).toLocaleString()} (${fmtAgo(svc.since)})` : (d.note ? d.note : 'since: n/a');
 
     // hosts of this service, coloured by role
@@ -136,7 +138,9 @@
       const role = hostRole(svc, h, hd);
       const cls = ((hd || {}).classes || {})[name];
       const configured = h === svc.primary ? 'configured primary' : 'configured standby';
-      return `<tr class="host-${role.tint}"><th><i class="bi bi-circle-fill status-dot status-dot--${role.dot}"></i> ${esc(h)}</th>` +
+      const hu = (svc.host_urls || {})[h];
+      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} <i class="bi bi-box-arrow-up-right small opacity-50"></i></a>` : esc(h);
+      return `<tr class="host-${role.tint}"><th><i class="bi bi-circle-fill status-dot status-dot--${role.dot}"></i> ${hostCell}</th>` +
         `<td><span class="badge badge-tint tint-${role.tint}" title="${esc(configured)}">${esc(role.label)}</span></td>` +
         `<td>${serviceCell(((hd || {}).services || {})[name])}</td>` +
         `<td><span class="${classTint[cls] || 'val-muted'}">${esc(cls || (hd ? '—' : 'no view'))}</span></td></tr>`;
