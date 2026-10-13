@@ -94,6 +94,23 @@ a { color: var(--drac-purple); }
 
 a:hover { color: var(--drac-pink); }
 
+/* ─── Scrollbars ─────────────────────────────────────────── */
+/* Thin palette scrollbar on every scrollable element (page, overflow boxes, tables, sidebars, code
+   blocks, modals); projects never restyle it. Thumb is --drac-comment because --drac-selection is
+   invisible on Alucard's body. No scrollbar-gutter: it opens footer/layout gaps. Chromium ignores
+   ::-webkit-scrollbar once scrollbar-color is set, so the standard properties are Firefox-only. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--drac-comment) transparent;
+  }
+}
+::-webkit-scrollbar             { width: 8px; height: 8px; }
+::-webkit-scrollbar-track       { background: transparent; }
+::-webkit-scrollbar-thumb       { background: var(--drac-comment); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--drac-muted); }
+::-webkit-scrollbar-corner      { background: transparent; }
+
 /* ─── Navbar ─────────────────────────────────────────────── */
 .navbar {
   background-color: var(--drac-bg-dark) !important;

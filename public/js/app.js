@@ -1,11 +1,17 @@
-// standby-status page: polls /api/status every REFRESH_S, repaints, toasts on state changes.
+// sentinel dashboard: one poller on /api/v1/status (the generic multi-service document) plus
+// /api/events and /api/transitions; one card per service, actions per card. Nothing here knows
+// a host or service by name — everything comes from the document.
 (function () {
   const refreshMs = Math.max(2, Number(window.STANDBY.refreshS || 10)) * 1000;
-  let previous = null;
-  let failures = 0;
-
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  let previous = null;   // last /api/v1/status document
+  let failures = 0;
+  let enabled = null;    // null = unknown, false = this instance runs no sentinel (503)
+  const holdBusy = new Set();
+
+  // ---------------------------------------------------------------- helpers
 
   function toast(type, msg) {
     const icons = { success: 'check-circle-fill', warning: 'exclamation-triangle-fill', error: 'x-circle-fill' };
@@ -32,183 +38,51 @@
     return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
   };
   const upDown = (v) => v === 'up' ? 'val-ok' : v === 'down' ? 'val-bad' : 'val-muted';
-  const dotClass = (state) => ({ up: 'running', ok: 'running', degraded: 'degraded', down: 'stopped', unreachable: 'stopped', timeout: 'stopped' }[state] || 'muted');
-
-  function setDot(id, state) {
-    const el = $(id); if (!el) return;
-    el.className = `bi bi-circle-fill status-dot status-dot--${dotClass(state)} ms-auto`;
-  }
-
-  function svcCell(cell, svc, standby) {
-    if (!svc) { cell.innerHTML = '<span class="val-muted">—</span>'; return; }
-    let label = svc.state, cls = dotClass(svc.state), extra = '';
-    if (svc.state === 'unconfigured') { label = 'not configured'; cls = 'muted'; }
-    if (svc.state === 'down' && standby) { label = 'stopped (standby)'; cls = 'muted'; }
-    if (svc.version) extra = `<span class="ver">${esc(svc.version)}</span>`;
-    const title = svc.error ? `${svc.url || ''}\n${svc.error}` : (svc.note ? `${svc.url || ''}\n${svc.note}` : (svc.url || ''));
-    cell.innerHTML = `<span class="svc" title="${esc(title)}"><i class="bi bi-circle-fill status-dot status-dot--${cls}"></i>${esc(label)}${extra}</span>`;
-  }
-
-  function timer(prefix, sinceIso, afterS, label) {
-    const box = $(`timer-${prefix}`), text = $(`t-${prefix}-text`), bar = $(`t-${prefix}-bar`);
-    if (!sinceIso) { box.classList.add('idle'); text.textContent = label || '—'; bar.style.width = '0%'; return; }
-    box.classList.remove('idle');
-    const elapsed = (Date.now() - new Date(sinceIso).getTime()) / 1000;
-    const pct = afterS ? Math.min(100, Math.round(elapsed / afterS * 100)) : 0;
-    text.textContent = afterS ? `${fmtDur(elapsed)} / ${fmtDur(afterS)}` : fmtDur(elapsed);
-    bar.style.width = `${pct}%`;
-    bar.style.background = pct >= 100 ? 'var(--drac-red)' : pct >= 60 ? 'var(--drac-orange)' : 'var(--drac-green)';
-  }
-
-  function render(d) {
-    const sentinel = d.sentinel || {}; const doc = sentinel.doc || {};
-    const mode = d.primary && d.primary.host;
-    const standbyHost = mode === 'node-a' ? 'node-b' : mode === 'node-b' ? 'node-a' : null;
-
-    // header
-    $('generated').textContent = `${new Date(d.generated_at).toLocaleTimeString()} · ${d.took_ms} ms`;
-    const pb = $('primary-badge');
-    const known = mode && mode !== 'unknown';
-    pb.className = `badge badge-tint badge-lg ${known ? (mode === 'node-a' ? 'tint-green' : 'tint-orange') : 'tint-muted'}`;
-    pb.querySelector('i').className = `bi bi-circle-fill status-dot status-dot--${known ? (mode === 'node-a' ? 'running' : 'degraded') : 'muted'}`;
-    $('primary-host').textContent = known ? mode : 'unknown';
-    pb.title = `source: ${d.primary.source}`;
-    $('primary-since').textContent = d.primary.since ? `since ${new Date(d.primary.since).toLocaleString()} (${fmtAgo(d.primary.since)})` : (sentinel.state === 'ok' ? 'since: n/a' : '');
-    $('flag-hold').classList.toggle('d-none', !doc.hold);
-    $('flag-promoting').classList.toggle('d-none', !doc.promoting);
-    const tr = $('flag-transition');
-    tr.classList.toggle('d-none', !doc.transition);
-    tr.innerHTML = doc.transition ? `<i class="bi bi-arrow-left-right"></i> ${esc(doc.transition)}` : '';
-
-    // sentinel
-    setDot('sentinel-dot', sentinel.state === 'ok' ? 'ok' : 'unreachable');
-    const sState = $('s-state');
-    if (sentinel.state === 'ok') { sState.innerHTML = `<span class="val-ok">reachable</span> <span class="stat-sub">${esc(sentinel.url)} · ${sentinel.ms} ms · status age ${esc(doc.status_age_s)}s</span>`; }
-    else if (sentinel.state === 'unconfigured') { sState.innerHTML = '<span class="val-muted">not configured</span>'; }
-    else { sState.innerHTML = `<span class="val-bad">${esc(sentinel.state)}</span> <span class="stat-sub">${esc(sentinel.url || '')} · ${esc(sentinel.error || '')}</span>`; }
-    $('s-mode').textContent = doc.mode ? `${doc.mode}${doc.standby_stack ? ` · node-b stack ${doc.standby_stack}` : ''}` : '—';
-    $('s-node-a-opencode').innerHTML = doc.primary_service ? `<span class="${upDown(doc.primary_service)}">${esc(doc.primary_service)}</span>${doc.primary_service_version ? ` <span class="stat-sub">${esc(doc.primary_service_version)}</span>` : ''}` : '—';
-    $('s-node-a-host').innerHTML = doc.primary_host ? `<span class="${upDown(doc.primary_host)}">${esc(doc.primary_host)}</span>${doc.primary_host_health ? ` <span class="stat-sub">${esc(doc.primary_host_health)}</span>` : ''}` : '—';
-    $('s-quorum').innerHTML = doc.quorum ? `<span class="${upDown(doc.quorum)}">${esc(doc.quorum)}</span>` : '—';
-    $('s-auto-promote').textContent = doc.auto_promote || '—';
-    $('s-auto-failback').textContent = doc.auto_failback ? `${doc.auto_failback}${doc.hold ? ' (on hold)' : ''}` : '—';
-    $('s-flips').textContent = doc.flips_in_window != null ? String(doc.flips_in_window) : '—';
-    $('s-checked').textContent = doc.checked_at ? `${fmtAgo(doc.checked_at)}` : '—';
-    timer('down', doc.down_since, doc.promote_after_s, doc.mode === 'node-a' ? 'node-a opencode up' : 'n/a');
-    timer('stable', doc.primary_stable_since, doc.failback_after_s, doc.mode === 'node-b' ? 'node-a not healthy yet' : 'n/a while node-a is primary');
-    const cd = [];
-    if (doc.promote_cooldown_left_s) cd.push(`promote cooldown ${fmtDur(doc.promote_cooldown_left_s)} left`);
-    if (doc.failback_retry_left_s) cd.push(`failback retry in ${fmtDur(doc.failback_retry_left_s)}`);
-    $('s-cooldown').textContent = cd.join(' · ');
-
-    // hosts
-    ['node-a', 'node-b'].forEach((h) => {
-      const row = $(`host-${h}`); const data = (d.hosts || {})[h] || {};
-      svcCell(row.querySelector('[data-svc=opencode]'), data.opencode, h === standbyHost);
-      svcCell(row.querySelector('[data-svc=webui]'), data.webui, h === standbyHost);
-    });
-
-    // dns
-    const dns = $('dns-facts'); dns.innerHTML = '';
-    Object.entries(d.dns || {}).forEach(([name, r]) => {
-      let val;
-      if (r.state === 'cname') val = `<span class="${r.points_to ? (r.points_to === mode ? 'val-ok' : 'val-warn') : ''}">${esc(r.points_to || 'unknown tunnel')}</span> <span class="stat-sub">CNAME ${esc(r.target)}</span>`;
-      else if (r.state === 'proxied') val = `<span class="${r.points_to ? 'val-ok' : 'val-muted'}">${esc(r.points_to || 'unknown')}</span> <span class="stat-sub">proxied (CF) · inferred from sentinel mode · ${esc((r.ips || []).join(', '))}</span>`;
-      else val = `<span class="val-bad">${esc(r.state)}</span> <span class="stat-sub">${esc(r.error || '')}</span>`;
-      dns.insertAdjacentHTML('beforeend', `<dt>${esc(name)}</dt><dd>${val}</dd>`);
-    });
-
-    // replica (node-b instance only)
-    const t = d.standby_root || {};
-    if (t.state === 'ok') {
-      const lag = (r) => !r ? '—' : r.state !== 'ok' ? `<span class="val-muted">${esc(r.state)}</span>` : `<span class="${r.lag_s > 900 ? 'val-bad' : r.lag_s > 120 ? 'val-warn' : 'val-ok'}">${fmtDur(r.lag_s)}</span> <span class="stat-sub">newest ${fmtAgo(r.newest_at)}</span>`;
-      $('r-opencode').innerHTML = lag(t.replica.opencode);
-      $('r-memory').innerHTML = lag(t.replica.memory);
-      $('r-mode').innerHTML = `${esc(t.mode.value)} <span class="stat-sub">${t.mode.since ? `since ${fmtAgo(t.mode.since)}` : esc(t.mode.source)}</span>`;
-      const worst = Math.max(...['opencode', 'memory'].map((k) => (t.replica[k] && t.replica[k].state === 'ok') ? t.replica[k].lag_s : 1e9));
-      setDot('replica-dot', worst > 900 ? 'down' : worst > 120 ? 'degraded' : 'up');
-      $('r-note').textContent = `lag = age of the newest file under ${t.root}/replica/*; node-a's litestream writes there while node-a is primary.`;
-    } else {
-      ['r-opencode', 'r-memory', 'r-mode'].forEach((id) => { $(id).innerHTML = `<span class="val-muted">${esc(t.note || t.error || t.state || 'n/a')}</span>`; });
-      setDot('replica-dot', 'muted');
-      $('r-note').textContent = t.state === 'n/a' ? `This instance has no NODE_B_ROOT; open the node-b instance for replica lag and logs.` : (t.error || '');
-    }
-
-    // last event
-    const ev = t.last_event;
-    if (ev) {
-      $('e-meta').textContent = `${ev.kind} · ${ev.file} · ${new Date(ev.at).toLocaleString()} (${fmtAgo(ev.at)})`;
-      $('e-tail').textContent = (ev.tail || []).join('\n') || '(empty log)';
-    } else {
-      $('e-meta').textContent = t.state === 'ok' ? 'no promote/demote log yet' : '';
-      $('e-tail').textContent = t.state === 'ok' ? '(no promote-*.log or demote-*.log under logs/)' : (t.note || 'n/a on this instance');
-    }
-  }
-
-  function diff(prev, cur) {
-    if (!prev) return;
-    const p = prev.primary.host, c = cur.primary.host;
-    if (p !== c) toast(c === 'node-a' ? 'success' : 'warning', `primary changed: ${p} → ${c}`);
-    const ps = prev.sentinel.state === 'ok', cs = cur.sentinel.state === 'ok';
-    if (ps !== cs) toast(cs ? 'success' : 'error', cs ? 'sentinel reachable again' : `sentinel ${cur.sentinel.state}`);
-    const pd = (prev.sentinel.doc || {}), cd = (cur.sentinel.doc || {});
-    if (!!pd.hold !== !!cd.hold) toast('warning', cd.hold ? 'hold set: failback paused' : 'hold released');
-    if (!!pd.promoting !== !!cd.promoting) toast(cd.promoting ? 'warning' : 'success', cd.promoting ? 'promotion started' : 'promotion finished');
-    if ((pd.transition || null) !== (cd.transition || null) && cd.transition) toast('warning', `transition: ${cd.transition}`);
-    ['node-a', 'node-b'].forEach((h) => ['opencode', 'webui'].forEach((s) => {
-      const a = ((prev.hosts[h] || {})[s] || {}).state, b = ((cur.hosts[h] || {})[s] || {}).state;
-      if (a && b && a !== b) toast(b === 'up' ? 'success' : 'warning', `${h} ${s}: ${a} → ${b}`);
-    }));
-    Object.keys(cur.dns || {}).forEach((n) => {
-      const a = (prev.dns[n] || {}).points_to, b = (cur.dns[n] || {}).points_to;
-      if (a && b && a !== b) toast('warning', `${n} now points to ${b}`);
-    });
-  }
-
-  async function tick() {
-    try {
-      const r = await fetch('/api/status', { cache: 'no-store', headers: { Accept: 'application/json' } });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      if (!d.ok) throw new Error(d.message || 'not ok');
-      if (failures > 0) toast('success', 'status refresh recovered');
-      failures = 0;
-      $('stale').classList.add('d-none');
-      diff(previous, d);
-      render(d);
-      previous = d;
-    } catch (e) {
-      failures += 1;
-      $('stale').classList.remove('d-none');
-      if (failures === 1) toast('error', `status refresh failed: ${e.message}`);
-    }
-  }
-
-  tick();
-  setInterval(tick, refreshMs);
-  setInterval(() => { if (previous) render(previous); }, 1000); // keep the timers ticking between polls
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
-  window.appToast = toast;
-  window.appEsc = esc;
-  window.appFmtAgo = fmtAgo;
-  window.appFmtDur = fmtDur;
-})();
-
-// sentinel cluster view: polls /api/sentinel + events/transitions on instances that run the
-// sentinel (NODE_NAME set); a 503 means this is a plain status instance and the row stays hidden.
-(function () {
-  const refreshMs = Math.max(2, Number(window.STANDBY.refreshS || 10)) * 1000;
-  const $ = (id) => document.getElementById(id);
-  const esc = window.appEsc, toast = window.appToast, fmtAgo = window.appFmtAgo;
-  let enabled = null; // null = unknown yet
-  let holdBusy = false;
-
   const classTint = { ok: 'val-ok', standby: 'val-muted', degraded: 'val-warn', dead: 'val-bad', isolated: 'val-warn' };
   const kindTint = {
     'decision': 'tint-orange', 'transition.start': 'tint-orange', 'transition.end': 'tint-purple',
     'lease.grant': 'tint-cyan', 'lease.deny': 'tint-red', 'class.change': 'tint-yellow',
     'notify': 'tint-pink', 'hold': 'tint-yellow', 'boot': 'tint-green', 'heartbeat': 'tint-muted'
   };
+
+  // Role of a host within one service: primary (green) / standby (yellow) / down (red).
+  function hostRole(svc, hostName, hostDoc) {
+    const cls = ((hostDoc || {}).classes || {})[svc.name];
+    const state = ((hostDoc || {}).services || {})[svc.name];
+    const current = svc.mode === hostName;
+    if (cls === 'dead' || cls === 'isolated' || (current && state === 'down')) return { label: current ? 'primary · down' : 'down', tint: 'red', dot: 'stopped' };
+    if (current) return { label: 'primary', tint: 'green', dot: 'running' };
+    return { label: 'standby', tint: 'yellow', dot: 'degraded' };
+  }
+
+  // Route primary of one service: per-service field, else the document-level Hash or String.
+  function routeFor(d, name) {
+    const svc = (d.services || {})[name] || {};
+    if (svc.route_primary) return svc.route_primary;
+    const rp = d.route_primary;
+    return rp && typeof rp === 'object' ? rp[name] : rp;
+  }
+  const routesSummary = (d) => Object.keys(d.services || {}).map((n) => [n, routeFor(d, n)]).filter(([, r]) => r && r !== 'n/a');
+
+  function serviceCell(state) {
+    if (!state) return '<span class="val-muted">—</span>';
+    const up = String(state).startsWith('up');
+    const ver = up ? String(state).slice(3).trim() : '';
+    return `<span class="svc"><i class="bi bi-circle-fill status-dot status-dot--${up ? 'running' : 'stopped'}"></i>${up ? 'up' : esc(state)}${ver ? `<span class="ver">${esc(ver)}</span>` : ''}</span>`;
+  }
+
+  function timer(card, prefix, sinceIso, afterS, label, idleLabel) {
+    const f = (n) => card.querySelector(`[data-f="timer-${prefix}${n}"]`);
+    const box = f(''), text = f('-text'), bar = f('-bar');
+    f('-label').textContent = label;
+    if (!sinceIso) { box.classList.add('idle'); text.textContent = idleLabel || '—'; bar.style.width = '0%'; bar.className = 'progress-bar'; return; }
+    box.classList.remove('idle');
+    const elapsed = (Date.now() - new Date(sinceIso).getTime()) / 1000;
+    const pct = afterS ? Math.min(100, Math.round(elapsed / afterS * 100)) : 0;
+    text.textContent = afterS ? `${fmtDur(elapsed)} / ${fmtDur(afterS)}` : fmtDur(elapsed);
+    bar.style.width = `${pct}%`;
+    bar.className = `progress-bar ${pct >= 100 ? 'bar-red' : pct >= 60 ? 'bar-orange' : 'bar-green'}`;
+  }
 
   async function getJSON(url) {
     const r = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
@@ -224,37 +98,202 @@
     return r.json();
   }
 
-  function renderCluster(d) {
-    $('sn-row').classList.remove('d-none');
-    $('sn-node').textContent = `${d.node}${d.acting ? ' · acting node' : ''}`;
-    $('sn-acting').textContent = d.acting ? '' : `read-only: acting node is ${d.standby}`;
-    $('flag-quorum').classList.toggle('d-none', d.quorum === 'up');
+  // ---------------------------------------------------------------- cards
 
-    const rows = Object.entries(d.hosts || {}).map(([name, h]) => {
-      const cls = (d.classes || {})[name] || '?';
-      const probes = ['ssh', 'icmp', 'traefik'].filter((p) => h[p])
-        .map((p) => `<span class="${h[p] === 'up' ? 'val-ok' : 'val-bad'}" title="${p}">${p}</span>`).join(' ');
-      const st = (h.services || {})[d.service];
-      const svc = st ? `<span class="${st.startsWith('up') ? 'val-ok' : 'val-bad'}">${esc(st)}</span>` : '<span class="val-muted">—</span>';
-      const peer = name === d.node ? '<span class="val-muted">self</span>'
-        : (d.reachable_peers || []).includes(name) ? '<span class="val-ok">reachable</span>' : '<span class="val-bad">unreachable</span>';
-      const role = (d.roles || {})[name] === 'witness' ? ' <span class="stat-sub">witness</span>' : '';
-      return `<tr><th>${esc(name)}${role}</th><td><span class="${classTint[cls] || 'val-muted'}">${esc(cls)}</span> ${svc}</td><td>${probes}</td><td>${peer}</td></tr>`;
+  function cardFor(name) {
+    const id = `svc-${name}`;
+    let col = $(id);
+    if (col) return col.querySelector('.service-card');
+    col = $('service-card-tpl').content.firstElementChild.cloneNode(true);
+    col.id = id;
+    const card = col.querySelector('.service-card');
+    card.dataset.service = name;
+    card.querySelector('[data-f="name"]').textContent = name;
+    wireActions(card, name);
+    $('services-row').appendChild(col);
+    return card;
+  }
+
+  function renderService(d, name, svc) {
+    svc = { ...svc, name };
+    const card = cardFor(name);
+    const f = (key) => card.querySelector(`[data-f="${key}"]`);
+    const hosts = d.hosts || {};
+    const known = svc.mode && svc.mode !== 'unknown';
+    const onConfigured = known && svc.mode === svc.primary;
+
+    // header badge: who is primary; green on the configured primary, orange when failed over
+    const badge = f('mode-badge');
+    badge.className = `badge badge-tint ms-auto ${known ? (onConfigured ? 'tint-green' : 'tint-orange') : 'tint-muted'}`;
+    badge.querySelector('i').className = `bi bi-circle-fill status-dot status-dot--${known ? (onConfigured ? 'running' : 'degraded') : 'muted'}`;
+    badge.title = onConfigured ? 'running on its configured primary' : known ? `failed over to ${svc.mode} (configured primary: ${svc.primary})` : 'primary unknown';
+    f('mode').textContent = known ? svc.mode : 'unknown';
+    f('since').textContent = svc.since ? `primary since ${new Date(svc.since).toLocaleString()} (${fmtAgo(svc.since)})` : (d.note ? d.note : 'since: n/a');
+
+    // hosts of this service, coloured by role
+    const rows = [svc.primary, svc.standby].filter(Boolean).map((h) => {
+      const hd = hosts[h];
+      const role = hostRole(svc, h, hd);
+      const cls = ((hd || {}).classes || {})[name];
+      const configured = h === svc.primary ? 'configured primary' : 'configured standby';
+      return `<tr class="host-${role.tint}"><th><i class="bi bi-circle-fill status-dot status-dot--${role.dot}"></i> ${esc(h)}</th>` +
+        `<td><span class="badge badge-tint tint-${role.tint}" title="${esc(configured)}">${esc(role.label)}</span></td>` +
+        `<td>${serviceCell(((hd || {}).services || {})[name])}</td>` +
+        `<td><span class="${classTint[cls] || 'val-muted'}">${esc(cls || (hd ? '—' : 'no view'))}</span></td></tr>`;
     });
-    $('sn-cluster').innerHTML = rows.join('');
-    $('sn-quorum').innerHTML = `quorum <span class="${d.quorum === 'up' ? 'val-ok' : 'val-bad'}">${esc(d.quorum)}</span> · agreed class of ${esc(Object.keys(d.hosts || {})[0] || 'primary')}: <span class="${classTint[d.agreed_class] || ''}">${esc(d.agreed_class)}</span>${d.busy ? ' · <span class="val-warn">transition in progress</span>' : ''}`;
-    $('sn-lease').textContent = d.lease
-      ? `lease: ${d.lease.holder} ${d.lease.action} until ${d.lease.expires_at}`
-      : 'lease: none';
-    const routes = [];
-    if (d.route_primary) routes.push(`routes → ${d.route_primary}`);
-    if (d.ha_connectors != null) routes.push(`${d.ha_connectors} tunnel connectors`);
-    if (d.standby_stack) routes.push(`stack ${d.standby_stack}`);
-    $('sn-routes').textContent = routes.join(' · ');
+    f('hosts').innerHTML = rows.join('');
 
-    if (!holdBusy) $('sn-hold-switch').checked = !!d.hold;
-    ['sn-promote', 'sn-demote', 'sn-promote-dry', 'sn-demote-dry'].forEach((id) => {
-      $(id).disabled = !d.acting || d.busy || !!d.action_running;
+    // facts
+    f('agreed').innerHTML = svc.agreed_class
+      ? `<span class="${classTint[svc.agreed_class] || ''}">${esc(svc.agreed_class)}</span>${svc.classification && svc.classification !== svc.agreed_class ? ` <span class="stat-sub">local ${esc(svc.classification)}</span>` : ''}${svc.busy ? ' · <span class="val-warn">transition in progress</span>' : ''}`
+      : '<span class="val-muted">—</span>';
+    const lease = svc.lease;
+    f('lease').innerHTML = lease
+      ? `<span class="val-warn">${esc(lease.holder)}</span> <span class="stat-sub">${esc(lease.action || '')} · until ${new Date(lease.expires_at).toLocaleTimeString()}</span>`
+      : '<span class="val-muted">none</span>';
+    f('hold').innerHTML = svc.hold
+      ? '<span class="val-warn">on</span> <span class="stat-sub">automatic failback paused</span>'
+      : `<span class="val-ok">off</span>${d.tunables && d.tunables.auto_failback ? ` <span class="stat-sub">auto failback ${esc(d.tunables.auto_failback)}</span>` : ''}`;
+    const lt = svc.last_transition;
+    f('last-transition').innerHTML = lt
+      ? `${esc(lt.action)} <span class="${lt.result === 'ok' ? 'val-ok' : lt.result ? 'val-bad' : 'val-warn'}">${esc(lt.result || 'running…')}</span> <span class="stat-sub">${fmtAgo(lt.started_at)}${lt.data && lt.data.duration_s ? ` · ${esc(lt.data.duration_s)}s` : ''}${lt.node ? ` · ${esc(lt.node)}` : ''}</span>`
+      : '<span class="val-muted">none recorded</span>';
+    const rp = svc.route_primary;
+    f('routes').innerHTML = rp
+      ? `<span class="${rp === svc.mode ? 'val-ok' : rp === 'unknown' ? 'val-muted' : 'val-warn'}">→ ${esc(rp)}</span>${d.ha_connectors != null ? ` <span class="stat-sub">${esc(d.ha_connectors)} tunnel connectors</span>` : ''}`
+      : '<span class="val-muted">—</span>';
+    f('acting').innerHTML = `${esc(svc.standby)}${svc.acting ? ' <span class="stat-sub">(this node)</span>' : ' <span class="stat-sub">(read-only here)</span>'}${svc.standby_stack ? ` · <span class="stat-sub">stack ${esc(svc.standby_stack)}</span>` : ''}`;
+
+    // decider timers
+    const g = svc.gates || {}, t = d.tunables || {};
+    timer(card, 'down', g.down_since, t.promote_after_s, `${svc.primary} down`, onConfigured ? `${svc.primary} ${name} up` : 'n/a');
+    timer(card, 'stable', g.stable_since, g.failback_after_s || t.failback_after_s, `${svc.primary} stable`, onConfigured ? `n/a while ${svc.primary} is primary` : `${svc.primary} not healthy yet`);
+    const cd = [];
+    if (g.promote_cooldown_left_s) cd.push(`promote cooldown ${fmtDur(g.promote_cooldown_left_s)} left`);
+    if (g.promote_retry_left_s) cd.push(`promote retry in ${fmtDur(g.promote_retry_left_s)}`);
+    if (g.failback_retry_left_s) cd.push(`failback retry in ${fmtDur(g.failback_retry_left_s)}`);
+    if (g.flips_in_window) cd.push(`${g.flips_in_window} flips in window`);
+    if (g.dead_polls) cd.push(`${g.dead_polls} dead polls`);
+    f('cooldown').textContent = cd.join(' · ');
+
+    // replica block only when the document carries replica info for the service
+    const rep = svc.replica;
+    f('replica').classList.toggle('d-none', !rep);
+    if (rep) {
+      f('replica-value').innerHTML = Object.entries(rep).map(([k, r]) => {
+        if (!r || typeof r !== 'object') return `${esc(k)} <span class="val-muted">${esc(r)}</span>`;
+        const cls = r.lag_s > 900 ? 'val-bad' : r.lag_s > 120 ? 'val-warn' : 'val-ok';
+        return `${esc(k)} <span class="${cls}">${r.lag_s != null ? fmtDur(r.lag_s) : esc(r.state || '—')}</span>`;
+      }).join(' · ');
+    }
+
+    // actions: only the acting node may act, and only when nothing is running
+    const sw = f('hold-switch');
+    if (!holdBusy.has(name)) sw.checked = !!svc.hold;
+    sw.disabled = !svc.acting;
+    const locked = !svc.acting || svc.busy || !!svc.action_running;
+    card.querySelectorAll('[data-action]').forEach((b) => { b.disabled = locked; });
+    f('actions-note').textContent = !svc.acting
+      ? `read-only: the acting node of ${name} is ${svc.standby}`
+      : svc.action_running ? `${svc.action_running} running via the api…`
+        : svc.busy ? `transition in progress${svc.transition ? ` (${svc.transition})` : ''}`
+          : 'Transitions run the service hooks under a majority lease; follow them in the events.';
+  }
+
+  function wireActions(card, name) {
+    card.querySelectorAll('[data-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.action;
+        if (btn.dataset.dry) {
+          btn.disabled = true;
+          try {
+            const res = await post(`/api/${action}`, { dry_run: 'true', service: name });
+            $('output-title').textContent = `${name}: ${action} --dry-run`;
+            $('output-text').textContent = res.message || '(no output)';
+            bootstrap.Modal.getOrCreateInstance($('output-modal')).show();
+            if (!res.ok) toast('error', res.message);
+          } catch (e) { toast('error', `${action} --dry-run failed: ${e.message}`); }
+          finally { btn.disabled = false; }
+          return;
+        }
+        const svc = ((previous || {}).services || {})[name] || {};
+        const body = action === 'demote'
+          ? `Hands <b>${esc(name)}</b> back to <b>${esc(svc.primary)}</b>: stops the stack on ${esc(svc.standby)}, restores the reverse replica onto ${esc(svc.primary)} and starts it there.`
+          : `Makes <b>${esc(svc.standby)}</b> primary for <b>${esc(name)}</b>: fences ${esc(svc.primary)}, restores the replica and starts the stack on ${esc(svc.standby)}.`;
+        const ok = await confirmThen(`${action} ${name}?`, `${body}<div class="stat-sub mt-2">Runs the ${esc(name)}/${esc(action)} hook under a majority lease.</div>`, null, { label: action });
+        if (!ok) return;
+        btn.disabled = true;
+        try {
+          const res = await post(`/api/${action}`, { confirm: action, service: name });
+          toast(res.ok ? 'warning' : 'error', res.message);
+        } catch (e) { toast('error', `${action} failed: ${e.message}`); }
+        tick();
+      });
+    });
+
+    card.querySelector('[data-f="hold-switch"]').addEventListener('change', async (e) => {
+      const on = e.target.checked;
+      holdBusy.add(name);
+      try {
+        const res = await post('/api/hold', { on: on ? 'true' : 'false', service: name });
+        toast(res.ok ? (on ? 'warning' : 'success') : 'error', res.message);
+        if (!res.ok) e.target.checked = !on;
+      } catch (err) { toast('error', `hold failed: ${err.message}`); e.target.checked = !on; }
+      finally { holdBusy.delete(name); }
+      tick();
+    });
+  }
+
+  // ---------------------------------------------------------------- cluster header + hosts
+
+  function renderCluster(d) {
+    $('node-name').textContent = d.node;
+    document.title = `sentinel · ${d.node}`;
+    const q = $('flag-quorum');
+    q.className = `badge badge-tint badge-lg ${d.quorum === 'up' ? 'tint-green' : d.quorum ? 'tint-red' : 'tint-muted'}`;
+    $('quorum-value').textContent = d.quorum || 'no cycle yet';
+    const peers = d.reachable_peers || [];
+    const hostNames = Object.keys(d.hosts || {});
+    const others = hostNames.filter((h) => h !== d.node);
+    const pf = $('flag-peers');
+    pf.className = `badge badge-tint ${others.length && peers.length === others.length ? 'tint-green' : peers.length ? 'tint-yellow' : 'tint-muted'}`;
+    $('peers-value').textContent = others.length ? `${peers.length}/${others.length}${d.majority ? ` · majority ${d.majority}` : ''}` : '—';
+    pf.title = peers.length ? `reachable: ${peers.join(', ')}` : 'no peer reachable';
+    $('flag-hold').classList.toggle('d-none', !d.hold);
+    const tr = $('flag-transition');
+    tr.classList.toggle('d-none', !d.transition);
+    tr.innerHTML = d.transition ? `<i class="bi bi-arrow-repeat"></i> ${esc(d.transition)}` : '';
+    const rf = $('flag-routes');
+    const routeList = Object.entries(d.route_primary || {}).filter(([, h]) => h && h !== 'n/a').map(([s, h]) => `${esc(s)} → ${esc(h)}`);
+    rf.classList.toggle('d-none', !routeList.length);
+    rf.innerHTML = routeList.length ? `<i class="bi bi-signpost-split"></i> routes ${routeList.join(' · ')}${d.ha_connectors != null ? ` · ${esc(d.ha_connectors)} connectors` : ''}` : '';
+    $('cluster-meta').textContent = d.at ? `cycle ${fmtAgo(d.at)}` : (d.note || '');
+    $('generated').textContent = `${new Date().toLocaleTimeString()}${d.status_age_s != null ? ` · status age ${d.status_age_s}s` : ''}`;
+
+    const svcNames = Object.keys(d.services || {});
+    const body = hostNames.map((h) => {
+      const hd = d.hosts[h] || {};
+      const probes = Object.entries(hd.probes || {}).filter(([, v]) => v)
+        .map(([p, v]) => `<span class="${upDown(v)}" title="${esc(p)} ${esc(v)}">${esc(p)}</span>`).join(' ');
+      const peer = h === d.node ? '<span class="val-muted">self</span>'
+        : peers.includes(h) ? '<span class="val-ok">reachable</span>' : '<span class="val-bad">unreachable</span>';
+      const roles = svcNames.filter((s) => d.services[s].primary === h || d.services[s].standby === h)
+        .map((s) => `${s}: ${d.services[s].primary === h ? 'primary' : 'standby'}`);
+      const role = hd.role === 'witness' ? '<span class="badge badge-tint tint-purple">witness</span>' : `<span class="stat-sub">${esc(roles.join(', ') || hd.role || '—')}</span>`;
+      return `<tr><th>${esc(h)}</th><td>${role}</td><td>${probes || '<span class="val-muted">—</span>'}</td><td>${peer}</td></tr>`;
+    });
+    $('hosts-body').innerHTML = body.join('');
+    $('hosts-empty').classList.toggle('d-none', body.length > 0);
+    $('hosts-meta').textContent = hostNames.length ? `${hostNames.length} hosts · ${svcNames.length} service${svcNames.length === 1 ? '' : 's'}` : '';
+  }
+
+  function render(d) {
+    renderCluster(d);
+    const names = Object.keys(d.services || {});
+    names.forEach((n) => renderService(d, n, d.services[n]));
+    // drop cards of services that left the document
+    document.querySelectorAll('#services-row > [id^="svc-"]').forEach((col) => {
+      if (!names.includes(col.id.slice(4))) col.remove();
     });
   }
 
@@ -262,98 +301,93 @@
     const rows = (events || []).filter((e) => e.kind !== 'heartbeat').slice(0, 15).map((e) =>
       `<tr><td class="text-nowrap stat-sub" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
       `<td class="text-nowrap"><span class="badge badge-tint ${kindTint[e.kind] || 'tint-muted'}">${esc(e.kind)}</span></td>` +
-      `<td>${esc(e.message)}</td></tr>`);
-    $('sn-events').innerHTML = rows.join('');
-    $('sn-events-empty').classList.toggle('d-none', rows.length > 0);
-    $('sn-events-meta').textContent = rows.length ? `${rows.length} shown · heartbeats hidden` : '';
+      `<td>${e.service ? `<span class="stat-sub">${esc(e.service)} · </span>` : ''}${esc(e.message)}</td></tr>`);
+    $('events').innerHTML = rows.join('');
+    $('events-empty').classList.toggle('d-none', rows.length > 0);
+    $('events-meta').textContent = rows.length ? `${rows.length} shown · heartbeats hidden` : '';
   }
 
   function renderTransitions(transitions) {
     const rows = (transitions || []).slice(0, 6).map((t) => {
       const ok = t.result === 'ok';
       const dur = t.data && t.data.duration_s ? ` · ${t.data.duration_s}s` : '';
-      return `<dt>${esc(t.action)}</dt><dd><span class="${ok ? 'val-ok' : 'val-bad'}">${esc(t.result || 'running…')}</span>` +
+      return `<dt>${esc(t.service)} ${esc(t.action)}</dt><dd><span class="${ok ? 'val-ok' : t.result ? 'val-bad' : 'val-warn'}">${esc(t.result || 'running…')}</span>` +
         `<span class="stat-sub"> ${fmtAgo(t.started_at)}${dur} · ${esc(t.node || '')}</span></dd>`;
     });
-    $('sn-transitions').innerHTML = rows.join('');
-    $('sn-transitions-empty').classList.toggle('d-none', rows.length > 0);
+    $('transitions').innerHTML = rows.join('');
+    $('transitions-empty').classList.toggle('d-none', rows.length > 0);
   }
+
+  // ---------------------------------------------------------------- state-change toasts
+
+  function diff(prev, cur) {
+    if (!prev) return;
+    if ((prev.quorum || null) !== (cur.quorum || null) && cur.quorum) toast(cur.quorum === 'up' ? 'success' : 'error', `quorum ${cur.quorum}`);
+    if (!!prev.hold !== !!cur.hold) toast('warning', cur.hold ? 'hold set: failback paused' : 'hold released');
+    if ((prev.transition || null) !== (cur.transition || null) && cur.transition) toast('warning', `transition: ${cur.transition}`);
+    Object.entries(cur.route_primary || {}).forEach(([name, host]) => {
+      const was = (prev.route_primary || {})[name] || null;
+      if (was !== host && host && host !== 'n/a') toast('warning', `${name}: routes now point to ${host}`);
+    });
+    Object.entries(cur.services || {}).forEach(([name, s]) => {
+      const p = (prev.services || {})[name]; if (!p) return;
+      if (p.mode !== s.mode) toast(s.mode === s.primary ? 'success' : 'warning', `${name}: primary ${p.mode} → ${s.mode}`);
+      if (!!p.busy !== !!s.busy) toast(s.busy ? 'warning' : 'success', s.busy ? `${name}: transition started` : `${name}: transition finished`);
+      if ((p.agreed_class || null) !== (s.agreed_class || null) && s.agreed_class) toast(s.agreed_class === 'ok' ? 'success' : 'warning', `${name}: ${s.primary} is ${s.agreed_class}`);
+      [s.primary, s.standby].forEach((h) => {
+        const a = (((prev.hosts || {})[h] || {}).services || {})[name], b = (((cur.hosts || {})[h] || {}).services || {})[name];
+        if (a && b && a !== b) toast(String(b).startsWith('up') ? 'success' : 'warning', `${h} ${name}: ${a} → ${b}`);
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- poller
 
   async function tick() {
     if (enabled === false) return;
     try {
-      const d = await getJSON('/api/sentinel');
-      if (!d) return;
+      const d = await getJSON('/api/v1/status');
+      if (!d) { $('disabled-state').classList.remove('d-none'); return; }
+      if (!d.ok) throw new Error(d.message || 'not ok');
       enabled = true;
-      renderCluster(d);
+      if (failures > 0) toast('success', 'status refresh recovered');
+      failures = 0;
+      $('stale').classList.add('d-none');
+      diff(previous, d);
+      render(d);
+      previous = d;
       const [ev, tr] = await Promise.all([getJSON('/api/events?limit=40'), getJSON('/api/transitions?limit=6')]);
       if (ev) renderEvents(ev.events);
       if (tr) renderTransitions(tr.transitions);
-    } catch (e) { /* the stale badge of the main poller covers it */ }
+    } catch (e) {
+      failures += 1;
+      $('stale').classList.remove('d-none');
+      if (failures === 1) toast('error', `status refresh failed: ${e.message}`);
+    }
   }
-
-  // ---- actions
-  const modal = () => bootstrap.Modal.getOrCreateInstance($('sn-modal'));
-
-  function openConfirm(action) {
-    $('sn-modal-title').textContent = `Confirm ${action}`;
-    $('sn-modal-text').textContent = action === 'demote'
-      ? 'Hands the primary back: stops the standby pair, restores the reverse replica onto the primary and starts it. Type the word to confirm.'
-      : 'Makes the standby primary: fences the current primary, restores the replica and starts the standby pair. Type the word to confirm.';
-    const input = $('sn-modal-input');
-    input.classList.remove('d-none'); input.value = ''; input.placeholder = action;
-    $('sn-modal-output').classList.add('d-none');
-    const go = $('sn-modal-go');
-    go.classList.remove('d-none'); go.disabled = true; go.dataset.action = action;
-    input.oninput = () => { go.disabled = input.value.trim() !== action; };
-    modal().show();
-    setTimeout(() => input.focus(), 300);
-  }
-
-  function openOutput(title, text) {
-    $('sn-modal-title').textContent = title;
-    $('sn-modal-text').textContent = '';
-    $('sn-modal-input').classList.add('d-none');
-    $('sn-modal-go').classList.add('d-none');
-    const out = $('sn-modal-output');
-    out.classList.remove('d-none'); out.textContent = text;
-    modal().show();
-  }
-
-  document.querySelectorAll('#sn-promote, #sn-demote, #sn-promote-dry, #sn-demote-dry').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const action = btn.dataset.action;
-      if (btn.dataset.dry) {
-        btn.disabled = true;
-        try {
-          const res = await post(`/api/${action}`, { dry_run: 'true' });
-          openOutput(`${action} --dry-run`, res.message || '(no output)');
-        } finally { btn.disabled = false; }
-      } else {
-        openConfirm(action);
-      }
-    });
-  });
-
-  $('sn-modal-go').addEventListener('click', async () => {
-    const action = $('sn-modal-go').dataset.action;
-    $('sn-modal-go').disabled = true;
-    const data = { confirm: action };
-    const res = await post(`/api/${action}`, data);
-    modal().hide();
-    toast(res.ok ? 'warning' : 'error', res.message);
-    tick();
-  });
-
-  $('sn-hold-switch').addEventListener('change', async (e) => {
-    holdBusy = true;
-    try {
-      const res = await post('/api/hold', { on: e.target.checked ? 'true' : 'false' });
-      toast(res.ok ? (e.target.checked ? 'warning' : 'success') : 'error', res.message);
-      if (!res.ok) e.target.checked = !e.target.checked;
-    } finally { holdBusy = false; }
-  });
 
   tick();
   setInterval(tick, refreshMs);
+  setInterval(() => { if (previous) render(previous); }, 1000); // keep the timers ticking between polls
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 })();
+
+// The house confirm modal (web-ui-design skill, assets/reference/confirm.js).
+function confirmThen(title, bodyHtml, onOk, { label = 'Confirm', danger = true } = {}) {
+  const el = document.getElementById('confirm-modal');
+  const ok = el.querySelector('#confirm-ok');
+  const h = el.querySelector('#confirm-title');
+  h.className = 'modal-title' + (danger ? ' text-danger' : '');
+  h.innerHTML = `<i class="bi ${danger ? 'bi-exclamation-triangle' : 'bi-question-circle'} me-2"></i><span></span>`;
+  h.lastChild.textContent = title;
+  el.querySelector('#confirm-body').innerHTML = bodyHtml;
+  ok.textContent = label;
+  ok.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+  const modal = bootstrap.Modal.getOrCreateInstance(el);
+  return new Promise((resolve) => {
+    let confirmed = false;
+    ok.onclick = () => { confirmed = true; modal.hide(); };
+    el.addEventListener('hidden.bs.modal', () => { ok.onclick = null; if (confirmed && onOk) onOk(); resolve(confirmed); }, { once: true });
+    modal.show();
+  });
+}

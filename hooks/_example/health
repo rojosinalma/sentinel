@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Example hook: proves the wiring end to end without touching real infrastructure.
+# Example hook: proves the wiring end to end without touching real infrastructure. The loop
+# reads the LAST line: `up` or `down <reason>` (docs/hooks.md).
 set -euo pipefail
-echo "$(date -u +%FT%TZ) [example-health] args=$* SERVICE=${SERVICE:-} ACTING_NODE=${ACTING_NODE:-}"
+echo "$(date -u +%FT%TZ) [example-health] args=$* SERVICE=${SERVICE:-} PRIMARY=${PRIMARY:-} ACTING_NODE=${ACTING_NODE:-}"
+echo "up"
 exit 0

@@ -26,6 +26,7 @@ module Sentinel
       entry = doc[:services].fetch(service)
       view = doc[:views][svc.primary]
       snap = entry[:decider]
+      state = state.for(service)
 
       {
         "mode" => entry[:mode],
@@ -59,7 +60,7 @@ module Sentinel
         "flips_in_window" => snap[:flips_in_window],
         "standby_stack" => entry[:standby_stack],
         "route_mode" => config[:route_mode],
-        "route_primary" => doc[:route_primary],
+        "route_primary" => route_primary_for(doc, service),
         "ha_connectors" => doc[:ha_connectors],
         "checked_at" => iso_or_nil(doc[:at]),
         "status_age_s" => (now - doc[:at]).to_i
@@ -70,6 +71,7 @@ module Sentinel
 
     # The bash fallback before the first cycle, with the live overlays status-http applied.
     def no_cycle_yet(service:, state:)
+      state = state.for(service.name)
       {
         "mode" => state.mode(default: service.primary),
         "since" => iso_or_nil(state.mode_since),
@@ -84,23 +86,40 @@ module Sentinel
 
     # The generic document: every host's probes and service states, every service's decision
     # state. Neutral names only; nothing here depends on which host plays which role.
-    def v1(loop:, state:, now: Time.now)
+    #
+    # store/cluster/config feed the dashboard extras (lease, last transition, host roles,
+    # majority, the timer targets); callers that have only loop/state get them from the booted
+    # runtime, and a bare harness (no runtime, nothing passed) simply leaves those fields nil.
+    def v1(loop:, state:, now: Time.now, store: nil, cluster: nil, config: nil)
+      runtime = Sentinel.respond_to?(:runtime) ? Sentinel.runtime : nil
+      store ||= runtime && runtime[:store]
+      cluster ||= runtime && runtime[:cluster]
+      config ||= (runtime && runtime[:config]) || {}
       doc = loop.last
+      action_running = defined?(Actions) ? Actions.running : {}
       services = loop.services.to_h do |name, svc|
         entry = doc&.dig(:services, name)
+        sstate = state.for(name)
         [name, {
           primary: svc.primary, standby: svc.standby, acting: loop.acting?(name),
-          mode: entry ? entry[:mode] : state.mode(default: svc.primary),
+          mode: entry ? entry[:mode] : sstate.mode(default: svc.primary),
+          since: (store && store.get("primary_at.#{name}")) || iso_or_nil(sstate.mode_since),
           agreed_class: entry && entry[:agreed_class]&.to_s,
           classification: entry&.dig(:decider, :classification),
           gates: entry ? entry[:decider] : {},
-          busy: entry ? entry[:busy] : state.busy?,
+          busy: entry ? entry[:busy] : sstate.busy?,
           standby_stack: entry && entry[:standby_stack],
-          hold: state.hold?, transition: state.transition
+          hold: sstate.hold?, transition: sstate.transition,
+          action_running: action_running[name],
+          route_primary: doc && route_primary_for(doc, name),
+          routes: svc.routes && { mode: svc.routes.mode, group: svc.routes.group, pihole_names: svc.routes.pihole_names },
+          lease: store && lease_public(store.lease_current(name, now: now)),
+          last_transition: store && store.transitions(service: name, limit: 1).first
         }]
       end
       hosts = (doc ? doc[:views] : {}).to_h do |name, view|
-        [name, { probes: { ssh: view.ssh, icmp: view.icmp, traefik: view.traefik },
+        [name, { role: cluster && cluster.hosts[name]&.role&.to_s,
+                 probes: { ssh: view.ssh, icmp: view.icmp, traefik: view.traefik },
                  services: view.services,
                  classes: (doc[:classes] || {}).filter_map { |svc, by_host| [svc, by_host[name].to_s] if by_host[name] }.to_h }]
       end
@@ -108,11 +127,27 @@ module Sentinel
         ok: true, node: loop.node_name, at: iso_or_nil(doc && doc[:at]),
         status_age_s: doc && (now - doc[:at]).to_i,
         quorum: doc && doc[:quorum], reachable_peers: doc ? doc[:reachable_peers] : [],
+        majority: cluster&.majority, hold: state.hold?,
+        transition: services.values.filter_map { |e| e[:transition] }.first,
+        tunables: config.slice(:poll_interval_s, :promote_after_s, :failback_after_s, :auto_promote, :auto_failback),
         hosts: hosts, services: services,
         route_primary: doc && doc[:route_primary], ha_connectors: doc && doc[:ha_connectors]
       }
       out[:note] = "no cycle yet" unless doc
       out
+    end
+
+    # The lease row without its bearer token (the token authorises the release call).
+    def lease_public(row)
+      return nil unless row
+
+      row.reject { |k, _| k == :token }
+    end
+
+    # The loop records one route primary per service (Hash); a plain String is the pre-group shape.
+    def route_primary_for(doc, service)
+      rp = doc[:route_primary]
+      rp.is_a?(Hash) ? rp[service] : rp
     end
 
     def iso_or_nil(time) = time&.utc&.strftime("%Y-%m-%dT%H:%M:%SZ")

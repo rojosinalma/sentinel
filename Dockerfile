@@ -33,6 +33,8 @@ WORKDIR /app
 COPY Gemfile Gemfile.lock ./
 RUN bundle config set --local without development && bundle install --jobs 4
 
+# hooks/ is in this copy only as a fallback: every compose mounts the checkout's hooks/ over it
+# (docs/hooks.md), so a hook change is a file drop, not a rebuild.
 COPY . .
 
 ARG APP_VERSION=dev

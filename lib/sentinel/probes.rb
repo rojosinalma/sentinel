@@ -6,11 +6,12 @@ module Sentinel
   # Fans a host's probes out in parallel (one cycle costs one timeout, not the sum) and folds
   # the results into a HostView. The service mapping is the bash primary_service_status: a 401
   # proves the server is up even when the credential is stale. service_urls is {service => url}
-  # for every service the host carries; basic is the one credential pair used for all of them.
+  # for every service the host carries; service_probes is {service => Config::Probe} (credential,
+  # headers, per-host ip) — a service without one is probed plain.
   module Probes
     module_function
 
-    def host(host, service_urls: {}, basic: nil, timeout:, now: Time.now)
+    def host(host, service_urls: {}, service_probes: {}, timeout:, now: Time.now)
       jobs = {}
       if (ssh_port = host.probes[:ssh])
         jobs[:ssh] = -> { Tcp.open?(host.address, ssh_port, timeout: timeout) }
@@ -22,8 +23,13 @@ module Sentinel
         jobs[:icmp] = -> { Icmp.up?(host.address, timeout: timeout) }
       end
       service_urls = service_urls || {}
+      service_probes = service_probes || {}
       service_urls.each do |service, url|
-        jobs[[:service, service]] = -> { service_status(url, basic: basic, timeout: timeout) }
+        probe = service_probes[service]
+        jobs[[:service, service]] = lambda do
+          service_status(url, basic: probe&.basic, headers: probe&.headers,
+                              resolve_ip: probe&.resolve_ip(host.name), timeout: timeout)
+        end
       end
 
       results = Workers.parallel(jobs, timeout: timeout + 1.0)
@@ -51,8 +57,8 @@ module Sentinel
       Workers.parallel(jobs, timeout: timeout + 1.0).values.any? { |v| v == true } ? "up" : "down"
     end
 
-    def service_status(url, basic:, timeout:)
-      res = Http.get(url, basic: basic, timeout: timeout, tls_verify: false)
+    def service_status(url, timeout:, basic: nil, headers: nil, resolve_ip: nil)
+      res = Http.get(url, basic: basic, headers: headers, resolve_ip: resolve_ip, timeout: timeout, tls_verify: false)
       case res[:code]
       when 200
         version = JSON.parse(res[:body])["version"] rescue nil

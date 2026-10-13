@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Example hook: the real promote (hooks/opencode, phase 2) fences the primary, restores the
+# Example hook: the real promote (hooks/opencode) fences the primary, restores the
 # DBs and starts the standby pair. This one only moves the mode file, like the real one does
 # before starting anything.
 set -euo pipefail

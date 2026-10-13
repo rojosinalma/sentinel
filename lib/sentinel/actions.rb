@@ -3,23 +3,26 @@
 module Sentinel
   # Operator actions shared by the dashboard API and the MCP tools. Transitions run in a
   # background thread (a promote takes ~10 s, a demote up to a minute): the caller gets an
-  # immediate answer and follows the outcome through /api/transitions and the events.
+  # immediate answer and follows the outcome through /api/transitions and the events. One
+  # transition slot per service: two services may transition at once, one service may not.
   module Actions
     MUTEX = Mutex.new
-    @running = nil
+    @running = {}
 
     module_function
 
-    def hold!(runtime, on:, who: "api")
-      state = runtime[:state]
+    # service: nil -> the node-wide hold (every service), else that service's own hold.
+    def hold!(runtime, on:, who: "api", service: nil)
+      state = service ? runtime[:state].for(service) : runtime[:state]
+      scope = service ? "#{service} hold" : "hold"
       if on
         state.hold_on!(who)
-        runtime[:store].event!("hold", "hold set by #{who}")
+        runtime[:store].event!("hold", "#{scope} set by #{who}", service: service)
       else
         state.hold_off!
-        runtime[:store].event!("hold", "hold released by #{who}")
+        runtime[:store].event!("hold", "#{scope} released by #{who}", service: service)
       end
-      [true, "hold #{on ? 'on' : 'off'}"]
+      [true, "#{scope} #{on ? 'on' : 'off'}"]
     end
 
     # -> [ok, message]. dry_run runs the hook synchronously (seconds) and returns its tail.
@@ -40,22 +43,26 @@ module Sentinel
         return [result.exit_code.zero?, "#{hook} --dry-run rc=#{result.exit_code}\n#{result.output_tail.join("\n")}"]
       end
 
-      return [false, "a transition is already running (#{runtime[:state].transition || 'lock held'})"] if runtime[:state].busy?
+      state = runtime[:state].for(service.name)
+      return [false, "a #{service.name} transition is already running (#{state.transition || 'lock held'})"] if state.busy?
 
       MUTEX.synchronize do
-        return [false, "a transition started via the api is already running (#{@running})"] if @running
+        if @running[service.name]
+          return [false, "a #{service.name} transition started via the api is already running (#{@running[service.name]})"]
+        end
 
-        @running = "#{service.name}/#{hook}"
+        @running[service.name] = hook
       end
       runtime[:store].event!("decision", "#{hook} requested by #{who}", service: service.name)
       Workers.safe_thread("api-#{service.name}-#{hook}") do
         runtime[:loop].execute_transition!(service.name, hook, args)
       ensure
-        MUTEX.synchronize { @running = nil }
+        MUTEX.synchronize { @running.delete(service.name) }
       end
       [true, "#{hook} started; follow /api/transitions and the events"]
     end
 
-    def running = MUTEX.synchronize { @running }
+    # {service => hook} of the api-started transitions in flight.
+    def running = MUTEX.synchronize { @running.dup }
   end
 end

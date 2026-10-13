@@ -32,6 +32,15 @@ class StoreTest < Minitest::Test
     assert_equal 2, @store.events.size
   end
 
+  def test_events_filter_by_service
+    @store.event!("decision", "a", service: "opencode")
+    @store.event!("decision", "b", service: "beacon")
+    @store.event!("boot", "node-level")
+    assert_equal %w[a], @store.events(service: "opencode").map { |e| e[:message] }
+    assert_equal %w[b], @store.events(service: "beacon", kind: "decision").map { |e| e[:message] }
+    assert_equal 3, @store.events.size, "no filter = every row incl. node-level ones"
+  end
+
   def test_transitions
     id = @store.transition_start!(service: "opencode", action: "promote", log_file: "/tmp/x.log")
     @store.transition_end!(id, result: "ok", exit_code: 0, duration_s: 9.5)

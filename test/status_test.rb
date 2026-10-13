@@ -31,7 +31,7 @@ class StatusTest < Minitest::Test
                                 services_meta: { "_example" => { primary: "node-a", standby: "node-b" } },
                                 timeout_s: 10, store: store)
     deciders = cluster.services.to_h do |name, service|
-      [name, Sentinel::Decider.new(config: LoopTest.decider_config(service).merge(route_mode: "ha-routes"), state: state)]
+      [name, Sentinel::Decider.new(config: LoopTest.decider_config(service).merge(route_mode: "ha-routes"), state: state.for(name))]
     end
     loop_obj = Sentinel::Loop.new(
       config: config, cluster: cluster, store: store, state: state,
@@ -91,12 +91,41 @@ class StatusTest < Minitest::Test
   end
 
   def test_mode_since_and_hold_overlay
-    @h[:state].set_mode!("node-b", now: @h[:clock].now)
+    @h[:state].for("_example").set_mode!("node-b", now: @h[:clock].now)
     @h[:state].hold_on!("test")
     @h[:loop].cycle!
     s = build_status
     assert_match(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/, s["since"], "since = mtime of state/mode")
     assert_equal true, s["hold"]
+  end
+
+  # The legacy document is a frozen contract: the exact bytes the pre-per-service-state code
+  # produced for this scenario (test/fixtures/status_legacy.json, generated 2026-10-12).
+  def test_legacy_document_is_byte_identical_to_the_fixture
+    @h[:loop].cycle!
+    st = @h[:state].for("_example")
+    st.set_mode!("node-b", now: @h[:clock].now)
+    t = Time.utc(2026, 1, 1, 11, 0, 0)
+    File.utime(t, t, st.path("mode"))
+    @h[:state].hold_on!("test", now: @h[:clock].now)
+    File.write(st.path("stack"), "healthy\n")
+    st.set_transition!("promote", "20260101T110000Z")
+    @h[:loop].cycle!
+    @h[:clock].advance(7)
+
+    expected = File.read(File.expand_path("fixtures/status_legacy.json", __dir__)).strip
+    assert_equal expected, Sentinel::Status.to_json(build_status)
+  end
+
+  def test_per_service_hold_and_transition_in_v1
+    two = Sentinel::State.new(tmp_state_dir)
+    two.for("_example").hold_on!("test")
+    two.for("other").set_transition!("promote", "20260101T120000Z")
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: two, now: @h[:clock].now)
+    assert_equal true, v1[:services]["_example"][:hold]
+    assert_equal false, v1[:hold], "the node-wide hold is off"
+    assert_nil v1[:services]["_example"][:transition]
+    assert_nil v1[:transition]
   end
 
   def test_status_age_advances
@@ -151,5 +180,35 @@ class StatusTest < Minitest::Test
     assert_equal({}, v1[:hosts])
     assert_equal "node-a", v1[:services]["_example"][:mode]
     assert_nil v1[:at]
+  end
+
+  # The dashboard extras: lease (without its token), last transition, host roles, majority,
+  # cluster-wide hold; all resolved from an explicit store/cluster when given.
+  def test_v1_dashboard_fields
+    store = Sentinel::Store.memory(node: "node-b")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "node-b")
+    now = @h[:clock].now
+    store.lease_grant!(service: "_example", holder: "node-b", action: "promote", token: "secret", ttl_s: 30, now: now)
+    id = store.transition_start!(service: "_example", action: "promote")
+    store.transition_end!(id, result: "ok", exit_code: 0, duration_s: 7)
+    store.set("primary_at._example", "2026-01-01T11:00:00Z")
+    @h[:state].hold_on!("test")
+    @h[:loop].cycle!
+
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: now, store: store, cluster: cluster)
+    assert_equal true, v1[:hold]
+    assert_equal cluster.majority, v1[:majority]
+    assert_equal "witness", v1[:hosts]["witness-1"][:role]
+    assert_equal "member", v1[:hosts]["node-a"][:role]
+    e = v1[:services]["_example"]
+    assert_equal "2026-01-01T11:00:00Z", e[:since]
+    assert_equal "node-b", e[:lease][:holder]
+    assert_equal "promote", e[:lease][:action]
+    refute e[:lease].key?(:token), "the lease token never leaves the node"
+    assert_equal "promote", e[:last_transition][:action]
+    assert_equal "ok", e[:last_transition][:result]
+    assert_equal 7, e[:last_transition][:data]["duration_s"]
+    assert_nil e[:action_running]
+    refute_match(/"token"/, JSON.generate(v1))
   end
 end

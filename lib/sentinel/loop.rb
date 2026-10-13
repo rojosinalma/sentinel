@@ -11,12 +11,11 @@ module Sentinel
   # a majority lease, so one node can act for one service and merely observe another.
   #
   # config keys (symbols): poll_interval_s, tcp_timeout_s, http_timeout_s, host_health_interval_s,
-  # heartbeat_s, lease_renew_s, auto_promote, auto_failback, basic ([user, pass] | nil),
-  # events_keep_days, route_mode, ha_routes_bin, route_timeout_s.
+  # heartbeat_s, lease_renew_s, auto_promote, auto_failback, events_keep_days, route_mode,
+  # ha_routes_bin, route_timeout_s. A service's cluster.yml `auto_promote` wins over the node's.
   #
-  # Release 2 limitation: the state dir is shared and `mode` is the opencode-era single file,
-  # so every service this node acts for reads the same mode file (and a hook writing it moves
-  # them all). Per-service mode files come with the next hooks contract change.
+  # Node state is per service (State#for): each service has its own mode, lock, transition and
+  # markers under STATE_DIR/<service>/, so one service's transition never touches another's.
   class Loop
     PRUNE_INTERVAL_S = 86_400
 
@@ -47,7 +46,7 @@ module Sentinel
       @peer_view = nil
       @stop = false
       @last_heartbeat = nil
-      @route_primary = nil
+      @route_primary = {}
       @ha_connectors = nil
       @last_route_probe = nil
       @last_prune = nil
@@ -102,16 +101,17 @@ module Sentinel
 
       # 3+4: agreement
       quorum = @gossip.quorum? && tcp_quorum != "down" ? "up" : "down"
-      busy = @state.busy?
+      busy_by = @services.keys.to_h { |name| [name, @state.for(name).busy?] }
 
-      # 5-7: per service, who is primary and what to do (acting node only); a hook holding
-      # promote.lock means observe only, for every service (one lock, see class comment)
-      refresh_routes(now) if !busy && !acting_services.empty?
+      # 5-7: per service, who is primary and what to do (acting node only); a hook holding the
+      # service's promote.lock means observe only for that service
+      refresh_routes(now) if busy_by.values.none? && !acting_services.empty?
       entries = {}
       actions = {}
       @services.each do |name, service|
         agreed = @gossip.agreed_class(name, service.primary, classes[name][service.primary])
         mode = modes[name]
+        busy = busy_by[name]
         entries[name] = entry(service, mode: mode, agreed: agreed, busy: busy, now: now)
         next if busy
 
@@ -121,7 +121,8 @@ module Sentinel
         refresh_host_health(service, now, mode, views)
         result = @deciders[name].step(
           now: now, mode: mode, agreed_class: agreed, quorum: quorum,
-          host_health: @svc[name][:host_health], auto_promote: @config[:auto_promote],
+          host_health: @svc[name][:host_health],
+          auto_promote: @deciders[name].config.fetch(:auto_promote, @config[:auto_promote]),
           auto_failback: @config[:auto_failback], probes_str: probes_str(views[service.primary]),
           version: views[service.primary]&.version(name)
         )
@@ -133,7 +134,7 @@ module Sentinel
 
       # publish before acting: a long hook must not leave stale state behind
       publish(now, views: views, classes: classes, entries: entries, quorum: quorum)
-      return last if busy
+      return last if busy_by.values.all?
 
       # 8: act, then re-read the mode a hook may have moved
       actions.each do |name, action|
@@ -159,9 +160,11 @@ module Sentinel
     def probe_all(now)
       timeout = @config[:tcp_timeout_s]
       jobs = @cluster.hosts.values.to_h do |host|
-        urls = @services.filter_map { |name, s| [name, s.health[host.name]] if s.health[host.name] }.to_h
+        carried = @services.select { |_, s| s.health[host.name] }
+        urls = carried.transform_values { |s| s.health[host.name] }
+        probes = carried.transform_values(&:probe)
         [host.name, lambda do
-          @probes.host(host, service_urls: urls, basic: @config[:basic], timeout: timeout, now: now)
+          @probes.host(host, service_urls: urls, service_probes: probes, timeout: timeout, now: now)
         end]
       end
       Workers.parallel(jobs, timeout: @config[:http_timeout_s] + 1.0).to_h do |name, view|
@@ -188,7 +191,7 @@ module Sentinel
 
     def current_mode(service)
       if acting?(service.name)
-        @state.mode(default: service.primary)
+        @state.for(service.name).mode(default: service.primary)
       else
         @gossip.primary(service.name) || @store.get("primary.#{service.name}") || service.primary
       end
@@ -230,17 +233,36 @@ module Sentinel
       line || (result.exit_code.zero? ? "up" : "down health-hook")
     end
 
-    # route_primary / ha_connectors at the host-health cadence, bash refresh_route_primary.
-    # One refresh per cycle: the routes are cluster-wide, not per service.
+    # route_primary (per service: `ha-routes get --group <group>`) / ha_connectors at the
+    # host-health cadence, bash refresh_route_primary. Only services this node acts for and whose
+    # routes.mode is ha-routes are asked; pihole/off services report "n/a".
     def refresh_routes(now)
       return if @last_route_probe && (now - @last_route_probe) < @config[:host_health_interval_s]
 
       @last_route_probe = now
-      @route_primary = @routes.primary_current(bin: @config[:ha_routes_bin],
-                                               timeout: @config[:route_timeout_s],
-                                               route_mode: @config[:route_mode])
+      hosts = @cluster.hosts.keys
+      @route_primary = acting_services.to_h do |name|
+        routes = @services[name].routes
+        [name, @routes.primary_current(bin: @config[:ha_routes_bin], timeout: @config[:route_timeout_s],
+                                       route_mode: routes.ha_routes? ? @config[:route_mode] : "off",
+                                       group: routes.group, hosts: hosts)]
+      end
       @ha_connectors = @routes.connectors_current(bin: @config[:ha_routes_bin],
                                                   timeout: @config[:http_timeout_s])
+    end
+
+    # After a successful promote/demote: the core moves the service's public hostnames to the
+    # host the hook made primary (ha-routes mode only; pihole is the hooks' business, off nothing).
+    def switch_routes!(service, target)
+      routes = service.routes
+      return unless routes.ha_routes? && @cluster.hosts.key?(target)
+
+      result = @routes.set_primary(target, bin: @config[:ha_routes_bin], timeout: @config[:route_timeout_s],
+                                   route_mode: @config[:route_mode], group: routes.group)
+      @route_primary[service.name] = target if result == "ok"
+      @store.event!("route.set", "group #{routes.group} -> #{target}: #{result}",
+                    level: result == "failed" ? "warn" : "info", service: service.name)
+      result
     end
 
     # ---------------------------------------------------------------- actions
@@ -294,15 +316,17 @@ module Sentinel
         @lease.release!(renewal[:grant] || grant)
       end
 
-      mode_after = @state.mode(default: service.primary)
+      state = @state.for(service.name)
+      mode_after = state.mode(default: service.primary)
       @store.set("primary.#{service.name}", mode_after)
       @store.set("primary_at.#{service.name}", iso(@now.call))
 
       success_mode = play[:success] == :standby ? service.standby : service.primary
       if result.exit_code.zero? || mode_after == success_mode
-        @state.remove!(play[:marker])
+        state.remove!(play[:marker])
+        switch_routes!(service, mode_after)
       else
-        @state.touch!(play[:marker])
+        state.touch!(play[:marker])
       end
       @store.event!("transition.end", "#{hook} rc=#{result.exit_code}, mode=#{mode_after}",
                     level: result.exit_code.zero? ? "info" : "warn",
@@ -338,26 +362,32 @@ module Sentinel
 
     def entry(service, mode:, agreed:, busy:, now:)
       acting = acting?(service.name)
+      state = @state.for(service.name)
       {
         primary: service.primary, standby: service.standby, mode: mode, agreed_class: agreed,
         acting: acting, busy: busy, decider: @deciders[service.name].snapshot(now: now),
-        standby_stack: acting && mode == service.standby ? @state.read("stack") : nil
+        standby_stack: acting && mode == service.standby ? state.stack : nil,
+        hold: state.hold?, transition: state.transition
       }
     end
 
+    # hold/transition at the top level are node-wide: the global hold, and the transition of
+    # whichever service is in one (nil when none).
     def publish(now, views:, classes:, entries:, quorum:)
       primary = entries.transform_values { |e| e[:mode] }
       primary_at = @services.to_h do |name, _|
-        [name, @store.get("primary_at.#{name}") || (@state.mode_since && iso(@state.mode_since))]
+        since = @state.for(name).mode_since
+        [name, @store.get("primary_at.#{name}") || (since && iso(since))]
       end
+      transition = entries.values.filter_map { |e| e[:transition] }.first
       view_doc = @gossip.local_view(hosts: views, classes: classes, primary: primary,
                                     primary_at: primary_at, hold: @state.hold?,
-                                    transition: @state.transition, quorum: quorum)
+                                    transition: transition, quorum: quorum)
       doc = {
         at: now, node: @cluster.node_name, quorum: quorum, reachable_peers: @gossip.reachable_peers,
         views: views, classes: classes, services: entries,
         route_primary: @route_primary, ha_connectors: @ha_connectors,
-        hold: @state.hold?, transition: @state.transition
+        hold: @state.hold?, transition: transition
       }
       @mutex.synchronize do
         @last = doc

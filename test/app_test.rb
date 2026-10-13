@@ -134,9 +134,37 @@ class AppTest < Minitest::Test
     res = JSON.parse(@mock.post("/api/hold", params: { "on" => "true" }).body)
     assert res["ok"]
     assert res["hold"]
+    assert_nil res["service"]
     res = JSON.parse(@mock.post("/api/hold", params: { "on" => "false" }).body)
     assert res["ok"]
     refute res["hold"]
+  end
+
+  # A service hold is its own file; the node-wide hold covers the service but not the reverse.
+  def test_api_hold_per_service_vs_node_wide
+    svc = @rt[:state].for("opencode")
+    res = JSON.parse(@mock.post("/api/hold", params: { "on" => "true", "service" => "opencode" }).body)
+    assert res["ok"]
+    assert res["hold"]
+    assert_equal "opencode", res["service"]
+    assert svc.hold?
+    refute @rt[:state].hold?, "service hold does not set the node-wide one"
+    assert JSON.parse(@mock.get("/api/sentinel?service=opencode").body)["hold"]
+
+    res = JSON.parse(@mock.post("/api/hold", params: { "on" => "false", "service" => "opencode" }).body)
+    refute res["hold"]
+    refute svc.hold?
+
+    @mock.post("/api/hold", params: { "on" => "true" })
+    assert svc.hold?, "node-wide hold folds into the service"
+    assert JSON.parse(@mock.post("/api/hold", params: { "on" => "false", "service" => "opencode" }).body)["hold"],
+           "releasing the service hold leaves the node-wide one"
+    @mock.post("/api/hold", params: { "on" => "false" })
+    refute svc.hold?
+
+    res = @mock.post("/api/hold", params: { "on" => "true", "service" => "ghost" })
+    assert_equal 404, res.status
+    refute @rt[:state].hold?
   end
 
   def test_api_promote_requires_confirmation
@@ -167,6 +195,24 @@ class AppTest < Minitest::Test
     res = JSON.parse(@mock.get("/api/transitions").body)
     assert res["ok"]
     assert res.key?("transitions")
+  end
+
+  def test_api_events_and_transitions_filter_by_service
+    @rt[:store].event!("decision", "svc-tagged", service: "opencode")
+    @rt[:store].event!("decision", "untagged")
+    id = @rt[:store].transition_start!(service: "opencode", action: "promote")
+    @rt[:store].transition_end!(id, result: "ok", exit_code: 0)
+
+    events = JSON.parse(@mock.get("/api/events?service=opencode&limit=1000").body)["events"]
+    assert(events.any? { |e| e["message"] == "svc-tagged" })
+    assert(events.all? { |e| e["service"] == "opencode" })
+
+    trans = JSON.parse(@mock.get("/api/transitions?service=opencode").body)["transitions"]
+    assert(trans.all? { |t| t["service"] == "opencode" })
+    refute_empty trans
+
+    assert_equal 404, @mock.get("/api/events?service=ghost").status
+    assert_equal 404, @mock.get("/api/transitions?service=ghost").status
   end
 
   def test_mcp_requires_bearer
@@ -214,12 +260,57 @@ class AppTest < Minitest::Test
     assert_includes res.dig("result", "content", 0, "text"), "unknown service"
   end
 
+  def test_mcp_status_hold_events_take_service
+    schema = ->(name) { mcp_rpc("tools/list", {}).dig("result", "tools").find { |t| t["name"] == name }.dig("inputSchema", "properties") }
+    %w[status hold events].each { |tool| assert schema.call(tool).key?("service"), "#{tool} takes service" }
+
+    legacy = mcp_rpc("tools/call", { name: "status", arguments: {} }).dig("result", "content", 0, "text")
+    explicit = mcp_rpc("tools/call", { name: "status", arguments: { service: "opencode" } }).dig("result", "content", 0, "text")
+    assert_equal JSON.parse(legacy).keys, JSON.parse(explicit).keys
+    assert_includes mcp_rpc("tools/call", { name: "status", arguments: { service: "ghost" } }).dig("result", "content", 0, "text"),
+                    "unknown service"
+
+    body = JSON.parse(mcp_rpc("tools/call", { name: "hold", arguments: { on: true, service: "opencode" } }).dig("result", "content", 0, "text"))
+    assert body["hold"]
+    assert_equal "opencode", body["service"]
+    refute body["node_hold"]
+    assert @rt[:state].for("opencode").hold?
+    refute @rt[:state].hold?
+    body = JSON.parse(mcp_rpc("tools/call", { name: "hold", arguments: { on: false, service: "opencode" } }).dig("result", "content", 0, "text"))
+    refute body["hold"]
+    body = JSON.parse(mcp_rpc("tools/call", { name: "hold", arguments: {} }).dig("result", "content", 0, "text"))
+    refute body["hold"]
+    assert_nil body["service"]
+
+    @rt[:store].event!("decision", "mcp-svc", service: "opencode")
+    @rt[:store].event!("decision", "mcp-none")
+    rows = JSON.parse(mcp_rpc("tools/call", { name: "events", arguments: { service: "opencode", limit: 500 } }).dig("result", "content", 0, "text"))
+    assert(rows.any? { |e| e["message"] == "mcp-svc" })
+    assert(rows.all? { |e| e["service"] == "opencode" })
+    assert_includes mcp_rpc("tools/call", { name: "events", arguments: { service: "ghost" } }).dig("result", "content", 0, "text"),
+                    "unknown service"
+  end
+
   def test_legacy_page_still_renders
     res = @mock.get("/")
     assert_equal 200, res.status
     assert_includes res.body, "sentinel"
     res = @mock.get("/health")
     assert JSON.parse(res.body)["ok"]
+  end
+
+  # The dashboard is generic: cards come from /api/v1/status, the markup names no host or service.
+  def test_page_is_generic
+    res = @mock.get("/")
+    assert_includes res.body, 'id="service-card-tpl"'
+    assert_includes res.body, 'id="confirm-modal"'
+    assert_includes res.body, 'id="services-row"'
+    page = res.body.sub(/served by.*?<\/span>/m, "").sub(/<footer.*<\/footer>/m, "")
+    refute_match(/\b(node-a|node-b|opencode|webui)\b/, page, "no hard-coded host or service names in the view")
+    js = File.read(File.expand_path("../public/js/app.js", __dir__))
+    refute_match(/\b(node-a|node-b|webui)\b|'opencode'|"opencode"/, js, "no hard-coded host or service names in the dashboard script")
+    refute_match(%r{/api/status\b}, js, "the page no longer polls the legacy probe endpoint")
+    refute_match(/window\.(confirm|alert|prompt)\(/, js, "no native dialogs")
   end
 
   private

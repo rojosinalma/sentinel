@@ -4,7 +4,7 @@
 # speak to <host>:4197. Node-a is not the acting node, so no docker socket / ssh mounts here.
 services:
   sentinel:
-    image: registry.example.com/sentinel:${SENTINEL_TAG:-0.3.1}
+    image: registry.example.com/sentinel:${SENTINEL_TAG:-0.4.0}
     container_name: sentinel
     restart: unless-stopped
     environment:
@@ -15,6 +15,14 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./data:/app/data
+      # hooks come from the checkout, not the image (the image's copy is only the fallback when
+      # this mount is removed): a new hooks/<service>/ is a file drop, not a release
+      - type: bind
+        source: ./hooks
+        target: /app/hooks
+        read_only: true
+        bind:
+          create_host_path: false
     networks:
       - default
       - traefik-proxy

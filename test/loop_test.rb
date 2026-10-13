@@ -35,7 +35,7 @@ class LoopTest < Minitest::Test
     def take_down(host, service) = @down << "#{host}/#{service}"
     def restore(host, service) = @down.delete("#{host}/#{service}")
 
-    def host(host, service_urls: {}, basic: nil, timeout: nil, now: Time.now)
+    def host(host, service_urls: {}, service_probes: {}, timeout: nil, now: Time.now)
       services = service_urls.keys.to_h do |svc|
         [svc, @down.include?("#{host.name}/#{svc}") ? "down" : "up 1.0"]
       end
@@ -81,7 +81,7 @@ class LoopTest < Minitest::Test
 
   CONFIG = {
     poll_interval_s: 2, tcp_timeout_s: 1, http_timeout_s: 1, host_health_interval_s: 15,
-    heartbeat_s: 300, lease_renew_s: 60, auto_promote: "on", auto_failback: "on", basic: nil,
+    heartbeat_s: 300, lease_renew_s: 60, auto_promote: "on", auto_failback: "on",
     events_keep_days: 30, quorum_targets: [], promote_after_s: 60, failback_after_s: 30,
     promote_cooldown_s: 120, promote_retry_s: 120, failback_retry_s: 300, flap_flips: 3,
     flap_window_s: 3600, flap_failback_after_s: 600, dead_confirm_polls: 5, notify_down_after_s: 60,
@@ -105,7 +105,28 @@ class LoopTest < Minitest::Test
     dir
   end
 
-  def build_loop(node: "node-b", lease: LeaseStub.new, cluster_yml: CLUSTER_YML)
+  # Records every route call; `get` answers from the primaries it was last `set` to.
+  class RoutesStub
+    attr_reader :calls
+
+    def initialize = @calls = []
+
+    def primary_current(group: nil, hosts: nil, route_mode: "ha-routes", **)
+      @calls << [:get, group, route_mode]
+      route_mode == "ha-routes" ? "node-a" : "n/a"
+    end
+
+    def set_primary(target, group: nil, route_mode: "ha-routes", **)
+      @calls << [:set, target, group, route_mode]
+      "ok"
+    end
+
+    def connectors_current(**) = 3
+
+    def sets = @calls.select { |c| c.first == :set }
+  end
+
+  def build_loop(node: "node-b", lease: LeaseStub.new, cluster_yml: CLUSTER_YML, routes: Sentinel::Routes, config: CONFIG)
     clock = FakeClock.new
     state = Sentinel::State.new(tmp_state_dir)
     store = Sentinel::Store.memory(node: node)
@@ -119,16 +140,16 @@ class LoopTest < Minitest::Test
       timeout_s: 10, store: store
     )
     deciders = cluster.services.to_h do |name, service|
-      [name, Sentinel::Decider.new(config: self.class.decider_config(service), state: state)]
+      [name, Sentinel::Decider.new(config: self.class.decider_config(service), state: state.for(name))]
     end
     notifications = []
     loop_obj = Sentinel::Loop.new(
-      config: CONFIG, cluster: cluster, store: store, state: state, probes: probes,
+      config: config, cluster: cluster, store: store, state: state, probes: probes,
       gossip: GossipStub.new, lease: lease, hooks: hooks, deciders: deciders,
-      notifier: ->(t, b, y) { notifications << [t, b, y] }, now: clock.to_proc
+      notifier: ->(t, b, y) { notifications << [t, b, y] }, now: clock.to_proc, routes: routes
     )
     { loop: loop_obj, clock: clock, state: state, store: store, probes: probes,
-      lease: lease, notifications: notifications, log_dir: log_dir }
+      lease: lease, notifications: notifications, log_dir: log_dir, routes: routes, hooks: hooks }
   end
 
   def svc(h, name = "_example") = h[:loop].last[:services][name]
@@ -160,7 +181,7 @@ class LoopTest < Minitest::Test
     h[:clock].advance(61)
     h[:loop].cycle! # past PROMOTE_AFTER_S -> promote hook runs
 
-    assert_equal "node-b", h[:state].mode(default: "node-a"), "promote hook wrote mode"
+    assert_equal "node-b", h[:state].for("_example").mode(default: "node-a"), "promote hook wrote mode"
     assert_equal "node-b", svc(h)[:mode]
     assert_equal "node-b", h[:store].get("primary._example")
     assert_equal [["_example", "promote"]], h[:lease].acquired
@@ -176,7 +197,7 @@ class LoopTest < Minitest::Test
 
   def test_failback_path
     h = build_loop
-    h[:state].set_mode!("node-b", now: h[:clock].now)
+    h[:state].for("_example").set_mode!("node-b", now: h[:clock].now)
 
     h[:loop].cycle! # standby cycle; health hook -> host_health up; stable timer starts
     assert_equal "node-b", svc(h)[:mode]
@@ -184,7 +205,7 @@ class LoopTest < Minitest::Test
     h[:clock].advance(31)
     h[:loop].cycle! # stable past FAILBACK_AFTER_S -> demote hook
 
-    assert_equal "node-a", h[:state].mode(default: "node-a"), "demote hook wrote mode back"
+    assert_equal "node-a", h[:state].for("_example").mode(default: "node-a"), "demote hook wrote mode back"
     assert_includes h[:lease].acquired, ["_example", "demote"]
     row = h[:store].transitions(service: "_example").first
     assert_equal "demote", row[:action]
@@ -192,7 +213,7 @@ class LoopTest < Minitest::Test
 
   def test_busy_short_circuits
     h = build_loop
-    lock = File.open(File.join(h[:state].dir, "promote.lock"), File::CREAT | File::RDWR)
+    lock = File.open(h[:state].for("_example").path("promote.lock"), File::CREAT | File::RDWR)
     lock.flock(File::LOCK_EX)
 
     h[:probes].take_down("node-a", "_example")
@@ -231,7 +252,7 @@ class LoopTest < Minitest::Test
     h[:clock].advance(61)
     h[:loop].cycle!
 
-    assert_equal "node-a", h[:state].mode(default: "node-a"), "no promote without a lease"
+    assert_equal "node-a", h[:state].for("_example").mode(default: "node-a"), "no promote without a lease"
     assert_empty h[:store].transitions
     assert(h[:store].events(kind: "lease.deny").any?)
     assert(h[:notifications].any? { |(t, _b, _y)| t.include?("blocked") })
@@ -240,17 +261,17 @@ class LoopTest < Minitest::Test
   def test_watch_maintenance_runs_replicate_warm_on_the_primary_cadence
     h = build_loop
     h[:loop].cycle!
-    log = File.join(h[:log_dir], "replicate.log")
+    log = File.join(h[:log_dir], "_example-replicate.log")
     assert File.file?(log), "first primary cycle ran the replicate hook"
-    assert_equal 1, File.readlines(log).grep(/args=warm/).size
+    assert_equal 1, File.readlines(log).grep(/(args|task)=warm/).size
 
     h[:clock].advance(2)
     h[:loop].cycle!
-    assert_equal 1, File.readlines(log).grep(/args=warm/).size, "not due yet"
+    assert_equal 1, File.readlines(log).grep(/(args|task)=warm/).size, "not due yet"
 
     h[:clock].advance(30)
     h[:loop].cycle!
-    assert_equal 2, File.readlines(log).grep(/args=warm/).size, "STACK_CHECK_INTERVAL_S later"
+    assert_equal 2, File.readlines(log).grep(/(args|task)=warm/).size, "STACK_CHECK_INTERVAL_S later"
     assert_empty h[:store].transitions, "maintenance is not a transition"
     assert_empty h[:lease].acquired, "and needs no lease"
   end
@@ -287,8 +308,8 @@ class LoopTest < Minitest::Test
     assert_equal({}, last[:views]["witness-1"].services)
 
     # the warm upkeep only runs for the service this node acts for
-    assert_equal 1, File.readlines(File.join(h[:log_dir], "replicate.log")).grep(/SERVICE=_example /).size
-    assert_empty File.readlines(File.join(h[:log_dir], "replicate.log")).grep(/SERVICE=_example2/)
+    assert_equal 1, File.readlines(File.join(h[:log_dir], "_example-replicate.log")).grep(/SERVICE=_example /).size
+    refute File.exist?(File.join(h[:log_dir], "_example2-replicate.log"))
   end
 
   def test_standby_with_service_stopped_is_standby_not_degraded
@@ -353,11 +374,32 @@ class LoopTest < Minitest::Test
     h[:clock].advance(61)
     h[:loop].cycle!
     assert_equal [["_example2", "promote"]], h[:lease].acquired
-    assert_equal "node-a", h[:state].mode(default: "node-b"), "the hook wrote STANDBY=node-a"
+    assert_equal "node-a", h[:state].for("_example2").mode(default: "node-b"), "the hook wrote STANDBY=node-a"
+    assert_equal "node-a", h[:state].for("_example").mode(default: "node-a"), "_example's own mode file untouched"
     assert_equal "node-a", svc(h, "_example2")[:mode]
     assert_equal "node-a", h[:store].get("primary._example2")
     assert_equal "node-a", svc(h, "_example")[:mode], "non-acting service unaffected"
     assert(h[:notifications].any? { |(t, _b, _y)| t == "node-b _example2 down" })
+  end
+
+  def test_busy_lock_of_one_service_leaves_the_other_deciding
+    h = build_loop(node: "node-a", cluster_yml: TWO_SERVICES_YML)
+    lock = File.open(h[:state].for("_example").path("promote.lock"), File::CREAT | File::RDWR)
+    lock.flock(File::LOCK_EX)
+
+    h[:probes].take_down("node-b", "_example2")
+    h[:loop].cycle!
+    h[:clock].advance(61)
+    h[:loop].cycle!
+
+    assert svc(h, "_example")[:busy]
+    refute svc(h, "_example2")[:busy]
+    assert_equal [["_example2", "promote"]], h[:lease].acquired, "the locked service does not freeze the node"
+    assert_equal "node-a", svc(h, "_example2")[:mode]
+    assert_equal "node-a", svc(h, "_example")[:mode], "the locked service keeps its own mode"
+  ensure
+    lock&.flock(File::LOCK_UN)
+    lock&.close
   end
 
   def test_execute_transition_takes_the_service
@@ -367,5 +409,81 @@ class LoopTest < Minitest::Test
     assert_equal [["_example", "promote"]], h[:lease].acquired
     assert_equal "node-b", h[:store].get("primary._example")
     assert_raises(KeyError) { h[:loop].execute_transition!("ghost", "promote") }
+  end
+
+  # ---------------------------------------------------------------- routes (per service)
+
+  ROUTE_CONFIG = CONFIG.merge(route_mode: "ha-routes", ha_routes_bin: "/nope/ha-routes", route_timeout_s: 5).freeze
+
+  ROUTED_SERVICES_YML = CLUSTER_YML + <<~YAML.gsub(/^/, "  ")
+    _pihole:
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:3/api/info", node-b: "http://127.0.0.2:3/api/info"}
+      hooks_dir: hooks/_pihole
+      routes: {mode: pihole, pihole_names: [a.example, b.example]}
+    _off:
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:4/api/info", node-b: "http://127.0.0.2:4/api/info"}
+      hooks_dir: hooks/_off
+      routes: {mode: off}
+    _grouped:
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:5/api/info", node-b: "http://127.0.0.2:5/api/info"}
+      hooks_dir: hooks/_grouped
+      routes: {group: custom}
+  YAML
+
+  def test_promote_switches_the_routes_once_for_ha_routes_mode_only
+    routes = RoutesStub.new
+    h = build_loop(cluster_yml: ROUTED_SERVICES_YML, routes: routes, config: ROUTE_CONFIG)
+    h[:loop].execute_transition!("_example", "promote", ["--auto"])
+    assert_equal [[:set, "node-b", "_example", "ha-routes"]], routes.sets, "one set, group = service name"
+
+    h[:loop].execute_transition!("_grouped", "promote", ["--auto"])
+    assert_equal [:set, "node-b", "custom", "ha-routes"], routes.sets.last, "cluster.yml routes.group wins"
+
+    h[:loop].execute_transition!("_pihole", "promote", ["--auto"])
+    h[:loop].execute_transition!("_off", "promote", ["--auto"])
+    assert_equal 2, routes.sets.size, "pihole/off services never reach ha-routes"
+    assert_equal 2, h[:store].events(kind: "route.set").size
+  end
+
+  def test_demote_switches_the_routes_back_to_the_primary
+    routes = RoutesStub.new
+    h = build_loop(routes: routes, config: ROUTE_CONFIG)
+    h[:state].for("_example").set_mode!("node-b", now: h[:clock].now)
+    h[:loop].execute_transition!("_example", "demote", ["--yes", "--auto"])
+    assert_equal [[:set, "node-a", "_example", "ha-routes"]], routes.sets
+  end
+
+  def test_failed_hook_does_not_switch_the_routes
+    routes = RoutesStub.new
+    h = build_loop(routes: routes, config: ROUTE_CONFIG)
+    dir = h[:hooks].hooks_dir("_example")
+    File.unlink(dir) # the _example symlink -> a promote that fails without moving the mode
+    FileUtils.mkdir_p(dir)
+    File.write(File.join(dir, "promote"), "#!/usr/bin/env bash\nexit 1\n")
+    FileUtils.chmod(0o755, File.join(dir, "promote"))
+
+    result = h[:loop].execute_transition!("_example", "promote", ["--auto"])
+    assert_equal 1, result.exit_code
+    assert_empty routes.sets
+    assert_empty h[:store].events(kind: "route.set")
+  end
+
+  def test_route_primary_is_recorded_per_acting_service
+    routes = RoutesStub.new
+    h = build_loop(cluster_yml: ROUTED_SERVICES_YML, routes: routes, config: ROUTE_CONFIG)
+    h[:loop].cycle!
+    rp = h[:loop].last[:route_primary]
+    assert_equal({ "_example" => "node-a", "_pihole" => "n/a", "_off" => "n/a", "_grouped" => "node-a" }, rp)
+    gets = routes.calls.select { |c| c.first == :get }
+    assert_includes gets, [:get, "_example", "ha-routes"]
+    assert_includes gets, [:get, "custom", "ha-routes"]
+    assert_includes gets, [:get, "_pihole", "off"]
+    assert_equal 3, h[:loop].last[:ha_connectors]
   end
 end

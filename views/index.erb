@@ -1,120 +1,28 @@
 <div class="d-flex align-items-center flex-wrap gap-3 mb-4 page-header">
-  <h4 class="m-0">opencode warm standby</h4>
-  <span id="primary-badge" class="badge badge-tint tint-muted badge-lg"><i class="bi bi-circle-fill status-dot status-dot--muted"></i> primary: <span id="primary-host">…</span></span>
-  <span class="nav-meta" id="primary-since"></span>
-  <span id="flag-hold" class="badge badge-tint tint-yellow d-none" title="state/hold is present on the acting node: automatic failback is paused"><i class="bi bi-pause-circle"></i> hold</span>
-  <span id="flag-promoting" class="badge badge-attention d-none"><i class="bi bi-arrow-repeat"></i> promoting</span>
-  <span id="flag-transition" class="badge badge-tint tint-orange d-none"></span>
-  <span id="flag-quorum" class="badge badge-tint tint-red d-none" title="This sentinel cannot reach a majority of the cluster and will not act"><i class="bi bi-diagram-3"></i> no quorum</span>
+  <h4 class="m-0"><i class="bi bi-shield-shaded text-purple"></i> sentinel · <span id="node-name"><%= @host %></span></h4>
+  <span id="flag-quorum" class="badge badge-tint tint-muted badge-lg" title="Majority agreement across the cluster nodes"><i class="bi bi-diagram-3"></i> quorum <span id="quorum-value">…</span></span>
+  <span id="flag-peers" class="badge badge-tint tint-muted" title="Peer sentinels this node heard from in the last cycle"><i class="bi bi-broadcast"></i> peers <span id="peers-value">—</span></span>
+  <span id="flag-hold" class="badge badge-tint tint-yellow d-none" title="state/hold is present on this node: automatic failback is paused"><i class="bi bi-pause-circle"></i> hold</span>
+  <span id="flag-transition" class="badge badge-attention d-none"></span>
+  <span id="flag-routes" class="badge badge-tint tint-cyan d-none" title="Where the public HA hostnames point (ha-routes)"></span>
+  <span class="nav-meta ms-auto" id="cluster-meta" title="Last cycle of this node's loop"></span>
+  <span class="nav-meta">v<%= @version %></span>
 </div>
 
-<div class="row g-3">
-  <div class="col-xl-4 col-lg-6">
-    <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-eye"></i> Sentinel</h6><i id="sentinel-dot" class="bi bi-circle-fill status-dot status-dot--muted ms-auto"></i></div>
-      <div class="card-body p-3">
-        <dl class="facts-grid" id="sentinel-facts">
-          <dt>state</dt><dd id="s-state">…</dd>
-          <dt>mode</dt><dd id="s-mode">—</dd>
-          <dt>node-a opencode</dt><dd id="s-node-a-opencode">—</dd>
-          <dt>node-a host</dt><dd id="s-node-a-host">—</dd>
-          <dt>quorum</dt><dd id="s-quorum">—</dd>
-          <dt>auto promote</dt><dd id="s-auto-promote">—</dd>
-          <dt>auto failback</dt><dd id="s-auto-failback">—</dd>
-          <dt>flips / window</dt><dd id="s-flips">—</dd>
-          <dt>checked</dt><dd id="s-checked">—</dd>
-        </dl>
-        <div class="timer" id="timer-down">
-          <div class="d-flex justify-content-between"><span class="stat-label">node-a down</span><span class="stat-value" id="t-down-text">—</span></div>
-          <div class="progress" style="height:4px;"><div class="progress-bar" id="t-down-bar" role="progressbar"></div></div>
-        </div>
-        <div class="timer" id="timer-stable">
-          <div class="d-flex justify-content-between"><span class="stat-label">node-a stable</span><span class="stat-value" id="t-stable-text">—</span></div>
-          <div class="progress" style="height:4px;"><div class="progress-bar" id="t-stable-bar" role="progressbar"></div></div>
-        </div>
-        <div class="stat-sub mt-2" id="s-cooldown"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-4 col-lg-6">
-    <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-hdd-rack"></i> Hosts</h6></div>
-      <div class="card-body p-3">
-        <table class="table table-sm hosts-table m-0">
-          <thead><tr><th></th><th>opencode</th><th>webui</th></tr></thead>
-          <tbody>
-            <tr id="host-node-a"><th>node-a</th><td data-svc="opencode">—</td><td data-svc="webui">—</td></tr>
-            <tr id="host-node-b"><th>node-b</th><td data-svc="opencode">—</td><td data-svc="webui">—</td></tr>
-          </tbody>
-        </table>
-        <div class="stat-sub mt-2">version from <code>/api/info</code> and <code>/health</code>; a 401 from opencode still counts as up. The standby's services are expected to be stopped while it is not primary.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-4 col-lg-6">
-    <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-globe2"></i> Public DNS</h6></div>
-      <div class="card-body p-3">
-        <dl class="facts-grid" id="dns-facts"></dl>
-        <div class="stat-sub">resolved over DoH; proxied records hide their CNAME, so the target is then inferred from the sentinel's mode.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-4 col-lg-6">
-    <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-database-down"></i> Replica lag</h6><i id="replica-dot" class="bi bi-circle-fill status-dot status-dot--muted ms-auto"></i></div>
-      <div class="card-body p-3">
-        <dl class="facts-grid" id="replica-facts"><dt>opencode.db</dt><dd id="r-opencode">—</dd><dt>memory.db</dt><dd id="r-memory">—</dd><dt>state/mode</dt><dd id="r-mode">—</dd></dl>
-        <div class="stat-sub" id="r-note"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-8 col-lg-12">
-    <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-journal-text"></i> Last promote / demote</h6><span class="nav-meta ms-auto" id="e-meta"></span></div>
-      <div class="card-body p-3">
-        <pre class="log-tail m-0" id="e-tail">—</pre>
-      </div>
-    </div>
-  </div>
+<div class="row g-3" id="services-row">
+  <!-- one card per service, cloned from #service-card-tpl -->
 </div>
 
-<!-- sentinel cluster view: shown only when this instance runs the sentinel (NODE_NAME set) -->
-<div class="row g-3 mt-0 d-none" id="sn-row">
+<div class="row g-3 mt-0">
   <div class="col-xl-4 col-lg-6">
     <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-diagram-3"></i> Cluster</h6><span class="nav-meta ms-auto" id="sn-node"></span></div>
+      <div class="card-header card-header-row"><h6><i class="bi bi-hdd-rack"></i> Hosts</h6><span class="nav-meta ms-auto" id="hosts-meta"></span></div>
       <div class="card-body p-3">
         <table class="table table-sm hosts-table m-0">
-          <thead><tr><th></th><th>class</th><th>probes</th><th>peer</th></tr></thead>
-          <tbody id="sn-cluster"></tbody>
+          <thead><tr><th>host</th><th>role</th><th>probes</th><th>peer</th></tr></thead>
+          <tbody id="hosts-body"></tbody>
         </table>
-        <div class="stat-sub mt-2" id="sn-quorum"></div>
-        <div class="stat-sub" id="sn-lease"></div>
-        <div class="stat-sub" id="sn-routes"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xl-4 col-lg-6">
-    <div class="card h-100">
-      <div class="card-header card-header-row"><h6><i class="bi bi-sliders"></i> Actions</h6><span class="nav-meta ms-auto" id="sn-acting"></span></div>
-      <div class="card-body p-3">
-        <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" role="switch" id="sn-hold-switch">
-          <label class="form-check-label" for="sn-hold-switch">hold <span class="stat-sub">(block automatic failback)</span></label>
-        </div>
-        <div class="d-flex flex-wrap gap-2 mb-2">
-          <button class="btn btn-sm btn-outline-warning" id="sn-promote" data-action="promote"><i class="bi bi-arrow-up-circle"></i> promote</button>
-          <button class="btn btn-sm btn-outline-success" id="sn-demote" data-action="demote"><i class="bi bi-arrow-down-circle"></i> demote</button>
-          <button class="btn btn-sm btn-outline-secondary" id="sn-promote-dry" data-action="promote" data-dry="1">promote --dry-run</button>
-          <button class="btn btn-sm btn-outline-secondary" id="sn-demote-dry" data-action="demote" data-dry="1">demote --dry-run</button>
-        </div>
-        <div class="stat-sub" id="sn-actions-note">Transitions run the service hooks under a majority lease; follow them in the events below.</div>
+        <div class="stat-sub mt-2 d-none" id="hosts-empty">no cycle yet</div>
       </div>
     </div>
   </div>
@@ -123,40 +31,105 @@
     <div class="card h-100">
       <div class="card-header card-header-row"><h6><i class="bi bi-clock-history"></i> Transitions</h6></div>
       <div class="card-body p-3">
-        <dl class="facts-grid" id="sn-transitions"></dl>
-        <div class="stat-sub" id="sn-transitions-empty">no promote/demote recorded yet</div>
+        <dl class="facts-grid" id="transitions"></dl>
+        <div class="stat-sub" id="transitions-empty">no promote/demote recorded yet</div>
       </div>
     </div>
   </div>
 
-  <div class="col-12">
-    <div class="card">
-      <div class="card-header card-header-row"><h6><i class="bi bi-list-ul"></i> Events</h6><span class="nav-meta ms-auto" id="sn-events-meta"></span></div>
+  <div class="col-xl-4 col-lg-12">
+    <div class="card h-100">
+      <div class="card-header card-header-row"><h6><i class="bi bi-list-ul"></i> Events</h6><span class="nav-meta ms-auto" id="events-meta"></span></div>
       <div class="card-body p-3">
         <table class="table table-sm hosts-table m-0">
-          <tbody id="sn-events"></tbody>
+          <tbody id="events"></tbody>
         </table>
-        <div class="stat-sub d-none" id="sn-events-empty">no events yet</div>
+        <div class="stat-sub d-none" id="events-empty">no events yet</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- confirm / output modal for the sentinel actions -->
-<div class="modal fade" id="sn-modal" tabindex="-1" aria-hidden="true">
+<div class="empty-state d-none" id="disabled-state">
+  <i class="bi bi-shield-slash"></i>
+  <div>This instance runs no sentinel (<code>NODE_NAME</code> unset): nothing to show.</div>
+</div>
+
+<!-- service card template: every data-f is filled by app.js from /api/v1/status -->
+<template id="service-card-tpl">
+  <div class="col-xl-4 col-lg-6">
+    <div class="card h-100 service-card">
+      <div class="card-header card-header-row">
+        <h6><i class="bi bi-box"></i> <span data-f="name"></span></h6>
+        <span class="badge badge-tint tint-muted ms-auto" data-f="mode-badge"><i class="bi bi-circle-fill status-dot status-dot--muted"></i> primary: <span data-f="mode"></span></span>
+      </div>
+      <div class="card-body p-3">
+        <div class="stat-sub mb-2" data-f="since"></div>
+        <table class="table table-sm hosts-table service-hosts m-0 mb-2">
+          <thead><tr><th>host</th><th>role</th><th>service</th><th>class</th></tr></thead>
+          <tbody data-f="hosts"></tbody>
+        </table>
+        <dl class="facts-grid">
+          <dt>agreed</dt><dd data-f="agreed"></dd>
+          <dt>lease</dt><dd data-f="lease"></dd>
+          <dt>hold</dt><dd data-f="hold"></dd>
+          <dt>last transition</dt><dd data-f="last-transition"></dd>
+          <dt>routes</dt><dd data-f="routes"></dd>
+          <dt>acting node</dt><dd data-f="acting"></dd>
+        </dl>
+        <div class="timer" data-f="timer-down">
+          <div class="d-flex justify-content-between"><span class="stat-label" data-f="timer-down-label">primary down</span><span class="stat-value" data-f="timer-down-text">—</span></div>
+          <div class="progress timer-bar"><div class="progress-bar" data-f="timer-down-bar" role="progressbar"></div></div>
+        </div>
+        <div class="timer" data-f="timer-stable">
+          <div class="d-flex justify-content-between"><span class="stat-label" data-f="timer-stable-label">primary stable</span><span class="stat-value" data-f="timer-stable-text">—</span></div>
+          <div class="progress timer-bar"><div class="progress-bar" data-f="timer-stable-bar" role="progressbar"></div></div>
+        </div>
+        <div class="stat-sub mt-2" data-f="cooldown"></div>
+        <dl class="facts-grid mt-2 d-none" data-f="replica">
+          <dt>replica</dt><dd data-f="replica-value"></dd>
+        </dl>
+        <div class="service-actions mt-3">
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" role="switch" data-f="hold-switch">
+            <label class="form-check-label stat-sub" data-f="hold-label">hold (block automatic failback)</label>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-warning" data-action="promote"><i class="bi bi-arrow-up-circle"></i> promote</button>
+            <button class="btn btn-sm btn-outline-success" data-action="demote"><i class="bi bi-arrow-down-circle"></i> demote</button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="promote" data-dry="1">promote --dry-run</button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="demote" data-dry="1">demote --dry-run</button>
+          </div>
+          <div class="stat-sub mt-2" data-f="actions-note"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- confirm.js contract: #confirm-modal with #confirm-title, #confirm-body, #confirm-ok -->
+<div class="modal fade" id="confirm-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header"><h6 class="modal-title" id="sn-modal-title">Confirm</h6>
+      <div class="modal-header"><h5 class="modal-title" id="confirm-title"><i class="bi bi-exclamation-triangle me-2"></i><span>Are you sure?</span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-      <div class="modal-body">
-        <p id="sn-modal-text" class="mb-2"></p>
-        <pre class="log-tail d-none m-0 mb-2" id="sn-modal-output"></pre>
-        <input type="text" class="form-control d-none" id="sn-modal-input" autocomplete="off" placeholder="">
-      </div>
+      <div class="modal-body" id="confirm-body"></div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-sm btn-danger d-none" id="sn-modal-go">Run</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok">Confirm</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- dry-run output -->
+<div class="modal fade" id="output-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h6 class="modal-title" id="output-title">Output</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body"><pre class="log-tail m-0" id="output-text"></pre></div>
+      <div class="modal-footer"><button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button></div>
     </div>
   </div>
 </div>

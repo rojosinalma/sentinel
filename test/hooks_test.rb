@@ -28,7 +28,7 @@ class HooksTest < Minitest::Test
     assert File.file?(result.log_file)
     assert(result.output_tail.any? { |l| l.include?("args=--auto") })
     assert(result.output_tail.any? { |l| l.include?("SERVICE=_example") })
-    assert_equal "node-b\n", File.read(File.join(@state_dir, "mode"))
+    assert_equal "node-b\n", File.read(File.join(@state_dir, "_example", "mode"))
 
     row = @store.transitions(service: "_example").first
     assert_equal "promote", row[:action]
@@ -46,20 +46,48 @@ class HooksTest < Minitest::Test
     )
     result = hooks.run("_example", "promote")
     assert(result.output_tail.any? { |l| l.include?("PRIMARY=alpha STANDBY=beta") })
-    assert_equal "beta\n", File.read(File.join(@state_dir, "mode"))
+    assert_equal "beta\n", File.read(File.join(@state_dir, "_example", "mode"))
   end
 
   def test_demote_writes_primary_back
     @hooks.run("_example", "promote")
     @hooks.run("_example", "demote", "--yes")
-    assert_equal "node-a\n", File.read(File.join(@state_dir, "mode"))
+    assert_equal "node-a\n", File.read(File.join(@state_dir, "_example", "mode"))
   end
 
   def test_dry_run_touches_nothing
     result = @hooks.run("_example", "promote", dry_run: true)
     assert_equal 0, result.exit_code
-    refute File.exist?(File.join(@state_dir, "mode"))
+    refute File.exist?(File.join(@state_dir, "_example", "mode"))
     assert(result.output_tail.any? { |l| l.include?("DRY_RUN=true") })
+  end
+
+  def test_state_dir_is_per_service_and_logs_carry_the_service_name
+    dir = tmp_state_dir
+    FileUtils.mkdir_p(File.join(dir, "svc"))
+    File.write(File.join(dir, "svc", "promote"), "#!/usr/bin/env bash\necho \"STATE_DIR=$STATE_DIR NODE_STATE_DIR=$NODE_STATE_DIR\"\n")
+    FileUtils.chmod(0o755, File.join(dir, "svc", "promote"))
+    hooks = Sentinel::Hooks.new(dir: dir, log_dir: @log_dir, env: { "STATE_DIR" => @state_dir }, timeout_s: 5)
+
+    result = hooks.run("svc", "promote")
+    assert_includes result.output_tail, "STATE_DIR=#{File.join(@state_dir, 'svc')} NODE_STATE_DIR=#{@state_dir}"
+    assert File.directory?(File.join(@state_dir, "svc"))
+    assert_match(%r{/svc-promote-\d{8}T\d{6}Z\.log\z}, result.log_file)
+    assert_equal File.join(@log_dir, "svc-health.log"), hooks.run("svc", "health").log_file
+  end
+
+  def test_hooks_dir_from_services_meta_wins_over_dir
+    custom = File.join(tmp_state_dir, "elsewhere")
+    FileUtils.mkdir_p(custom)
+    File.write(File.join(custom, "promote"), "#!/usr/bin/env bash\necho custom\n")
+    FileUtils.chmod(0o755, File.join(custom, "promote"))
+    hooks = Sentinel::Hooks.new(dir: File.expand_path("../hooks", __dir__), log_dir: @log_dir, env: {},
+                                services_meta: { "_example" => { primary: "a", standby: "b", hooks_dir: custom } },
+                                timeout_s: 5)
+    assert_equal custom, hooks.hooks_dir("_example")
+    assert hooks.exists?("_example", "promote")
+    refute hooks.exists?("_example", "demote")
+    assert_includes hooks.run("_example", "promote").output_tail, "custom"
   end
 
   def test_health_is_not_a_transition

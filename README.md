@@ -87,4 +87,6 @@ bin/sentinel once              # one real probe cycle from this host
 
 The bash hooks under `hooks/opencode/` are a 1:1 port of
 `opencode-node-b/sentinel/bin/{promote,demote}` + `lib/common.sh` (only the env-resolution header
-differs); `hooks/_example/` is the fixture the loop tests run end to end.
+differs); `hooks/_example/` is the fixture the loop tests run end to end. The hook contract (env,
+exit codes, logs, adding a service) is `docs/hooks.md`; hooks are mounted from the checkout, not
+baked into the image.

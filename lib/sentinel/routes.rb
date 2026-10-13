@@ -9,29 +9,57 @@ module Sentinel
   # has (one CF API read). Both are bounded and best-effort: an unknown answer is "unknown"/nil,
   # never an exception. The bash sentinel refreshed these at the host-health cadence; the loop
   # does the same, on the acting node only (that is where the CF credential lives).
+  #
+  # Routes are per group (`ha-routes … --group <name>`, one group per service); an ha-routes
+  # that predates groups (its --help has no --group) gets the group-less calls, which act on its
+  # single default group.
   module Routes
     module_function
 
-    # -> "node-a" | "node-b" | "unknown" | "n/a" (route_mode off)
-    def primary_current(bin:, timeout:, route_mode: "ha-routes")
-      return "n/a" unless route_mode == "ha-routes"
-      return "unknown" unless bin && !bin.empty? && File.executable?(bin)
+    GROUP_FLAG = "--group"
 
-      out = capture(bin, "get", timeout: timeout)
-      case out
-      when "node-a", "node-b" then out
-      when nil, "" then "unknown"
-      else out[0, 40]
+    # -> a host name from `hosts` | "mixed" | "none" | "unknown" | "n/a" (route_mode off)
+    # hosts: the names a primary may be (cluster.yml hosts); nil accepts any single token.
+    def primary_current(bin:, timeout:, route_mode: "ha-routes", group: nil, hosts: nil)
+      return "n/a" unless route_mode == "ha-routes"
+      return "unknown" unless usable?(bin)
+
+      out = capture(bin, "get", *group_args(bin, group, timeout: timeout), timeout: timeout)
+      return "unknown" if out.nil? || out.empty?
+      return out if hosts&.include?(out)
+
+      out[0, 40]
+    end
+
+    # -> "ok" | "failed" | "skipped"; `ha-routes set <target> [--group g]` is idempotent.
+    def set_primary(target, bin:, timeout:, route_mode: "ha-routes", group: nil)
+      return "skipped" unless route_mode == "ha-routes"
+      return "skipped" unless usable?(bin)
+
+      capture(bin, "set", target, *group_args(bin, group, timeout: timeout), timeout: timeout) ? "ok" : "failed"
+    end
+
+    # Does this ha-routes know --group? Decided from its --help text (no credentials, no API
+    # call), cached per binary path + mtime so a synced-in newer copy is picked up.
+    def supports_groups?(bin, timeout:)
+      return false unless usable?(bin)
+
+      key = [File.expand_path(bin), File.mtime(bin).to_f]
+      @group_support ||= {}
+      @group_support.fetch(key) do
+        @group_support.clear if @group_support.size > 16
+        @group_support[key] = capture(bin, "--help", timeout: timeout).to_s.include?(GROUP_FLAG)
       end
     end
 
-    # -> "ok" | "failed" | "skipped"; `ha-routes set <target>` is idempotent.
-    def set_primary(target, bin:, timeout:, route_mode: "ha-routes")
-      return "skipped" unless route_mode == "ha-routes"
-      return "skipped" unless bin && !bin.empty? && File.executable?(bin)
+    def group_args(bin, group, timeout:)
+      return [] if blank?(group)
+      return [] unless supports_groups?(bin, timeout: timeout)
 
-      capture(bin, "set", target, timeout: timeout) ? "ok" : "failed"
+      [GROUP_FLAG, group]
     end
+
+    def reset! = @group_support = nil
 
     # Distinct connectors registered on the tunnel, or nil when it cannot be known.
     # Tunnel id from HA_TUNNEL_ID or the routes.env next to the ha-routes binary (bash parity).
@@ -91,6 +119,8 @@ module Sentinel
       $log.warn "[routes] #{cmd.first}: #{e.class}: #{e.message}"
       nil
     end
+
+    def usable?(bin) = !blank?(bin) && File.executable?(bin)
 
     def blank?(value) = value.nil? || value.strip.empty?
   end
