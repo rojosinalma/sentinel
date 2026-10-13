@@ -190,6 +190,24 @@ class ConfigTest < Minitest::Test
     assert_match(/routes.mode "dns"/, err.message)
   end
 
+  def test_service_urls
+    yml = <<~YAML
+      hosts:
+        silver: {address: 10.0.0.1, sentinel_url: http://silver:4197, role: member, probes: {}}
+        tiny:   {address: 10.0.0.2, sentinel_url: http://tiny:4197, role: member, probes: {}}
+      services:
+        app:
+          primary: silver
+          standby: tiny
+          health: {silver: "http://10.0.0.1:4096/api/info", tiny: "https://app-tiny.node-b.example.internal/health"}
+          url: https://app.example.com
+          host_urls: {silver: https://app.node-a.example.internal}
+    YAML
+    svc = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "silver").services["app"]
+    assert_equal "https://app.example.com", svc.url
+    assert_equal({ "silver" => "https://app.node-a.example.internal", "tiny" => "https://app-tiny.node-b.example.internal" }, svc.host_urls)
+  end
+
   private
 
   CLUSTER_YML = <<~YAML
@@ -227,4 +245,5 @@ class ConfigTest < Minitest::Test
     ENV["CLUSTER_FILE"] = file
     yield
   end
+
 end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "uri"
 
 module Sentinel
   # Typed-default config in the style of the legacy ::Config, plus the cluster table from
@@ -79,8 +80,10 @@ module Sentinel
     end
 
     # auto_promote: true/false from cluster.yml, nil = the node-wide AUTO_PROMOTE.
+    # url: the service's user-facing page (dashboard link); per_host_urls: {host => url} for the
+    # per-host rows, defaulting to the health URL's origin.
     Service = Struct.new(:name, :primary, :standby, :health, :hooks_dir, :probe, :auto_promote, :tunables,
-                         :routes, keyword_init: true)
+                         :routes, :url, :host_urls, keyword_init: true)
 
     # The parsed cluster.yml plus the identity of this node.
     class Cluster
@@ -100,10 +103,29 @@ module Sentinel
                              probe: parse_probe(s["probe"] || {}, env),
                              auto_promote: s.key?("auto_promote") ? s["auto_promote"] == true : nil,
                              tunables: parse_tunables(name, s["tunables"] || {}),
-                             routes: parse_routes(name, s["routes"] || {})).freeze]
+                             routes: parse_routes(name, s["routes"] || {}),
+                             url: s["url"]&.to_s,
+                             host_urls: parse_host_urls(s["health"] || {}, s["host_urls"] || {})).freeze]
         end.freeze
         @quorum_tcp = (doc["quorum_tcp"] || []).freeze
         raise Error, "node #{node_name.inspect} not in cluster hosts #{@hosts.keys}" unless @hosts.key?(node_name)
+      end
+
+      # {host => url} to open that host's instance: the explicit host_urls, else the health URL's
+      # origin (scheme://host:port).
+      def parse_host_urls(health, explicit)
+        health.to_h { |host, url| [host.to_s, (explicit[host.to_s] || origin_of(url)).to_s] }
+              .reject { |_, v| v.empty? }.freeze
+      end
+
+      def origin_of(url)
+        u = URI.parse(url.to_s)
+        return nil unless u.scheme && u.host
+
+        default = { "http" => 80, "https" => 443 }[u.scheme]
+        "#{u.scheme}://#{u.host}#{u.port && u.port != default ? ":#{u.port}" : ''}"
+      rescue URI::InvalidURIError
+        nil
       end
 
       def parse_routes(service, r)
