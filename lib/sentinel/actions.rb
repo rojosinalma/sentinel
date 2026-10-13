@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module Sentinel
   # Operator actions shared by the dashboard API and the MCP tools. Transitions run in a
   # background thread (a promote takes ~10 s, a demote up to a minute): the caller gets an
@@ -11,8 +13,15 @@ module Sentinel
 
     module_function
 
-    # service: nil -> the node-wide hold (every service), else that service's own hold.
+    # service: nil -> the node-wide hold (every service), else that service's own hold. A
+    # per-service hold set on a non-acting node is forwarded to the acting node, where the
+    # decider reads it; the node-wide hold stays local (it is this node's own switch).
     def hold!(runtime, on:, who: "api", service: nil)
+      if service && !runtime[:loop].acting?(service)
+        svc = runtime[:cluster].services[service]
+        return [false, "unknown service #{service.inspect}"] unless svc
+        return forward!(runtime, svc, "hold", who: who, params: { "on" => on.to_s })
+      end
       state = service ? runtime[:state].for(service) : runtime[:state]
       scope = service ? "#{service} hold" : "hold"
       if on
@@ -33,8 +42,9 @@ module Sentinel
       return [false, "unknown service #{service_name.inspect}"] unless service
 
       unless runtime[:loop].acting?(service.name)
-        return [false, "this node (#{runtime[:cluster].node_name}) is not the acting node " \
-                       "of #{service.name} (#{service.standby}); call it there"]
+        return forward!(runtime, service, hook, dry_run: dry_run, who: who,
+                                 params: { "dry_run" => dry_run.to_s, "confirm" => hook, "fast" => args.include?("--fast").to_s,
+                                           "force" => args.include?("--force").to_s })
       end
       return [false, "hook #{service.name}/#{hook} missing"] unless runtime[:hooks].exists?(service.name, hook)
 
@@ -60,6 +70,28 @@ module Sentinel
         MUTEX.synchronize { @running.delete(service.name) }
       end
       [true, "#{hook} started; follow /api/transitions and the events"]
+    end
+
+    # Any node's dashboard or MCP may drive a service: a request landing on a non-acting node is
+    # replayed against the acting node's own /api/<action> (its sentinel_url from cluster.yml),
+    # tagged with the forwarding node so the audit trail says where it came from.
+    def forward!(runtime, service, action, params:, who: "api", dry_run: false)
+      host = runtime[:cluster].hosts[service.standby]
+      return [false, "acting node #{service.standby} of #{service.name} is not in cluster.yml"] unless host
+
+      url = "#{host.sentinel_url}/api/#{action}"
+      body = params.merge("service" => service.name, "who" => "#{who}@#{runtime[:cluster].node_name}")
+      timeout = dry_run ? Config.fetch(:FORWARD_TIMEOUT_S) : Config.fetch(:PEER_TIMEOUT_S)
+      res = Transport::Http.new(timeout: timeout).post_form(url, body)
+      return [false, "forward to #{service.standby} failed: #{res[:error]}"] if res[:error]
+
+      doc = begin
+        JSON.parse(res[:body])
+      rescue JSON::ParserError
+        {}
+      end
+      ok = res[:code] == 200 && doc["ok"] == true
+      [ok, "#{doc['message'] || res[:body].to_s[0, 300]}#{ok ? " (via #{service.standby})" : ''}"]
     end
 
     # {service => hook} of the api-started transitions in flight.

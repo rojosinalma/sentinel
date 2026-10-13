@@ -97,4 +97,52 @@ class ActionsTest < Minitest::Test
     refute @state.hold?
     assert_equal "_second", @store.events(kind: "hold").first[:service]
   end
+  # silver is not the acting node of _example: its promote/hold go to tiny's /api/<action>.
+  def test_non_acting_node_forwards_to_the_acting_node
+    seen = []
+    server = TCPServer.new("127.0.0.1", 0)
+    Thread.new do
+      loop do
+        sock = server.accept
+        request = sock.gets.to_s
+        headers = {}
+        while (line = sock.gets) && line != "\r\n"
+          k, v = line.split(":", 2)
+          headers[k.downcase] = v.to_s.strip
+        end
+        body = sock.read(headers["content-length"].to_i)
+        action = request[%r{POST /api/(\w+)}, 1]
+        seen << [action, URI.decode_www_form(body).to_h]
+        payload = JSON.generate(ok: true, message: "#{action} accepted")
+        sock.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{payload.bytesize}\r\nConnection: close\r\n\r\n#{payload}")
+        sock.close
+      end
+    rescue IOError
+      nil
+    end
+    yml = TWO_ON_TINY_YML.sub("http://tiny:4197", "http://127.0.0.1:#{server.addr[1]}")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "silver")
+    loop_obj = Sentinel::Loop.new(config: LoopTest::CONFIG, cluster: cluster, store: @store, state: @state,
+                                  probes: LoopTest::ProbesStub.new, gossip: LoopTest::GossipStub.new,
+                                  lease: LoopTest::LeaseStub.new, hooks: @rt[:hooks],
+                                  deciders: @rt[:loop].instance_variable_get(:@deciders), notifier: ->(*) {})
+    rt = @rt.merge(cluster: cluster, loop: loop_obj)
+
+    ok, msg = Sentinel::Actions.transition!(rt, "_example", "promote", ["--fast"], dry_run: true, who: "dashboard")
+    assert ok, msg
+    assert_match(/promote accepted \(via tiny\)/, msg)
+    ok, msg = Sentinel::Actions.hold!(rt, on: true, service: "_example", who: "dashboard")
+    assert ok, msg
+    refute @state.for("_example").hold?, "the local hold file stays untouched"
+
+    actions = seen.map(&:first)
+    assert_equal %w[promote hold], actions
+    promote = seen[0][1]
+    assert_equal({ "dry_run" => "true", "confirm" => "promote", "fast" => "true", "force" => "false",
+                   "service" => "_example", "who" => "dashboard@silver" }, promote)
+    assert_equal "true", seen[1][1]["on"]
+  ensure
+    server&.close
+  end
+
 end

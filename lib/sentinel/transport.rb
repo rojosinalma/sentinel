@@ -26,6 +26,15 @@ module Sentinel
         end
       end
 
+      # application/x-www-form-urlencoded, the shape the dashboard API routes read.
+      def post_form(url, fields)
+        request(url) do |uri|
+          req = Net::HTTP::Post.new(uri)
+          req.set_form_data(fields)
+          req
+        end
+      end
+
       private
 
       def request(url)

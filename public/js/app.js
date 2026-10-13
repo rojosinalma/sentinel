@@ -162,7 +162,7 @@
     f('routes').innerHTML = rp
       ? `<span class="${rp === svc.mode ? 'val-ok' : rp === 'unknown' ? 'val-muted' : 'val-warn'}">→ ${esc(rp)}</span>${d.ha_connectors != null ? ` <span class="stat-sub">${esc(d.ha_connectors)} tunnel connectors</span>` : ''}`
       : '<span class="val-muted">—</span>';
-    f('acting').innerHTML = `${esc(svc.standby)}${svc.acting ? ' <span class="stat-sub">(this node)</span>' : ' <span class="stat-sub">(read-only here)</span>'}${svc.standby_stack ? ` · <span class="stat-sub">stack ${esc(svc.standby_stack)}</span>` : ''}`;
+    f('acting').innerHTML = `${esc(svc.standby)}${svc.acting ? ' <span class="stat-sub">(this node)</span>' : ' <span class="stat-sub">(actions forwarded there)</span>'}${svc.standby_stack ? ` · <span class="stat-sub">stack ${esc(svc.standby_stack)}</span>` : ''}`;
 
     // decider timers
     const g = svc.gates || {}, t = d.tunables || {};
@@ -187,17 +187,16 @@
       }).join(' · ');
     }
 
-    // actions: only the acting node may act, and only when nothing is running
+    // actions: any node's page may act; a non-acting node forwards to the acting one
     const sw = f('hold-switch');
     if (!holdBusy.has(name)) sw.checked = !!svc.hold;
-    sw.disabled = !svc.acting;
-    const locked = !svc.acting || svc.busy || !!svc.action_running;
+    sw.disabled = false;
+    const locked = svc.busy || !!svc.action_running;
     card.querySelectorAll('[data-action]').forEach((b) => { b.disabled = locked; });
-    f('actions-note').textContent = !svc.acting
-      ? `read-only: the acting node of ${name} is ${svc.standby}`
-      : svc.action_running ? `${svc.action_running} running via the api…`
-        : svc.busy ? `transition in progress${svc.transition ? ` (${svc.transition})` : ''}`
-          : 'Transitions run the service hooks under a majority lease; follow them in the events.';
+    f('actions-note').textContent = svc.action_running ? `${svc.action_running} running via the api…`
+      : svc.busy ? `transition in progress${svc.transition ? ` (${svc.transition})` : ''}`
+        : svc.acting ? 'Transitions run the service hooks under a majority lease; follow them in the events.'
+          : `Transitions are forwarded to the acting node (${svc.standby}) and run its hooks under a majority lease.`;
   }
 
   function wireActions(card, name) {

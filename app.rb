@@ -57,6 +57,13 @@ class App < Roda
   end
 
   # The optional ?service= / {service} argument, validated against cluster.yml; nil when absent.
+  # "dashboard" for a browser, or the forwarding node's tag (e.g. dashboard@silver) so the
+  # audit trail names the page that asked.
+  def who_param(r)
+    who = r.params["who"].to_s.strip
+    who.match?(/\A[\w.@-]{1,64}\z/) ? who : "dashboard"
+  end
+
   def service_param(r, rt)
     name = r.params["service"].to_s
     return nil if name.empty?
@@ -200,8 +207,12 @@ class App < Roda
         rt = sentinel!(r)
         on = %w[1 true yes on].include?(r.params["on"].to_s.downcase)
         service = service_param(r, rt)
-        ok, message = ::Sentinel::Actions.hold!(rt, on: on, who: "dashboard", service: service)
-        hold = service ? rt[:state].for(service).hold? : rt[:state].hold?
+        ok, message = ::Sentinel::Actions.hold!(rt, on: on, who: who_param(r), service: service)
+        hold = if service && !rt[:loop].acting?(service)
+                 on # forwarded: the acting node holds the file; echo what was asked
+               else
+                 service ? rt[:state].for(service).hold? : rt[:state].hold?
+               end
         ok ? json_ok(message, hold: hold, service: service) : json_err(message)
       end
 
@@ -212,12 +223,12 @@ class App < Roda
         args << "--fast" if r.params["fast"] == "true"
         args << "--force" if r.params["force"] == "true"
         if r.params["dry_run"] == "true"
-          ok, message = ::Sentinel::Actions.transition!(rt, service, "promote", args, dry_run: true, who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "promote", args, dry_run: true, who: who_param(r))
         elsif r.params["confirm"] != "promote"
           ok = false
           message = 'confirmation failed: type the word "promote"'
         else
-          ok, message = ::Sentinel::Actions.transition!(rt, service, "promote", args, who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "promote", args, who: who_param(r))
         end
         ok ? json_ok(message) : json_err(message)
       end
@@ -226,12 +237,12 @@ class App < Roda
         rt = sentinel!(r)
         service = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
         if r.params["dry_run"] == "true"
-          ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", [], dry_run: true, who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", [], dry_run: true, who: who_param(r))
         elsif r.params["confirm"] != "demote"
           ok = false
           message = 'confirmation failed: type the word "demote"'
         else
-          ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", ["--yes"], who: "dashboard")
+          ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", ["--yes"], who: who_param(r))
         end
         ok ? json_ok(message) : json_err(message)
       end
