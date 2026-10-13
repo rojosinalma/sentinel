@@ -2,7 +2,7 @@
 
 The homelab's HA decision layer: one sentinel per participating host — **node-a**, **node-b**,
 **witness-1** (witness) — that probes every host, agrees on who is primary by **majority**
-(2-of-3), takes a 30 s **majority lease** before any action, runs per-service bash **hooks**
+(4 of 7 voters since 2026-10-13: members node-a + node-b, witnesses witness-1..5), takes a 30 s **majority lease** before any action, runs per-service bash **hooks**
 (`hooks/opencode/` first) to promote and fail back, records every probe/decision/transition in
 SQLite, and serves `/status` byte-compatible with the bash sentinel it replaces, a Dracula
 dashboard and an MCP endpoint for agents.
@@ -20,7 +20,7 @@ every node, every POLL_INTERVAL_S (2 s):
   probe every host (service /api/info, tcp:22, tcp:443, icmp) in parallel
   classify the primary: ok | degraded | dead | isolated      (bash classifier, 1:1)
   gossip: GET <peer>/peer/view from both peers; publish own view
-  agree: a host is DEAD only when 2 of 3 fresh views say so
+  agree: a host is DEAD only when a majority of fresh views (4 of 7) say so
   a node without majority contact is ISOLATED and never acts
 
 the ACTING node of a service only (its standby — node-b for opencode; one Loop drives every service
