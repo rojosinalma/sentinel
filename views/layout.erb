@@ -5,23 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>sentinel · <%= @host %></title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <%# tailor head snippet (public/tailor/tailor-head.html, vendored by `tailor apply`): core links, pre-paint, tailor.js %>
-  <link rel="stylesheet" href="/tailor/tokens.css">
-  <link rel="stylesheet" href="/tailor/base.css">
-  <link rel="stylesheet" href="/tailor/layout.css">
-  <script>
-  (function(){var C={"project":"sentinel","base":"/tailor/","skins":["webtui","none"],"palettes":["dracula"],"modes":{"dracula":["dark","light"]},"defaults":{"skin":"webtui","palette":"dracula","mode":"dark"}};var P=C.project,q=new URLSearchParams(location.search);
-  function g(k){var v=q.get(k);try{return v||localStorage.getItem(P+'.'+k)||C.defaults[k]}catch(e){return v||C.defaults[k]}}
-  var h=document.documentElement,s=g('skin'),p=g('palette'),m=g('mode');
-  if(C.skins.indexOf(s)<0)s=C.defaults.skin;if(C.palettes.indexOf(p)<0)p=C.defaults.palette;
-  if(m==='auto')m=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
-  var modes=C.modes[p]||['dark'];if(modes.indexOf(m)<0)m=modes[0];
-  h.dataset.skin=s;h.dataset.palette=p;h.dataset.mode=m;window.TAILOR_CONFIG=C;
-  document.write('<link id="t-skin" rel="stylesheet" data-base="'+C.base+'skins/" href="'+(s==='none'?'':C.base+'skins/'+s+'/skin.css')+'"'+(s==='none'?' disabled':'')+'>');
-  document.write('<link id="t-palette" rel="stylesheet" data-base="'+C.base+'palettes/" href="'+C.base+'palettes/'+p+'.css">');})();
-  </script>
-  <script src="/tailor/tailor.js" defer></script>
-  <script>document.addEventListener('DOMContentLoaded',function(){if(window.Tailor)Tailor.theme.init(window.TAILOR_CONFIG)});</script>
+  <%# tailor head (vendored public/tailor/tailor-head.html, kept current by `tailor sync`) %>
+  <%== File.read(File.join(Dir.pwd, "public/tailor/tailor-head.html")) %>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="/css/app.css" rel="stylesheet">
 </head>
@@ -32,6 +17,12 @@
     <span class="t-badge" data-tone="info" data-variant="tint" title="Which instance of this page answered"><i class="bi bi-hdd-network"></i> served by <%= @host %></span>
     <span id="stale" class="t-badge d-none" data-tone="warning" data-variant="solid" title="Last refresh failed; showing the previous result"><i class="bi bi-wifi-off"></i> stale</span>
     <div class="t-navbar-end">
+      <select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin" title="Skin">
+        <% %w[webtui bootstrap daisyui govuk luz pico simple tufte].each do |s| %><option value="<%= s %>"><%= s %></option><% end %>
+      </select>
+      <select class="t-select" data-size="sm" data-tailor-picker="palette" aria-label="Palette" title="Palette">
+        <% %w[dracula ayu catppuccin everforest flexoki gruvbox kanagawa modusvivendi nightfox nightowl nord onedark oxocarbon poimandres rosepine selenized solarized synthwave84 tokyonight vitesse zenburn].each do |p| %><option value="<%= p %>"><%= p %></option><% end %>
+      </select>
       <span class="nav-meta" id="generated" title="When the data was collected">—</span>
       <button class="t-btn" data-variant="ghost" data-size="sm" data-tailor-mode-toggle type="button" aria-label="Toggle light/dark" title="Toggle light/dark mode"><i class="bi bi-sun-fill theme-icon-light"></i><i class="bi bi-moon-fill theme-icon-dark"></i></button>
     </div>

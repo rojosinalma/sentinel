@@ -1,0 +1,465 @@
+/* managed by tailor v0.1.0 — skin pico — do not edit, run `tailor sync` */
+/*
+ * tailor skin — pico — Pico CSS 2.1.1 (MIT, https://picocss.com)
+ * Styles the t-* vocabulary (core/components.json) in Pico's look: one small radius everywhere, generous
+ * form-element spacing, solid primary buttons, surface cards with a shadow and sectioned header/footer,
+ * box-shadow focus rings, 0.2 s ease-in-out transitions. Pico itself is NOT vendored: its classless
+ * build styles bare elements and cannot be aliased onto read-only house markup (SKIN-CONTRACT rule 5),
+ * so its metrics and rules are re-declared here against t-* selectors.
+ * Colours: --t-* tokens only (palette tokens are never SET here, rule 4). Pico's own --pico-* variables
+ * are bridged onto the tokens in §2 and used throughout, so every palette flows through.
+ * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
+ */
+
+/* ── 1. scale: Pico's rhythm (listed in manifest.tokens_overridden) ─────────── */
+:root {
+  --t-radius-sm: 0.25rem;
+  --t-radius-md: 0.25rem;
+  --t-radius-lg: 0.375rem;
+  --t-radius-xl: 0.5rem;
+  --t-control-h: 2.5rem;
+  --t-control-h-sm: 2rem;
+  --t-control-h-lg: 3rem;
+  --t-duration: 0.2s;
+  --t-shadow-md: 0.0145rem 0.029rem 0.174rem color-mix(in srgb, var(--t-overlay-bg) 30%, transparent),
+                 0.0335rem 0.067rem 0.402rem color-mix(in srgb, var(--t-overlay-bg) 35%, transparent),
+                 0.125rem 0.25rem 1.5rem color-mix(in srgb, var(--t-overlay-bg) 40%, transparent);
+}
+
+/* ── 2. Pico variable bridge: --pico-* ← --t-* ──────────────────────────────── */
+:root {
+  --pico-font-family: var(--t-font-sans);
+  --pico-font-family-monospace: var(--t-font-mono);
+  --pico-line-height: var(--t-leading);
+  --pico-font-weight: 400;
+  --pico-border-radius: var(--t-radius-md);
+  --pico-border-width: var(--t-border-w);
+  --pico-outline-width: 0.125rem;
+  --pico-transition: var(--t-duration) ease-in-out;
+  --pico-spacing: var(--t-space-4);
+  --pico-typography-spacing-vertical: var(--t-space-4);
+  --pico-block-spacing-vertical: var(--t-space-4);
+  --pico-block-spacing-horizontal: var(--t-space-4);
+  --pico-form-element-spacing-vertical: 0.5rem;
+  --pico-form-element-spacing-horizontal: 1rem;
+  --pico-nav-link-spacing-vertical: 0.5rem;
+  --pico-nav-link-spacing-horizontal: 0.5rem;
+
+  --pico-background-color: var(--t-canvas);
+  --pico-color: var(--t-text);
+  --pico-text-selection-color: var(--t-focus-ring);
+  --pico-muted-color: var(--t-muted);
+  --pico-muted-border-color: var(--t-border);
+  --pico-border-color: var(--t-border);
+  --pico-h1-color: var(--t-text); --pico-h2-color: var(--t-text); --pico-h3-color: var(--t-text);
+  --pico-h4-color: var(--t-text); --pico-h5-color: var(--t-text); --pico-h6-color: var(--t-text);
+
+  --pico-primary: var(--t-accent);
+  --pico-primary-background: var(--t-accent-solid);
+  --pico-primary-border: var(--pico-primary-background);
+  --pico-primary-underline: color-mix(in srgb, var(--t-accent) 50%, transparent);
+  --pico-primary-hover: color-mix(in srgb, var(--t-accent) 85%, var(--t-text));
+  --pico-primary-hover-background: color-mix(in srgb, var(--t-accent-solid) 85%, var(--t-text));
+  --pico-primary-hover-border: var(--pico-primary-hover-background);
+  --pico-primary-focus: var(--t-focus-ring);
+  --pico-primary-inverse: var(--t-on-accent);
+
+  --pico-secondary: var(--t-muted);
+  --pico-secondary-background: var(--t-selection);
+  --pico-secondary-border: var(--pico-secondary-background);
+  --pico-secondary-hover: var(--t-text);
+  --pico-secondary-hover-background: color-mix(in srgb, var(--t-selection) 82%, var(--t-text));
+  --pico-secondary-hover-border: var(--pico-secondary-hover-background);
+  --pico-secondary-focus: color-mix(in srgb, var(--t-muted) 25%, transparent);
+  --pico-secondary-inverse: var(--t-text);
+
+  --pico-contrast: var(--t-text);
+  --pico-contrast-background: var(--t-text);
+  --pico-contrast-border: var(--pico-contrast-background);
+  --pico-contrast-hover-background: color-mix(in srgb, var(--t-text) 85%, var(--t-canvas));
+  --pico-contrast-focus: color-mix(in srgb, var(--t-text) 25%, transparent);
+  --pico-contrast-inverse: var(--t-canvas);
+
+  --pico-box-shadow: var(--t-shadow-md);
+  --pico-card-background-color: var(--t-surface);
+  --pico-card-border-color: var(--t-border);
+  --pico-card-box-shadow: var(--pico-box-shadow);
+  --pico-card-sectioning-background-color: var(--t-inset);
+  --pico-dropdown-background-color: var(--t-surface);
+  --pico-dropdown-border-color: var(--t-border);
+  --pico-dropdown-box-shadow: var(--pico-box-shadow);
+  --pico-dropdown-color: var(--t-text);
+  --pico-dropdown-hover-background-color: var(--t-selection);
+  --pico-form-element-background-color: var(--t-inset);
+  --pico-form-element-selected-background-color: var(--t-selection);
+  --pico-form-element-border-color: var(--t-border);
+  --pico-form-element-color: var(--t-text);
+  --pico-form-element-placeholder-color: var(--t-muted);
+  --pico-form-element-active-background-color: var(--t-inset);
+  --pico-form-element-active-border-color: var(--t-accent);
+  --pico-form-element-focus-color: var(--t-focus-ring);
+  --pico-form-element-disabled-opacity: 0.5;
+  --pico-form-element-invalid-border-color: var(--t-danger);
+  --pico-form-element-invalid-active-border-color: var(--t-danger);
+  --pico-form-element-invalid-focus-color: color-mix(in srgb, var(--t-danger) 30%, transparent);
+  --pico-form-element-valid-border-color: var(--t-success);
+  --pico-form-element-valid-active-border-color: var(--t-success);
+  --pico-form-element-valid-focus-color: color-mix(in srgb, var(--t-success) 30%, transparent);
+  --pico-switch-background-color: var(--t-selection);
+  --pico-switch-checked-background-color: var(--t-accent-solid);
+  --pico-switch-color: var(--t-text);
+  --pico-switch-thumb-box-shadow: var(--t-shadow-sm);
+  --pico-range-border-color: var(--t-selection);
+  --pico-range-active-border-color: var(--t-border);
+  --pico-range-thumb-border-color: var(--t-canvas);
+  --pico-range-thumb-color: var(--t-accent-solid);
+  --pico-range-thumb-active-color: var(--pico-primary-hover-background);
+  --pico-accordion-border-color: var(--t-border);
+  --pico-accordion-active-summary-color: var(--t-accent);
+  --pico-accordion-close-summary-color: var(--t-text);
+  --pico-accordion-open-summary-color: var(--t-muted);
+  --pico-table-border-color: var(--t-border);
+  --pico-table-row-stripped-background-color: color-mix(in srgb, var(--t-selection) 35%, transparent);
+  --pico-blockquote-border-color: var(--t-disabled);
+  --pico-blockquote-footer-color: var(--t-muted);
+  --pico-code-background-color: var(--t-inset);
+  --pico-code-color: var(--t-hue-pink);
+  --pico-code-kbd-background-color: var(--t-selection);
+  --pico-code-kbd-color: var(--t-text);
+  --pico-ins-color: var(--t-success);
+  --pico-del-color: var(--t-danger);
+  --pico-mark-background-color: var(--t-hue-yellow);
+  --pico-mark-color: var(--t-canvas);
+  --pico-progress-background-color: var(--t-selection);
+  --pico-progress-color: var(--t-accent-solid);
+  --pico-tooltip-background-color: var(--t-text);
+  --pico-tooltip-color: var(--t-canvas);
+  --pico-modal-overlay-background-color: var(--t-backdrop);
+  --pico-modal-overlay-backdrop-filter: blur(0.375rem);
+  --pico-loading-spinner-opacity: 0.5;
+}
+
+/* ── 3. default tones (zero specificity so tokens.css [data-tone] wins) ─────── */
+:where(.t-btn[data-variant="primary"]) { --t-tone: var(--t-accent-solid); }
+:where(.t-progress-bar) { --t-tone: var(--pico-progress-color); }
+:where(.t-timeline-badge) { --t-tone: var(--t-accent); }
+
+/* ── 4. base typography in Pico's voice ────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--pico-color); }
+a { color: var(--pico-primary); text-decoration: underline; text-decoration-color: var(--pico-primary-underline); text-underline-offset: 0.1rem; transition: color var(--pico-transition), text-decoration var(--pico-transition); }
+a:hover { color: var(--pico-primary-hover); text-decoration-color: var(--pico-primary-hover); }
+code, kbd, samp { display: inline-block; padding: 0.125rem 0.375rem; border-radius: var(--pico-border-radius); background: var(--pico-code-background-color); color: var(--pico-code-color); font-size: 0.875em; line-height: 1.4; }
+kbd { background: var(--pico-code-kbd-background-color); color: var(--pico-code-kbd-color); font-weight: bolder; }
+hr { border-top: var(--pico-border-width) solid var(--pico-muted-border-color); }
+:focus-visible { outline: var(--pico-outline-width) solid var(--pico-primary); outline-offset: 2px; }
+
+/* ── 5. components, in components.json order ───────────────────────────────── */
+
+/* app-shell / navbar / footer: Pico's header sits on the page colour with a hairline */
+.t-navbar { background: var(--pico-background-color); border-bottom: var(--pico-border-width) solid var(--pico-muted-border-color); }
+.t-navbar-brand { color: var(--pico-color); font-weight: 700; letter-spacing: 0; text-decoration: none; }
+.t-navbar-brand:hover { color: var(--pico-primary); text-decoration: none; }
+.t-navbar-link { color: var(--pico-muted-color); opacity: 1; border-bottom: 0; margin-bottom: 0; padding: var(--pico-nav-link-spacing-vertical) var(--pico-nav-link-spacing-horizontal); border-radius: var(--pico-border-radius); text-decoration: none; transition: background-color var(--pico-transition), color var(--pico-transition); }
+.t-navbar-link:hover { color: var(--pico-color); background: var(--pico-dropdown-hover-background-color); text-decoration: none; }
+.t-navbar-link[aria-current="page"] { color: var(--pico-primary); font-weight: 600; background: color-mix(in srgb, var(--pico-primary) var(--t-tint-weak), transparent); }
+.t-navbar-sep { background: var(--pico-muted-border-color); }
+.t-footer { background: var(--pico-background-color); border-top: var(--pico-border-width) solid var(--pico-muted-border-color); color: var(--pico-muted-color); }
+.t-footer-version { color: var(--pico-muted-color); }
+.t-footer-repo { color: var(--pico-muted-color); opacity: 1; } .t-footer-repo:hover { color: var(--pico-primary); }
+
+/* sidebar */
+.t-sidebar-group { color: var(--pico-muted-color); font-weight: 600; letter-spacing: 0.06em; }
+.t-sidebar-item { color: var(--pico-color); border-radius: var(--pico-border-radius); padding: 0.5rem 0.75rem; margin-bottom: 2px; transition: background-color var(--pico-transition), color var(--pico-transition); }
+.t-sidebar-item:hover:not([aria-disabled="true"]) { background: var(--pico-dropdown-hover-background-color); color: var(--pico-color); }
+.t-sidebar-item[aria-current="page"] { background: var(--pico-card-sectioning-background-color); color: var(--pico-primary); font-weight: 600; }
+.t-sidebar-item .t-icon { color: var(--pico-muted-color); } .t-sidebar-item[aria-current="page"] .t-icon { color: var(--pico-primary); }
+.t-sidebar-chevron { border-color: var(--pico-muted-color); }
+.t-sidebar-divider { border-top-color: var(--pico-muted-border-color); }
+
+/* page / section */
+.t-page-title { color: var(--pico-color); font-weight: 700; }
+.t-page-lead { color: var(--pico-muted-color); }
+.t-page-back { color: var(--pico-muted-color); border-radius: var(--pico-border-radius); text-decoration: none; } .t-page-back:hover { background: var(--pico-dropdown-hover-background-color); color: var(--pico-color); }
+.t-section-title { color: var(--pico-muted-color); font-size: var(--t-text-sm); font-weight: 600; letter-spacing: 0.06em; border-bottom: var(--pico-border-width) solid var(--pico-muted-border-color); padding-bottom: 0.35rem; }
+
+/* toolbar / grid / stack / split: geometry is core; only the pane separator is Pico's */
+.t-split-side { border-right: var(--pico-border-width) solid var(--pico-muted-border-color); }
+
+/* button — Pico: solid, one radius, 0.2 s transitions, box-shadow focus ring. Default = .secondary. */
+.t-btn {
+  --pico-background-color: var(--pico-secondary-background); --pico-border-color: var(--pico-secondary-border); --pico-color: var(--pico-secondary-inverse);
+  padding: 0 var(--pico-form-element-spacing-horizontal); border: var(--pico-border-width) solid var(--pico-border-color); border-radius: var(--pico-border-radius);
+  background: var(--pico-background-color); color: var(--pico-color); font-size: 0.9rem; font-weight: var(--pico-font-weight); line-height: var(--pico-line-height);
+  box-shadow: none; user-select: none;
+  transition: background-color var(--pico-transition), border-color var(--pico-transition), color var(--pico-transition), box-shadow var(--pico-transition);
+}
+.t-btn:hover, .t-btn:active { --pico-background-color: var(--pico-secondary-hover-background); --pico-border-color: var(--pico-secondary-hover-border); --pico-color: var(--pico-secondary-inverse); background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
+.t-btn:focus-visible { outline: 0; box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-secondary-focus); }
+.t-btn[data-variant="primary"], .t-btn[data-variant="danger"], .t-btn[data-variant="warning"] { --pico-background-color: var(--t-tone); --pico-border-color: var(--t-tone); --pico-color: var(--pico-primary-inverse); }
+.t-btn[data-variant="primary"] { --pico-background-color: var(--pico-primary-background); --pico-border-color: var(--pico-primary-border); }
+.t-btn:is([data-variant="primary"], [data-variant="danger"], [data-variant="warning"]):is(:hover, :active) { --pico-background-color: color-mix(in srgb, var(--t-tone) 85%, var(--t-text)); --pico-border-color: var(--pico-background-color); --pico-color: var(--pico-primary-inverse); }
+.t-btn[data-variant="primary"]:is(:hover, :active) { --pico-background-color: var(--pico-primary-hover-background); --pico-border-color: var(--pico-primary-hover-border); }
+.t-btn:is([data-variant="primary"], [data-variant="danger"], [data-variant="warning"]):is(:hover, :active) { background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
+.t-btn:is([data-variant="primary"], [data-variant="danger"], [data-variant="warning"]):focus-visible { box-shadow: 0 0 0 var(--pico-outline-width) color-mix(in srgb, var(--t-tone) 37.5%, transparent); }
+.t-btn[data-variant="ghost"] { --pico-background-color: transparent; --pico-border-color: transparent; --pico-color: var(--pico-muted-color); }
+.t-btn[data-variant="ghost"]:is(:hover, :active) { --pico-background-color: var(--pico-dropdown-hover-background-color); --pico-border-color: transparent; --pico-color: var(--pico-color); background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
+.t-btn[data-variant="ghost"][data-tone] { --pico-color: var(--t-tone); }
+.t-btn[data-variant="ghost"][data-tone]:is(:hover, :active) { --pico-background-color: color-mix(in srgb, var(--t-tone) var(--t-tint-weak), transparent); --pico-color: var(--t-tone); background: var(--pico-background-color); color: var(--pico-color); }
+.t-btn[data-variant="link"] { --pico-background-color: transparent; --pico-border-color: transparent; --pico-color: var(--pico-primary); padding: 0 0.3em; text-decoration: underline; text-decoration-color: var(--pico-primary-underline); text-underline-offset: 0.1rem; }
+.t-btn[data-variant="link"]:is(:hover, :active) { --pico-background-color: transparent; --pico-border-color: transparent; --pico-color: var(--pico-primary-hover); background: transparent; color: var(--pico-color); text-decoration-color: var(--pico-primary-hover); }
+.t-btn[data-variant] { background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
+.t-btn[data-size="sm"] { font-size: 0.8rem; padding: 0 0.75rem; } .t-btn[data-size="lg"] { font-size: 1.05rem; padding: 0 1.5rem; }
+.t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: var(--pico-form-element-disabled-opacity); pointer-events: none; }
+.t-btn[aria-pressed="true"] { --pico-background-color: var(--pico-primary-background); --pico-border-color: var(--pico-primary-border); --pico-color: var(--pico-primary-inverse); background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
+.t-btn[aria-busy="true"] { pointer-events: none; } .t-btn[aria-busy="true"]::before { opacity: var(--pico-loading-spinner-opacity); }
+
+/* button-group — Pico role=group: fused, inner radii zero, the active filter is the primary fill */
+.t-btn-group { border-radius: var(--pico-border-radius); }
+.t-btn-group > .t-btn:focus-visible { z-index: 2; position: relative; }
+.t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"], .t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"]:hover { background: var(--pico-primary-background); border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); }
+
+/* segmented — a form-element box; the checked item is the primary fill */
+.t-segmented { gap: 0; padding: 0; background: var(--pico-form-element-background-color); border: var(--pico-border-width) solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); overflow: hidden; }
+.t-segmented-item { border: 0; border-radius: 0; padding: 0.45rem 0.9rem; color: var(--pico-muted-color); transition: background-color var(--pico-transition), color var(--pico-transition); }
+.t-segmented-item:hover { color: var(--pico-color); background: var(--pico-dropdown-hover-background-color); }
+.t-segmented-item:has(.t-segmented-input:checked) { background: var(--pico-primary-background); color: var(--pico-primary-inverse); border-color: transparent; box-shadow: none; }
+.t-segmented-item:has(.t-segmented-input:focus-visible) { outline: 0; box-shadow: inset 0 0 0 var(--pico-outline-width) var(--pico-primary-focus); }
+.t-segmented[data-size="sm"] .t-segmented-item { padding: 0.25rem 0.65rem; }
+
+/* menu — Pico details.dropdown: summary looks like a select, the list is a shadowed surface */
+.t-menu > summary:not(.t-btn) { display: inline-flex; align-items: center; gap: 0.5rem; min-height: var(--t-control-h); padding: 0 var(--pico-form-element-spacing-horizontal); border: var(--pico-border-width) solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); background: var(--pico-form-element-background-color); color: var(--pico-color); cursor: pointer; user-select: none; transition: background-color var(--pico-transition), border-color var(--pico-transition), box-shadow var(--pico-transition); }
+.t-menu > summary:not(.t-btn):hover, .t-menu[open] > summary:not(.t-btn) { border-color: var(--pico-form-element-active-border-color); }
+.t-menu > summary:focus-visible { outline: 0; box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-form-element-focus-color); }
+.t-menu-list { margin-top: var(--pico-outline-width); padding: 0.5rem 0; background: var(--pico-dropdown-background-color); border: var(--pico-border-width) solid var(--pico-dropdown-border-color); border-radius: var(--pico-border-radius); box-shadow: var(--pico-dropdown-box-shadow); color: var(--pico-dropdown-color); }
+.t-menu-item { border-radius: 0; padding: 0.4rem var(--pico-form-element-spacing-horizontal); color: var(--pico-dropdown-color); transition: background-color var(--pico-transition); }
+.t-menu-item:hover, .t-menu-item:focus-visible { background: var(--pico-dropdown-hover-background-color); outline: 0; }
+.t-menu-item[role="menuitemcheckbox"]::before { color: var(--pico-primary); }
+.t-menu-item[data-tone="danger"] { color: var(--t-danger); }
+.t-menu-header { color: var(--pico-muted-color); padding: 0.4rem var(--pico-form-element-spacing-horizontal) 0.2rem; }
+.t-menu-divider { border-top-color: var(--pico-dropdown-border-color); margin: 0.5rem 0; }
+.t-menu-desc { color: var(--pico-muted-color); } .t-menu-kbd { color: var(--pico-muted-color); }
+
+/* tabs — underline in the primary colour (Pico has no tabs; this is its documented label pattern) */
+.t-tabs-list { gap: 0; border-bottom: var(--pico-border-width) solid var(--pico-muted-border-color); }
+.t-tab { padding: 0.5rem 1rem; color: var(--pico-muted-color); border-bottom: 2px solid transparent; border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0; transition: color var(--pico-transition), border-color var(--pico-transition), background-color var(--pico-transition); }
+.t-tab:hover { color: var(--pico-color); background: var(--pico-dropdown-hover-background-color); border-bottom-color: transparent; }
+.t-tab[aria-selected="true"] { color: var(--pico-primary); border-bottom-color: var(--pico-primary); font-weight: 600; background: transparent; }
+.t-tab:focus-visible { outline: 0; box-shadow: inset 0 0 0 var(--pico-outline-width) var(--pico-primary-focus); }
+.t-tab:disabled { opacity: var(--pico-form-element-disabled-opacity); }
+.t-tabs[data-variant="boxed"] .t-tab { border: var(--pico-border-width) solid transparent; border-bottom: 0; }
+.t-tabs[data-variant="boxed"] .t-tab[aria-selected="true"] { background: var(--pico-card-background-color); border-color: var(--pico-muted-border-color); color: var(--pico-primary); }
+.t-tabs[data-variant="boxed"] .t-tab-panel { background: var(--pico-card-background-color); border-color: var(--pico-muted-border-color); padding: var(--pico-spacing); }
+
+/* breadcrumb */
+.t-breadcrumb li + li::before { content: "›"; color: var(--pico-muted-color); }
+.t-breadcrumb a { color: var(--pico-muted-color); text-decoration: none; } .t-breadcrumb a:hover { color: var(--pico-primary); text-decoration: underline; }
+.t-breadcrumb [aria-current="page"] { color: var(--pico-color); }
+
+/* pagination — Pico nav links: separate rounded pills, current = primary fill */
+.t-pagination ul { gap: 0.25rem; }
+.t-page-link { border: var(--pico-border-width) solid transparent; background: transparent; color: var(--pico-color); margin-left: 0; padding: 0 0.85rem; text-decoration: none; transition: background-color var(--pico-transition), color var(--pico-transition); }
+.t-pagination li:first-child .t-page-link, .t-pagination li:last-child .t-page-link, .t-page-link { border-radius: var(--pico-border-radius); }
+.t-page-link:hover { background: var(--pico-dropdown-hover-background-color); color: var(--pico-color); }
+.t-page-link[aria-current="page"] { background: var(--pico-primary-background); border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); }
+.t-page-link[aria-disabled="true"] { color: var(--pico-muted-color); opacity: var(--pico-form-element-disabled-opacity); }
+
+/* list — a card of rows */
+.t-list { background: var(--pico-card-background-color); border: var(--pico-border-width) solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); }
+.t-list-item { background: transparent; color: var(--pico-color); border-top-color: var(--pico-muted-border-color); padding: 0.6rem var(--pico-form-element-spacing-horizontal); transition: background-color var(--pico-transition); }
+.t-list-item:hover { background: var(--pico-dropdown-hover-background-color); }
+.t-list-item:focus-visible { outline: 0; box-shadow: inset 0 0 0 var(--pico-outline-width) var(--pico-primary-focus); }
+.t-list-item[aria-selected="true"] { background: color-mix(in srgb, var(--pico-primary) var(--t-tint-strong), transparent); }
+.t-list-item[aria-selected="true"] .t-list-lead { color: var(--pico-primary); }
+.t-list-item:disabled { background: transparent; }
+.t-list-lead, .t-list-desc, .t-list-trail, .t-list-group { color: var(--pico-muted-color); }
+.t-list-group { border-top-color: var(--pico-muted-border-color); }
+.t-list[aria-multiselectable="true"] .t-list-lead::before { border-radius: var(--pico-border-radius); border-color: var(--pico-form-element-border-color); background: var(--pico-form-element-background-color); border-width: 0.125rem; }
+.t-list[aria-multiselectable="true"] .t-list-item[aria-selected="true"] .t-list-lead::before { background: var(--pico-primary-background); border-color: var(--pico-primary-border); color: var(--pico-primary-inverse); }
+
+/* field — Pico form elements: filled box, one radius, primary border + ring on focus */
+.t-label { color: var(--pico-color); font-size: var(--t-text-md); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.t-input, .t-select, .t-textarea {
+  padding: var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal); border-radius: var(--pico-border-radius);
+  background: var(--pico-form-element-background-color); border: var(--pico-border-width) solid var(--pico-form-element-border-color); color: var(--pico-form-element-color); font-size: var(--t-text-base);
+  transition: background-color var(--pico-transition), border-color var(--pico-transition), color var(--pico-transition), box-shadow var(--pico-transition);
+}
+.t-select { padding-right: calc(var(--pico-form-element-spacing-horizontal) + 1.5rem); background-position: calc(100% - 1.05rem) 55%, calc(100% - 0.75rem) 55%; background-size: 0.3rem 0.3rem; }
+:is(.t-input, .t-select, .t-textarea)::placeholder { color: var(--pico-form-element-placeholder-color); }
+:is(.t-input, .t-select, .t-textarea):focus-visible { outline: 0; background: var(--pico-form-element-active-background-color); border-color: var(--pico-form-element-active-border-color); box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-form-element-focus-color); }
+:is(.t-input, .t-select, .t-textarea):disabled { background: var(--pico-form-element-background-color); border-color: var(--pico-form-element-border-color); color: var(--pico-color); opacity: var(--pico-form-element-disabled-opacity); }
+.t-input[readonly] { color: var(--pico-muted-color); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"] { border-color: var(--pico-form-element-invalid-border-color); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"]:focus-visible { border-color: var(--pico-form-element-invalid-active-border-color); box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-form-element-invalid-focus-color); }
+.t-input[type="range"] { accent-color: var(--pico-range-thumb-color); background: transparent; border: 0; padding: 0; }
+.t-input[type="file"]::file-selector-button { background: var(--pico-secondary-background); color: var(--pico-secondary-inverse); border-right: 0; border-radius: var(--pico-border-radius) 0 0 var(--pico-border-radius); padding: var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal); transition: background-color var(--pico-transition); }
+.t-input[type="file"]::file-selector-button:hover { background: var(--pico-secondary-hover-background); }
+.t-hint { color: var(--pico-muted-color); }
+.t-input-addon { background: var(--pico-secondary-background); border: var(--pico-border-width) solid var(--pico-form-element-border-color); color: var(--pico-muted-color); padding: 0 var(--pico-form-element-spacing-horizontal); }
+.t-input-group > :first-child { border-radius: var(--pico-border-radius) 0 0 var(--pico-border-radius); } .t-input-group > :last-child { border-radius: 0 var(--pico-border-radius) var(--pico-border-radius) 0; }
+.t-input-group > :focus-visible { z-index: 2; position: relative; }
+.t-field[data-size="sm"] :is(.t-input, .t-select, .t-textarea), :is(.t-input, .t-select, .t-textarea)[data-size="sm"], .t-input-group[data-size="sm"] > :is(.t-input, .t-select, .t-input-addon, .t-btn) { padding-top: 0.25rem; padding-bottom: 0.25rem; font-size: var(--t-text-md); }
+
+/* check — Pico's 1.25em boxes with a 2px border, primary fill when checked; switch 2.25em × 1.25em */
+.t-check { gap: 0.5em; }
+.t-check-input { appearance: none; width: 1.25em; height: 1.25em; margin-top: 0.1em; border: 0.125rem solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); background: var(--pico-form-element-background-color); cursor: pointer; display: inline-grid; place-content: center; transition: background-color var(--pico-transition), border-color var(--pico-transition), box-shadow var(--pico-transition); }
+.t-check-input[type="radio"] { border-radius: 50%; }
+.t-check-input::before { content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: transform var(--pico-transition); background: var(--pico-primary-inverse); clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+.t-check-input[type="radio"]::before { clip-path: none; border-radius: 50%; width: 0.5em; height: 0.5em; }
+.t-check-input:checked { background: var(--pico-primary-background); border-color: var(--pico-primary-border); }
+.t-check-input:checked::before { transform: scale(1); }
+.t-check-input:indeterminate { background: var(--pico-primary-background); border-color: var(--pico-primary-border); }
+.t-check-input:indeterminate::before { transform: scale(1); clip-path: none; height: 0.15em; width: 0.6em; border-radius: 1px; }
+.t-check-input:focus-visible { outline: 0; box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-primary-focus); }
+.t-check-input[aria-invalid="true"] { outline: 0; border-color: var(--pico-form-element-invalid-border-color); }
+.t-check-input:checked[aria-invalid="true"] { background: var(--pico-form-element-invalid-border-color); }
+.t-check-desc { color: var(--pico-muted-color); }
+.t-check[data-variant="switch"] .t-check-input { width: 2.25em; height: 1.25em; border: 0.1875rem solid var(--pico-switch-background-color); border-radius: 1.25em; background: var(--pico-switch-background-color); display: inline-block; }
+.t-check[data-variant="switch"] .t-check-input::before { position: absolute; top: 0; left: 0; width: calc(1.25em - 0.375rem); height: calc(1.25em - 0.375rem); transform: none; clip-path: none; border-radius: 50%; background: var(--pico-switch-color); box-shadow: var(--pico-switch-thumb-box-shadow); transition: margin-left 0.1s ease-in-out; }
+.t-check[data-variant="switch"] .t-check-input:checked { background: var(--pico-switch-checked-background-color); border-color: var(--pico-switch-checked-background-color); }
+.t-check[data-variant="switch"] .t-check-input:checked::before { transform: none; margin-left: 1em; }
+
+/* duration-input */
+.t-duration { display: inline-flex; gap: 0.25rem; } .t-duration .t-select { width: 6rem; }
+
+/* settings-row */
+.t-settings { background: var(--pico-card-background-color); border: var(--pico-border-width) solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); padding: 0 var(--pico-spacing); }
+.t-setting { padding: 0.75rem 0; border-bottom-color: var(--pico-muted-border-color); }
+.t-setting-label label { color: var(--pico-color); font-weight: 500; }
+.t-setting-label .t-hint { font-weight: 400; }
+.t-setting[data-state="saving"] .t-setting-state::before { border-color: var(--pico-muted-border-color); border-right-color: var(--pico-primary); }
+
+/* badge / counter / chip / state-label / status-dot — Pico tags: pill, soft tint, no hard border */
+.t-badge { border-radius: var(--t-radius-full); padding: 0.2em 0.65em; font-weight: 500; background: color-mix(in srgb, var(--t-tone) var(--t-tint-weak), var(--pico-card-background-color)); border-color: color-mix(in srgb, var(--t-tone) 22%, transparent); }
+.t-badge[data-variant="solid"] { background: var(--t-tone); color: var(--pico-primary-inverse); border-color: var(--t-tone); box-shadow: none; }
+.t-badge[data-variant="outline"] { background: transparent; border-color: var(--t-tone); }
+.t-counter { border-radius: var(--t-radius-full); background: var(--pico-secondary-background); color: var(--pico-secondary-inverse); }
+.t-counter[data-tone] { background: color-mix(in srgb, var(--t-tone) var(--t-tint-strong), transparent); color: var(--t-tone); }
+.t-chip { border-radius: var(--t-radius-full); padding: 0.25em 0.75em; font-weight: 500; background: color-mix(in srgb, var(--t-tone) var(--t-tint-weak), var(--pico-card-background-color)); border-color: color-mix(in srgb, var(--t-tone) 25%, transparent); }
+.t-chip-remove { border-radius: 50%; } .t-chip-remove:hover { background: color-mix(in srgb, var(--t-tone) var(--t-tint-strong), transparent); }
+.t-state { border-radius: var(--t-radius-full); font-weight: 500; background: color-mix(in srgb, var(--t-tone) var(--t-tint-weak), var(--pico-card-background-color)); border-color: color-mix(in srgb, var(--t-tone) 25%, transparent); }
+.t-state[data-variant="solid"] { background: var(--t-tone); color: var(--pico-primary-inverse); border-color: var(--t-tone); }
+.t-dot { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 0%, var(--pico-card-background-color)); }
+.t-dot[data-status="running"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-success) 20%, transparent); }
+.t-dot[data-status="degraded"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-warning) 20%, transparent); }
+.t-dot[data-status="stopped"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-danger) 20%, transparent); }
+
+/* avatar */
+.t-avatar { border: 2px solid var(--pico-background-color); background: color-mix(in srgb, var(--t-tone) 85%, var(--pico-background-color)); color: var(--pico-primary-inverse); font-weight: 700; }
+.t-avatar[data-more] { background: var(--pico-secondary-background); color: var(--pico-secondary-inverse); }
+.t-avatar[data-shape="square"] { border-radius: var(--pico-border-radius); }
+.t-avatar-status { border-color: var(--pico-card-background-color); }
+.t-avatar-stack .t-avatar { box-shadow: none; margin-left: calc(var(--t-size) * -0.3); }
+.t-avatar-name { color: var(--pico-color); } .t-avatar-desc { color: var(--pico-muted-color); }
+
+/* table — Pico: horizontal rules only, sentence-case headers, optional stripes, no sticky tint */
+.t-table-wrap { border: var(--pico-border-width) solid var(--pico-table-border-color); border-radius: var(--pico-border-radius); background: var(--pico-card-background-color); box-shadow: var(--pico-card-box-shadow); }
+.t-table th, .t-table td { padding: calc(var(--pico-spacing) / 2) var(--pico-spacing); border-bottom: var(--pico-border-width) solid var(--pico-table-border-color); color: var(--pico-color); }
+.t-table thead th { font-size: var(--t-text-sm); font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--pico-muted-color); background: var(--pico-card-sectioning-background-color); border-bottom-color: var(--pico-table-border-color); }
+.t-table thead th > button:hover { color: var(--pico-color); }
+.t-sort-icon { color: var(--pico-primary); }
+.t-table tbody tr:hover > td { background: var(--pico-dropdown-hover-background-color); }
+.t-table tr[aria-selected="true"] > td { background: color-mix(in srgb, var(--pico-primary) var(--t-tint-strong), transparent); }
+.t-table-group > td { background: var(--pico-card-sectioning-background-color) !important; color: var(--pico-muted-color); letter-spacing: 0.06em; }
+.t-table[data-density="compact"] :is(th, td) { padding: calc(var(--pico-spacing) / 4) calc(var(--pico-spacing) / 2); }
+
+/* card — Pico article: surface + shadow, sectioned header/footer on the sectioning colour */
+.t-card { background: var(--pico-card-background-color); border: var(--pico-border-width) solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); }
+.t-card-header { background: var(--pico-card-sectioning-background-color); border-bottom: var(--pico-border-width) solid var(--pico-card-border-color); padding: calc(var(--pico-block-spacing-vertical) * 0.66) var(--pico-block-spacing-horizontal); }
+.t-card-title { color: var(--pico-color); font-weight: 700; }
+.t-card-body { padding: var(--pico-block-spacing-vertical) var(--pico-block-spacing-horizontal); }
+.t-card-footer { background: var(--pico-card-sectioning-background-color); border-top: var(--pico-border-width) solid var(--pico-card-border-color); padding: calc(var(--pico-block-spacing-vertical) * 0.66) var(--pico-block-spacing-horizontal); }
+.t-card[data-variant~="clickable"]:hover { border-color: var(--pico-primary); box-shadow: var(--pico-card-box-shadow), 0 0 0 1px var(--pico-primary); }
+.t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: var(--pico-primary); box-shadow: var(--pico-card-box-shadow), 0 0 0 var(--pico-outline-width) var(--pico-primary-focus); }
+.t-card-thumb { background: var(--pico-card-sectioning-background-color); border-bottom-color: var(--pico-card-border-color); }
+.t-card-meta { padding: 0.6rem var(--pico-block-spacing-horizontal); }
+.t-card[data-variant~="stat"] .t-card-body { padding: calc(var(--pico-block-spacing-vertical) * 0.75) var(--pico-block-spacing-horizontal) calc(var(--pico-block-spacing-vertical) * 0.5); }
+.t-stat-label { color: var(--pico-muted-color); font-weight: 500; } .t-stat-value { color: var(--pico-color); font-weight: 600; } .t-stat-sub { color: var(--pico-muted-color); }
+.t-facts dt { color: var(--pico-muted-color); }
+
+/* empty-state — dashed Pico box */
+.t-empty { color: var(--pico-muted-color); border: var(--pico-border-width) dashed var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
+.t-empty-title { color: var(--pico-color); font-weight: 700; }
+
+/* timeline — Pico rail: hairline, 2px page-colour ring around each badge */
+.t-timeline::before { background: var(--pico-muted-border-color); }
+.t-timeline-badge { background: color-mix(in srgb, var(--t-tone) var(--t-tint-strong), var(--pico-card-background-color)); color: var(--t-tone); box-shadow: 0 0 0 2px var(--pico-background-color); }
+.t-timeline-badge[data-variant="solid"] { background: var(--t-tone); color: var(--pico-primary-inverse); }
+.t-timeline-body { color: var(--pico-muted-color); } .t-timeline-body :is(b, strong, a) { color: var(--pico-color); }
+.t-timeline-body .t-time { color: var(--pico-muted-color); }
+.t-timeline-card { background: var(--pico-card-sectioning-background-color); border-color: var(--pico-card-border-color); border-radius: var(--pico-border-radius); color: var(--pico-color); }
+.t-timeline-break { background: var(--pico-muted-border-color); height: 2px; }
+
+/* relative-time */
+.t-time { color: var(--pico-muted-color); font-variant-numeric: tabular-nums; }
+
+/* tooltip — Pico: inverted (text on canvas), small radius, no border */
+.t-tooltip, [data-mode="light"] .t-tooltip { background: var(--pico-tooltip-background-color); color: var(--pico-tooltip-color); border: 0; border-radius: var(--pico-border-radius); padding: 0.25rem 0.5rem; font-size: 0.875rem; box-shadow: none; }
+
+/* help-popover — dropdown surface */
+.t-help-btn { border-width: 0.125rem; }
+.t-help-box { background: var(--pico-dropdown-background-color); border: var(--pico-border-width) solid var(--pico-dropdown-border-color); border-left: 0.25rem solid var(--t-tone); border-radius: var(--pico-border-radius); box-shadow: var(--pico-dropdown-box-shadow); color: var(--pico-color); }
+.t-help-box :is(b, code) { color: var(--pico-color); }
+
+/* code-block — Pico pre: code colour on the code background, one radius, no coloured edges */
+.t-code-tabs button { background: transparent; border: var(--pico-border-width) solid transparent; border-bottom: 0; border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0; color: var(--pico-muted-color); font-weight: 500; transition: color var(--pico-transition), background-color var(--pico-transition); }
+.t-code-tabs button:hover { color: var(--pico-color); background: var(--pico-dropdown-hover-background-color); }
+.t-code-tabs button[aria-selected="true"], .t-code-tabs button:first-child { background: var(--pico-code-background-color); color: var(--pico-primary); border-color: var(--pico-muted-border-color); border-top-color: var(--pico-muted-border-color); border-bottom-color: var(--pico-code-background-color); }
+.t-code-tabs button:first-child:not([aria-selected="true"]) { background: transparent; color: var(--pico-muted-color); border-color: transparent; }
+.t-code-pre { background: var(--pico-code-background-color); border: var(--pico-border-width) solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); color: var(--pico-color); padding: var(--pico-spacing) 2.75rem var(--pico-spacing) var(--pico-spacing); }
+.t-code-pre[data-variant="shell"] { border-right: var(--pico-border-width) solid var(--pico-muted-border-color); border-bottom: var(--pico-border-width) solid var(--pico-muted-border-color); }
+.t-code-copy { color: var(--pico-muted-color); border-radius: var(--pico-border-radius); transition: background-color var(--pico-transition), color var(--pico-transition); }
+.t-code-copy:hover { color: var(--pico-color); background: var(--pico-dropdown-hover-background-color); }
+.t-code-copy[data-copied] { color: var(--t-success); }
+.t-tok-prompt { color: var(--pico-muted-color); } .t-tok-cmd { color: var(--pico-primary); } .t-tok-key { color: var(--pico-primary); }
+
+/* truncate */
+.t-truncate[data-expand]:hover { color: var(--pico-primary); }
+
+/* alert — Pico article with a tone-coloured inline-start border */
+.t-alert { background: var(--pico-card-background-color); color: var(--pico-color); border: var(--pico-border-width) solid var(--pico-card-border-color); border-left: 0.25rem solid var(--t-tone); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); padding: var(--pico-spacing); }
+.t-alert[data-tone]:not([data-tone="neutral"]) { background: color-mix(in srgb, var(--t-tone) 6%, var(--pico-card-background-color)); color: var(--pico-color); border-color: var(--pico-card-border-color); border-left-color: var(--t-tone); }
+.t-alert-icon { color: var(--t-tone); }
+.t-alert-body b { color: var(--pico-color); }
+.t-alert-close { color: var(--pico-muted-color); border-radius: var(--pico-border-radius); transition: color var(--pico-transition); } .t-alert-close:hover { color: var(--pico-color); }
+.t-alert[data-size="sm"] { padding: 0.5rem 0.75rem; }
+
+/* toast — same article, shadowed, tone on the start edge and icon */
+.t-toast { background: var(--pico-card-background-color); color: var(--pico-color); border: var(--pico-border-width) solid var(--pico-card-border-color); border-left: 0.25rem solid var(--t-tone); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); font-weight: 400; padding: 0.75rem var(--pico-spacing); }
+.t-toast-icon { color: var(--t-tone); }
+
+/* dialog / confirm — Pico modal: article in the overlay, blurred backdrop */
+.t-dialog { background: var(--pico-card-background-color); color: var(--pico-color); border: var(--pico-border-width) solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); }
+.t-dialog::backdrop { background: var(--pico-modal-overlay-background-color); backdrop-filter: var(--pico-modal-overlay-backdrop-filter); }
+.t-dialog-header { background: var(--pico-card-sectioning-background-color); border-bottom: var(--pico-border-width) solid var(--pico-card-border-color); padding: calc(var(--pico-block-spacing-vertical) * 0.66) var(--pico-block-spacing-horizontal); }
+.t-dialog-title { color: var(--pico-color); font-weight: 700; }
+.t-dialog[data-tone="danger"] .t-dialog-title { color: var(--t-danger); }
+.t-dialog[data-tone="danger"] .t-dialog-header { border-bottom-color: color-mix(in srgb, var(--t-danger) 35%, transparent); }
+.t-dialog-close { color: var(--pico-muted-color); opacity: 0.6; border-radius: var(--pico-border-radius); transition: opacity var(--pico-transition); } .t-dialog-close:hover { opacity: 1; color: var(--pico-color); }
+.t-dialog-body { padding: var(--pico-block-spacing-vertical) var(--pico-block-spacing-horizontal); }
+.t-dialog-footer { background: var(--pico-card-sectioning-background-color); border-top: var(--pico-border-width) solid var(--pico-card-border-color); padding: calc(var(--pico-block-spacing-vertical) * 0.66) var(--pico-block-spacing-horizontal); }
+
+/* progress — Pico: 0.5rem bar, one radius, primary fill */
+.t-progress { background: var(--pico-progress-background-color); border-radius: var(--pico-border-radius); height: 0.5rem; }
+.t-progress[data-size="sm"] { height: 0.3rem; } .t-progress[data-size="lg"] { height: 1.25rem; }
+.t-progress-bar { background: var(--t-tone); color: var(--pico-primary-inverse); transition: width var(--pico-transition); }
+.t-progress[data-variant="stacked"] .t-progress-bar + .t-progress-bar { border-left: 1px solid var(--pico-progress-background-color); }
+
+/* spinner — Pico's loading ring: half opacity track */
+.t-spinner { border-color: color-mix(in srgb, var(--t-tone) 25%, transparent); border-right-color: var(--t-tone); }
+
+/* ── 6. tier-2 extras listed in manifest.tier2 ─────────────────────────────── */
+.t-drawer { background: var(--pico-card-background-color); color: var(--pico-color); border: 0; border-left: var(--pico-border-width) solid var(--pico-card-border-color); box-shadow: var(--pico-card-box-shadow); }
+.t-drawer[data-side="left"] { border-left: 0; border-right: var(--pico-border-width) solid var(--pico-card-border-color); }
+.t-drawer::backdrop { background: var(--pico-modal-overlay-background-color); backdrop-filter: var(--pico-modal-overlay-backdrop-filter); }
+.t-drawer-header { background: var(--pico-card-sectioning-background-color); border-bottom: var(--pico-border-width) solid var(--pico-card-border-color); padding: calc(var(--pico-block-spacing-vertical) * 0.66) var(--pico-block-spacing-horizontal); display: flex; align-items: center; gap: var(--t-space-2); }
+.t-drawer-header h2 { margin: 0; font-size: var(--t-text-lg); }
+.t-drawer-body { padding: var(--pico-block-spacing-vertical) var(--pico-block-spacing-horizontal); overflow: auto; }
+.t-drawer-footer { background: var(--pico-card-sectioning-background-color); border-top: var(--pico-border-width) solid var(--pico-card-border-color); padding: calc(var(--pico-block-spacing-vertical) * 0.66) var(--pico-block-spacing-horizontal); display: flex; justify-content: flex-end; gap: var(--t-space-2); }
+.t-accordion details { margin: 0; border-bottom: var(--pico-border-width) solid var(--pico-accordion-border-color); }
+.t-accordion summary { list-style: none; cursor: pointer; padding: calc(var(--pico-spacing) * 0.75) 0; color: var(--pico-accordion-close-summary-color); font-weight: 500; display: flex; align-items: center; justify-content: space-between; transition: color var(--pico-transition); }
+.t-accordion summary::-webkit-details-marker { display: none; }
+.t-accordion summary::after { content: ""; width: 0.5em; height: 0.5em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform var(--pico-transition); margin-right: 0.25em; }
+.t-accordion details[open] > summary { color: var(--pico-accordion-open-summary-color); }
+.t-accordion details[open] > summary::after { transform: rotate(45deg); }
+.t-accordion summary:hover, .t-accordion summary:focus-visible { color: var(--pico-accordion-active-summary-color); outline: 0; }
+.t-accordion details > :not(summary) { padding-bottom: calc(var(--pico-spacing) * 0.75); color: var(--pico-muted-color); }

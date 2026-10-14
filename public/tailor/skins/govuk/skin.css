@@ -1,0 +1,380 @@
+/* managed by tailor v0.1.0 — skin govuk — do not edit, run `tailor sync` */
+/*
+ * tailor skin — govuk — GOV.UK Frontend 6.5.1 (translated, not vendored)
+ * Styles the t-* vocabulary (core/components.json) in GOV.UK Frontend's look: square corners, 2px
+ * borders on controls, bold labels above fields, the 5px error bar, solid buttons with a bottom
+ * shadow line, the fat focus block, inset-text alerts, uppercase tinted tags, summary-list rows and
+ * plain 1px tables. GOV.UK styles per govuk-* class with hard-coded hex and sets no body font, so the
+ * vendored CSS cannot be aliased onto house markup (SKIN-CONTRACT rule 5); its declarations are
+ * re-expressed here on t-* selectors. Colours: --t-* tokens only; palette tokens never set.
+ *
+ * Licence notes: GDS Transport (the font) and the crown / GOV.UK wordmark are for gov.uk services
+ * only — this skin uses the system sans stack and draws no crown or logo. GOV.UK's focus yellow
+ * (#ffdd00) is a literal and therefore banned; the focus block is derived from the palette's warning
+ * and yellow tokens instead.
+ * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
+ */
+
+/* 1. scale overrides: GOV.UK is square, flat and tall (40px controls, 19px/1.3 type) */
+:root {
+  --t-radius-sm: 0;
+  --t-radius-md: 0;
+  --t-radius-lg: 0;
+  --t-radius-xl: 0;
+  --t-shadow-sm: none;
+  --t-shadow-md: none;
+  --t-shadow-lg: none;
+  --t-control-h: 2.5rem;
+  --t-control-h-sm: 2rem;
+  --t-control-h-lg: 3rem;
+  --t-leading: 1.35;
+}
+
+/* 2. private helpers (read-only use of --t-*): GOV.UK thinks in "ink on paper" and one focus colour.
+   --g-ink is the darkest neutral in BOTH modes (overlay-bg is the darkest neutral in dark mode and
+   flips to white in light mode, where text is the darkest), --g-paper the lightest. */
+:root {
+  --g-ink:          var(--t-overlay-bg);
+  --g-paper:        var(--t-text);
+  --g-focus:        color-mix(in srgb, var(--t-warning) 70%, var(--t-hue-yellow));
+  --g-focus-text:   var(--g-ink);
+  --g-border-w:     2px;                 /* GOV.UK control border */
+  --g-error-w:      5px;                 /* form-group--error bar, error summary border */
+  --g-inset-w:      10px;                /* inset-text bar */
+}
+:root[data-mode="light"] {
+  --g-ink:          var(--t-text);
+  --g-paper:        var(--t-overlay-bg);
+}
+
+/* ── typography: GOV.UK links are underlined, thicker on hover; headings plain ink ── */
+a { text-decoration: underline; text-decoration-thickness: max(1px, 0.0625rem); text-underline-offset: 0.15em; }
+a:hover { text-decoration-thickness: max(3px, 0.1875rem, 0.12em); }
+h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--t-text); }
+code { color: var(--t-text); background: var(--t-inset); padding: 0 0.25em; }
+pre code { background: transparent; padding: 0; }
+kbd { border-radius: 0; border: var(--t-border-w) solid var(--t-border); }
+
+/* THE focus state: 3px block in the focus colour. Controls get the inset ink shadow (GOV.UK input
+   focus); links get the yellow highlight block with the ink underline (govuk-link:focus); buttons turn
+   into the focus colour entirely (govuk-button:focus). */
+:focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; }
+a:focus-visible,
+.t-btn[data-variant="link"]:focus-visible,
+.t-breadcrumb a:focus-visible,
+.t-navbar-link:focus-visible,
+.t-navbar-brand:focus-visible,
+.t-footer-repo:focus-visible,
+.t-page-back:focus-visible {
+  outline: 3px solid transparent; background: var(--g-focus); color: var(--g-focus-text) !important;
+  box-shadow: 0 -2px var(--g-focus), 0 4px var(--g-focus-text); text-decoration: none; box-decoration-break: clone;
+}
+
+/* ── shell ─────────────────────────────────────────────────────────────────── */
+/* app-shell: geometry is core. navbar = the GOV.UK header: ink band with the brand-colour rule under
+   it (inset shadow so the fixed --t-nav-h box does not grow). */
+.t-navbar { background: var(--g-ink); border-bottom: 0; box-shadow: inset 0 -8px 0 var(--t-accent); color: var(--g-paper); }
+.t-navbar-brand { color: var(--g-paper); font-weight: 700; letter-spacing: 0; font-size: var(--t-text-lg); text-decoration: none; }
+.t-navbar-brand:hover { text-decoration: underline; text-decoration-thickness: 3px; }
+.t-navbar-link { color: var(--g-paper); opacity: 1; border-bottom: 0; margin-bottom: 0; font-weight: 700; text-decoration: none; }
+.t-navbar-link:hover { color: var(--g-paper); text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 0.2em; }
+.t-navbar-link[aria-current="page"] { color: var(--g-paper); border-bottom: 0; text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 0.2em; }
+.t-navbar-sep { background: color-mix(in srgb, var(--g-paper) 40%, transparent); }
+.t-navbar .t-btn:not([data-variant]) { background: transparent; color: var(--g-paper); border-color: var(--g-paper); box-shadow: none; }
+
+/* sidebar: GOV.UK sub-navigation — plain text links, the current one bold with a 4px brand bar */
+.t-sidebar-item { border-radius: 0; color: var(--t-text); text-decoration: none; box-shadow: inset 4px 0 0 transparent; }
+.t-sidebar-item:hover:not([aria-disabled="true"]) { background: transparent; color: var(--t-text); text-decoration: underline; text-decoration-thickness: 3px; }
+.t-sidebar-item[aria-current="page"] { background: transparent; color: var(--t-text); font-weight: 700; box-shadow: inset 4px 0 0 var(--t-accent); }
+.t-sidebar-group { color: var(--t-text); text-transform: none; letter-spacing: 0; font-size: var(--t-text-md); font-weight: 700; }
+.t-sidebar-divider { border-top-color: var(--t-border); }
+.t-sidebar-chevron { border-color: var(--t-text); }
+
+/* footer: GOV.UK footer — grey band with the brand-colour rule on top */
+.t-footer { background: var(--t-inset); border-top: 0; box-shadow: inset 0 4px 0 var(--t-accent); color: var(--t-text); }
+.t-footer-version { color: var(--t-muted); }
+.t-footer-repo { color: var(--t-text); opacity: 0.7; }
+
+/* page / section: govuk-heading-xl / -m, caption lead, underlined back link */
+.t-page-title { color: var(--t-text); font-weight: 700; font-size: 2rem; letter-spacing: -0.01em; }
+.t-page-lead { color: var(--t-muted); font-size: var(--t-text-base); }
+.t-page-back { color: var(--t-text); border-radius: 0; text-decoration: underline; }
+.t-page-back:hover { background: transparent; color: var(--t-text); text-decoration: underline; text-decoration-thickness: 3px; }
+.t-section-title { text-transform: none; letter-spacing: 0; font-size: var(--t-text-lg); font-weight: 700; color: var(--t-text); border-bottom: var(--t-border-w) solid var(--t-border); }
+/* toolbar / grid / stack / split: geometry only (core) */
+
+/* ── button: govuk-button — solid fill, 2px transparent border, 2px ink shadow under, sinks on press ── */
+.t-btn {
+  border: var(--g-border-w) solid transparent; border-radius: 0; font-weight: 400; font-size: var(--t-text-base);
+  background: var(--t-selection); color: var(--t-text);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--t-text) 45%, var(--t-selection));
+  transition: none;
+}
+.t-btn:hover { background: color-mix(in srgb, var(--t-selection) 85%, var(--t-text)); color: var(--t-text); }
+.t-btn:active { top: 2px; position: relative; box-shadow: none; }
+.t-btn[data-variant="primary"], .t-btn[data-variant="danger"], .t-btn[data-variant="warning"] {
+  background: var(--t-tone); border-color: transparent; color: var(--t-canvas); box-shadow: 0 2px 0 color-mix(in srgb, var(--t-tone) 45%, var(--g-ink));
+}
+.t-btn[data-variant="primary"]:hover, .t-btn[data-variant="danger"]:hover, .t-btn[data-variant="warning"]:hover {
+  background: color-mix(in srgb, var(--t-tone) 85%, var(--g-ink)); color: var(--t-canvas);
+}
+.t-btn[data-variant="secondary"] { background: var(--t-selection); color: var(--t-text); }
+.t-btn[data-variant="ghost"] { background: transparent; border-color: transparent; color: var(--t-link); box-shadow: none; }
+.t-btn[data-variant="ghost"]:hover { background: transparent; color: var(--t-link); text-decoration: underline; text-decoration-thickness: 3px; }
+.t-btn[data-variant="ghost"][data-tone] { color: var(--t-tone); }
+.t-btn[data-variant="ghost"][data-tone]:hover { background: transparent; color: var(--t-tone); }
+.t-btn[data-variant="link"] { background: transparent; border-color: transparent; color: var(--t-link); box-shadow: none; text-decoration: underline; min-height: 0; padding: 0 0.1em; }
+.t-btn[data-variant="link"]:hover { background: transparent; text-decoration-thickness: 3px; }
+.t-btn[data-size="sm"] { font-size: var(--t-text-md); }
+.t-btn[data-size="lg"] { font-size: var(--t-text-lg); }
+.t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.t-btn[aria-pressed="true"] { background: var(--t-text); color: var(--t-canvas); border-color: var(--t-text); box-shadow: 0 2px 0 var(--t-text); }
+/* focused button = the focus colour entirely, ink text, ink shadow (govuk-button:focus) */
+.t-btn:focus-visible:not(:active) { outline: 3px solid transparent; background: var(--g-focus); border-color: var(--g-focus); color: var(--g-focus-text); box-shadow: 0 2px 0 var(--g-focus-text); text-decoration: none; }
+.t-btn[aria-busy="true"]::before { border-color: currentColor; border-right-color: transparent; }
+
+/* button-group: GOV.UK spaces buttons rather than fusing them; the house group stays one unit with 2px seams */
+.t-btn-group { gap: 2px; }
+.t-btn-group > .t-btn { margin-left: 0; border-radius: 0; }
+.t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"], .t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"]:hover {
+  background: var(--t-text); border-color: var(--t-text); color: var(--t-canvas); box-shadow: 0 2px 0 var(--t-text);
+}
+.t-input-group > .t-btn { box-shadow: none; border-color: var(--t-text); background: var(--t-selection); }
+
+/* segmented: GOV.UK has none — square radio tiles, 2px ink border, checked = ink fill */
+.t-segmented { gap: 0; padding: 0; background: transparent; border: 0; border-radius: 0; }
+.t-segmented-item { border: var(--g-border-w) solid var(--t-text); margin-left: calc(-1 * var(--g-border-w)); border-radius: 0; color: var(--t-text); background: var(--t-canvas); font-size: var(--t-text-md); }
+.t-segmented-item:first-child { margin-left: 0; }
+.t-segmented-item:hover { background: var(--t-selection); color: var(--t-text); }
+.t-segmented-item:has(.t-segmented-input:checked) { background: var(--t-text); color: var(--t-canvas); border-color: var(--t-text); box-shadow: none; z-index: 1; }
+.t-segmented-item:has(.t-segmented-input:focus-visible) { outline: 3px solid var(--g-focus); outline-offset: 0; z-index: 2; }
+
+/* menu: GOV.UK has none — a square panel with a 2px ink border, no shadow */
+.t-menu-list { background: var(--t-canvas); border: var(--g-border-w) solid var(--t-text); border-radius: 0; box-shadow: none; padding: 0; }
+.t-menu-item { border-radius: 0; padding: 0.55rem 0.9rem; color: var(--t-text); }
+.t-menu-item:hover { background: var(--t-selection); }
+.t-menu-item[role="menuitemcheckbox"]::before { color: var(--t-text); }
+.t-menu-header { color: var(--t-text); text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--t-text-sm); padding-top: 0.6rem; }
+.t-menu-divider { border-top-color: var(--t-border); margin: 0; }
+.t-menu > summary.t-btn { list-style: none; }
+
+/* ── navigation ────────────────────────────────────────────────────────────── */
+/* tabs: underline variant = service-navigation (4px brand bar under the active item); boxed variant = govuk-tabs */
+.t-tabs-list { border-bottom-color: var(--t-border); gap: var(--t-space-4); }
+.t-tab { color: var(--t-link); text-decoration: underline; border-bottom: 4px solid transparent; padding: 0.6rem 0; font-size: var(--t-text-base); }
+.t-tab:hover { color: var(--t-link); border-bottom-color: transparent; text-decoration-thickness: 3px; }
+.t-tab[aria-selected="true"] { color: var(--t-text); border-bottom-color: var(--t-accent); font-weight: 700; text-decoration: none; }
+.t-tab:disabled { opacity: 0.5; }
+.t-tab:focus-visible { outline: 3px solid transparent; background: var(--g-focus); color: var(--g-focus-text); border-bottom-color: var(--g-focus-text); text-decoration: none; }
+.t-tabs[data-variant="boxed"] .t-tabs-list { gap: 4px; border-bottom: var(--t-border-w) solid var(--t-border); }
+.t-tabs[data-variant="boxed"] .t-tab { background: var(--t-inset); border: var(--t-border-w) solid transparent; border-bottom: 0; border-radius: 0; padding: 0.6rem 1.2rem; color: var(--t-link); margin-bottom: 0; }
+.t-tabs[data-variant="boxed"] .t-tab:hover { background: var(--t-selection); }
+.t-tabs[data-variant="boxed"] .t-tab[aria-selected="true"] { background: var(--t-canvas); border-color: var(--t-border); color: var(--t-text); margin-bottom: -1px; padding-bottom: calc(0.6rem + 1px); }
+.t-tabs[data-variant="boxed"] .t-tab-panel { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-border); border-top: 0; border-radius: 0; padding: var(--t-space-4); }
+
+/* breadcrumb: govuk-breadcrumbs — ink links, chevron separators drawn with borders */
+.t-breadcrumb a { color: var(--t-text); text-decoration: underline; } .t-breadcrumb a:hover { color: var(--t-text); }
+.t-breadcrumb li + li::before { content: ""; display: inline-block; width: 0.45em; height: 0.45em; border-right: 2px solid var(--t-muted); border-top: 2px solid var(--t-muted); transform: rotate(45deg); margin: 0 var(--t-space-2) 0 0; vertical-align: 0; }
+.t-breadcrumb [aria-current="page"] { font-weight: 400; color: var(--t-text); }
+
+/* pagination: govuk-pagination — borderless items, current = brand fill, hover = grey */
+.t-page-link { border: 0; background: transparent; color: var(--t-link); text-decoration: underline; margin-left: 0; min-width: var(--t-control-h); justify-content: center; }
+.t-pagination li:first-child .t-page-link, .t-pagination li:last-child .t-page-link { border-radius: 0; }
+.t-page-link:hover { background: var(--t-selection); color: var(--t-link); text-decoration: underline; }
+.t-page-link[aria-current="page"] { background: var(--t-accent-solid); color: var(--t-on-accent); text-decoration: none; font-weight: 700; }
+.t-page-link[aria-disabled="true"] { color: var(--t-disabled); text-decoration: none; }
+.t-page-link:focus-visible { outline: 3px solid transparent; background: var(--g-focus); color: var(--g-focus-text); box-shadow: 0 -2px var(--g-focus), 0 4px var(--g-focus-text); text-decoration: none; }
+
+/* list: GOV.UK task-list rows — 1px rules, no box, selected = grey band + brand bar, GOV.UK-style ticks for multi */
+.t-list { background: transparent; border: 0; border-top: var(--t-border-w) solid var(--t-border); border-radius: 0; }
+.t-list-item { background: transparent; border-top: 0; border-bottom: var(--t-border-w) solid var(--t-border); padding: 0.7rem 0.75rem; color: var(--t-text); }
+.t-list-item:hover { background: var(--t-inset); }
+.t-list-item[aria-selected="true"] { background: var(--t-selection); box-shadow: inset 4px 0 0 var(--t-accent); }
+.t-list-item[aria-selected="true"] .t-list-lead { color: var(--t-text); }
+.t-list-item:focus-visible { outline: 3px solid var(--g-focus); outline-offset: -3px; }
+.t-list-item:disabled { background: transparent; opacity: 0.5; }
+.t-list-name { font-weight: 700; } .t-list-desc { color: var(--t-muted); } .t-list-trail { color: var(--t-muted); }
+.t-list-group { color: var(--t-text); text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--t-text-md); border-top: 0; border-bottom: var(--t-border-w) solid var(--t-border); padding-bottom: 0.4rem; }
+.t-list-divider { border-top: 0; border-bottom: var(--g-border-w) solid var(--t-text); }
+.t-list[aria-multiselectable="true"] .t-list-lead::before { width: 1.1rem; height: 1.1rem; border-radius: 0; border: var(--g-border-w) solid var(--t-text); background: var(--t-canvas); }
+.t-list[aria-multiselectable="true"] .t-list-item[aria-selected="true"] .t-list-lead::before { content: "✓"; color: var(--t-text); background: var(--t-canvas); border-color: var(--t-text); font-size: 0.75rem; line-height: 0.85rem; font-weight: 700; }
+
+/* ── forms: govuk-label bold above, 2px ink border, canvas fill, 5px error bar on the group ── */
+.t-label { color: var(--t-text); font-size: var(--t-text-base); font-weight: 700; text-transform: none; letter-spacing: 0; }
+legend.t-label { margin-bottom: 0.5rem; }
+.t-input, .t-select, .t-textarea { background: var(--t-canvas); border: var(--g-border-w) solid var(--t-text); color: var(--t-text); border-radius: 0; font-size: var(--t-text-base); padding-top: 0.3rem; padding-bottom: 0.3rem; padding-left: 0.5rem; }
+.t-input, .t-textarea { padding-right: 0.5rem; }
+:is(.t-input, .t-select, .t-textarea):focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; border-color: var(--t-text); box-shadow: inset 0 0 0 2px var(--t-text); position: relative; z-index: 1; }
+:is(.t-input, .t-select, .t-textarea):disabled { background: var(--t-canvas); border-color: var(--t-text); color: var(--t-text); opacity: 0.5; }
+.t-input[readonly] { color: var(--t-muted); border-color: var(--t-muted); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"] { border-color: var(--t-danger); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"]:focus-visible { border-color: var(--t-text); box-shadow: inset 0 0 0 2px var(--t-text); }
+.t-select { background-image: linear-gradient(45deg, transparent 50%, var(--t-text) 50%), linear-gradient(135deg, var(--t-text) 50%, transparent 50%); background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+.t-select option { background: var(--t-canvas); color: var(--t-text); }
+.t-input::placeholder { color: var(--t-muted); }
+.t-input[type="range"] { border: 0; background: transparent; accent-color: var(--t-text); }
+.t-input[type="file"]::file-selector-button { background: var(--t-selection); border-right: var(--g-border-w) solid var(--t-text); color: var(--t-text); }
+/* govuk-form-group--error: the whole field gets the 5px bar */
+.t-field:has(:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"]) { border-left: var(--g-error-w) solid var(--t-danger); padding-left: 0.9rem; }
+.t-hint { color: var(--t-muted); font-size: var(--t-text-md); }
+.t-feedback { font-weight: 700; font-size: var(--t-text-md); color: var(--t-tone); }
+.t-input-group > * { border-radius: 0 !important; margin-left: calc(-1 * var(--g-border-w)); } .t-input-group > :first-child { margin-left: 0; }
+.t-input-addon { background: var(--t-selection); border: var(--g-border-w) solid var(--t-text); color: var(--t-text); font-size: var(--t-text-base); }
+.t-input-group > .t-btn:focus-visible { z-index: 1; }
+.t-duration .t-select { width: 6rem; }
+
+/* check: govuk-checkboxes / govuk-radios — 2px ink box, canvas fill, ink tick / dot; the switch is a square toggle */
+.t-check { gap: 0.75rem; align-items: flex-start; font-size: var(--t-text-base); margin-bottom: 0.5rem; }
+.t-check-input { appearance: none; width: 1.5rem; height: 1.5rem; margin: 0; border: var(--g-border-w) solid var(--t-text); background: var(--t-canvas); border-radius: 0; position: relative; flex-shrink: 0; cursor: pointer; }
+.t-check-input[type="radio"] { border-radius: 50%; }
+.t-check-input::before { content: ""; position: absolute; opacity: 0; }
+.t-check-input[type="checkbox"]::before { top: 0.2rem; left: 0.4rem; width: 0.4rem; height: 0.7rem; border: solid var(--t-text); border-width: 0 3px 3px 0; transform: rotate(45deg); }
+.t-check-input[type="radio"]::before { inset: 0.3rem; border-radius: 50%; background: var(--t-text); }
+.t-check-input:checked::before { opacity: 1; }
+.t-check-input[type="checkbox"]:indeterminate::before { opacity: 1; top: 0.55rem; left: 0.3rem; width: 0.7rem; height: 0; border-width: 0 0 3px 0; transform: none; }
+.t-check-input:focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; box-shadow: inset 0 0 0 2px var(--t-text); }
+.t-check-input:disabled, .t-check:has(.t-check-input:disabled) { opacity: 0.5; }
+.t-check-input[aria-invalid="true"] { outline: 0; border-color: var(--t-danger); } .t-check:has(.t-check-input[aria-invalid="true"]) .t-check-label { color: var(--t-danger); font-weight: 700; }
+.t-check-label { line-height: 1.5rem; } .t-check-desc { color: var(--t-muted); font-size: var(--t-text-md); line-height: 1.35; }
+.t-check[data-variant="switch"] { align-items: center; }
+.t-check[data-variant="switch"] .t-check-input { width: 2.75rem; height: 1.5rem; border-radius: 0; background: var(--t-canvas); border: var(--g-border-w) solid var(--t-text); }
+.t-check[data-variant="switch"] .t-check-input::before { opacity: 1; top: 0.2rem; left: 0.2rem; width: 0.8rem; height: 0.8rem; border: 0; border-radius: 0; background: var(--t-text); transform: none; transition: transform var(--t-duration), background var(--t-duration); }
+.t-check[data-variant="switch"] .t-check-input:checked { background: var(--t-text); border-color: var(--t-text); }
+.t-check[data-variant="switch"] .t-check-input:checked::before { transform: translateX(1.25rem); background: var(--t-canvas); }
+
+/* settings-row: govuk-summary-list — bold keys, 1px rules */
+.t-setting { border-bottom: var(--t-border-w) solid var(--t-border); padding: 0.75rem 0; }
+.t-setting-label label { font-weight: 700; color: var(--t-text); font-size: var(--t-text-base); }
+.t-setting[data-state="saving"] .t-setting-state::before { border-color: var(--t-border); border-right-color: var(--t-text); }
+
+/* ── data ──────────────────────────────────────────────────────────────────── */
+/* badge = govuk-tag: opaque tint of the tone, bold, uppercase, square */
+.t-badge { background: color-mix(in srgb, var(--t-tone) 22%, var(--t-canvas)); color: var(--t-tone); border: 0; border-radius: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.3em 0.6em 0.35em; font-size: var(--t-text-xs); }
+.t-badge[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); box-shadow: none; }
+.t-badge[data-variant="outline"] { background: transparent; border: var(--g-border-w) solid var(--t-tone); }
+button.t-badge:hover { background: color-mix(in srgb, var(--t-tone) 35%, var(--t-canvas)); }
+/* counter: solid ink square, tone solid when toned */
+.t-counter { border-radius: 0; background: var(--t-text); color: var(--t-canvas); font-weight: 700; padding: 0.1em 0.5em; }
+.t-counter[data-tone] { background: var(--t-tone); color: var(--t-canvas); }
+/* chip: a tag with normal case */
+.t-chip { background: color-mix(in srgb, var(--t-tone) 22%, var(--t-canvas)); color: var(--t-tone); border: 0; border-radius: 0; font-weight: 700; }
+.t-chip-remove { opacity: 0.85; } .t-chip-remove:focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; }
+/* state-label: tag with icon, square */
+.t-state { background: color-mix(in srgb, var(--t-tone) 22%, var(--t-canvas)); color: var(--t-tone); border: 0; border-radius: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--t-text-xs); padding: 0.3rem 0.6rem 0.35rem; }
+.t-state[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); }
+.t-state[data-size="sm"] { font-size: 0.65rem; padding: 0.15rem 0.45rem; }
+/* status dot: a square swatch */
+.t-dot { border-radius: 0; width: 0.7rem; height: 0.7rem; }
+
+/* avatar: flat tint with a 2px tone border (GOV.UK has no avatar; keep the circle for people) */
+.t-avatar { background: color-mix(in srgb, var(--t-tone) 22%, var(--t-canvas)); color: var(--t-tone); border: var(--g-border-w) solid var(--t-tone); font-weight: 700; }
+.t-avatar[data-shape="square"] { border-radius: 0; }
+.t-avatar[data-more] { background: var(--t-selection); color: var(--t-text); border-color: var(--t-text); }
+.t-avatar-status { border-radius: 0; border-color: var(--t-canvas); }
+.t-avatar-stack .t-avatar { box-shadow: 0 0 0 2px var(--t-canvas); }
+.t-avatar-name { color: var(--t-text); } .t-avatar-desc { color: var(--t-muted); }
+
+/* table: govuk-table — no box, bold ink header, 1px rules, no fill; selection = grey band + brand bar; toned rows = error-bar style */
+.t-table-wrap { border: 0; border-radius: 0; }
+.t-table { font-size: var(--t-text-base); }
+.t-table th, .t-table td { padding: 0.65rem 1.25rem 0.65rem 0; border-bottom: var(--t-border-w) solid var(--t-border); vertical-align: top; }
+.t-table :is(th, td):first-child { padding-left: 0.25rem; }
+.t-table thead th { background: var(--t-canvas); color: var(--t-text); font-size: var(--t-text-base); font-weight: 700; text-transform: none; letter-spacing: 0; border-bottom: var(--t-border-w) solid var(--t-border); }
+.t-table thead th > button:hover { color: var(--t-text); text-decoration: underline; }
+.t-table thead th > button:focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; }
+.t-sort-icon { color: var(--t-text); }
+.t-table tbody tr:hover > td { background: var(--t-inset); }
+.t-table tbody tr:last-child > td { border-bottom: var(--t-border-w) solid var(--t-border); }
+.t-table tr[aria-selected="true"] > td { background: var(--t-selection); }
+.t-table tr[aria-selected="true"] > td:first-child { box-shadow: inset 4px 0 0 var(--t-accent); }
+.t-table-group > td { background: var(--t-inset) !important; color: var(--t-text); text-transform: none; letter-spacing: 0; font-size: var(--t-text-md); }
+.t-table tr[data-tone] > td { background: color-mix(in srgb, var(--t-tone) 10%, var(--t-canvas)); }
+.t-table tr[data-tone] > td:first-child { box-shadow: inset var(--g-error-w) 0 0 var(--t-tone); padding-left: calc(0.25rem + var(--g-error-w) + 0.5rem); }
+.t-table tr[data-tone]:hover > td { filter: none; background: color-mix(in srgb, var(--t-tone) 16%, var(--t-canvas)); }
+.t-table[data-density="compact"] :is(th, td) { padding: 0.35rem 0.75rem 0.35rem 0; }
+.t-table[data-variant="log"] { font-size: var(--t-text-md); }
+
+/* card: govuk-summary-card — 1px border, grey header, canvas body, no radius */
+.t-card { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-border); border-radius: 0; }
+.t-card-header { background: var(--t-inset); border-bottom: var(--t-border-w) solid var(--t-border); padding: 0.75rem 1rem; }
+.t-card-title { color: var(--t-text); font-weight: 700; font-size: var(--t-text-lg); }
+.t-card-body { padding: 1rem; } .t-card-footer { border-top-color: var(--t-border); background: var(--t-inset); }
+.t-card[data-variant~="clickable"] { transition: none; }
+.t-card[data-variant~="clickable"]:hover { border-color: var(--t-text); box-shadow: inset 0 0 0 1px var(--t-text); }
+.t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: var(--t-accent); box-shadow: inset 0 0 0 1px var(--t-accent); }
+.t-card-thumb { background: var(--t-inset); border-bottom-color: var(--t-border); }
+.t-stat-label { color: var(--t-muted); font-weight: 700; } .t-stat-value { color: var(--t-text); font-weight: 700; } .t-stat-sub { color: var(--t-muted); }
+.t-facts dt { color: var(--t-text); font-weight: 700; }
+.t-facts { font-size: var(--t-text-md); }
+
+/* empty state */
+.t-empty { color: var(--t-muted); } .t-empty-title { color: var(--t-text); font-weight: 700; }
+
+/* timeline: square tinted markers on a 2px rail */
+.t-timeline::before { background: var(--t-border); }
+.t-timeline-badge { border-radius: 0; background: color-mix(in srgb, var(--t-tone) 22%, var(--t-canvas)); color: var(--t-tone); border: var(--g-border-w) solid var(--t-tone); box-shadow: 0 0 0 3px var(--t-canvas); }
+.t-timeline-badge[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); }
+.t-timeline-body { color: var(--t-text); } .t-timeline-body .t-time { color: var(--t-muted); }
+.t-timeline-card { background: var(--t-inset); border: 0; border-left: var(--g-inset-w) solid var(--t-border); border-radius: 0; color: var(--t-text); }
+.t-timeline-break { background: var(--t-text); height: 2px; border-radius: 0; }
+
+/* relative time */
+.t-time { color: var(--t-muted); }
+
+/* tooltip: ink block, paper text, square, no shadow (both modes) */
+.t-tooltip, [data-mode="light"] .t-tooltip { background: var(--g-ink); color: var(--g-paper); border: 0; border-radius: 0; box-shadow: none; }
+
+/* help popover: round "i" trigger, square panel with 2px border */
+.t-help-btn { border-color: var(--t-tone); color: var(--t-tone); opacity: 1; }
+.t-help-btn:focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; }
+.t-help-box { background: var(--t-canvas); border: var(--g-border-w) solid var(--t-text); border-radius: 0; color: var(--t-text); box-shadow: none; animation: none; }
+.t-help-box[data-pinned] { border-color: var(--t-tone); }
+
+/* code block: GOV.UK has no code block — grey panel, 1px rule, restrained token colours */
+.t-code-pre { background: var(--t-inset); border: var(--t-border-w) solid var(--t-border); border-radius: 0; color: var(--t-text); }
+.t-code-pre[data-variant="shell"] { border-right: var(--t-border-w) solid var(--t-border); border-bottom: var(--t-border-w) solid var(--t-border); border-left: var(--g-error-w) solid var(--t-text); }
+.t-code-tabs button { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-border); border-top-width: var(--t-border-w); border-bottom-color: transparent; color: var(--t-link); border-radius: 0; text-decoration: underline; }
+.t-code-tabs button:hover { color: var(--t-link); text-decoration-thickness: 3px; }
+.t-code-tabs button[aria-selected="true"] { background: var(--t-inset); color: var(--t-text); border-color: var(--t-border); border-bottom-color: var(--t-inset); text-decoration: none; }
+.t-code-tabs button:focus-visible { outline: 3px solid transparent; background: var(--g-focus); color: var(--g-focus-text); text-decoration: none; }
+.t-code-copy { color: var(--t-text); border-radius: 0; } .t-code-copy:hover { background: var(--t-selection); color: var(--t-text); } .t-code-copy[data-copied] { color: var(--t-success); }
+.t-tok-prompt { color: var(--t-muted); } .t-tok-cmd { color: var(--t-text); font-weight: 700; } .t-tok-flag { color: var(--t-muted); }
+.t-tok-str, .t-tok-url { color: var(--t-link); } .t-tok-key { color: var(--t-text); font-weight: 700; } .t-tok-num, .t-tok-bool { color: var(--t-accent); }
+
+/* truncate: core behaviour, nothing to colour */
+
+/* ── feedback ──────────────────────────────────────────────────────────────── */
+/* alert = govuk-inset-text: 10px bar in the tone (neutral = border), no box, ink text */
+.t-alert { background: transparent; border: 0; border-left: var(--g-inset-w) solid var(--t-border); border-radius: 0; color: var(--t-text); padding: 0.9rem 1rem; }
+.t-alert[data-tone]:not([data-tone="neutral"]) { background: transparent; color: var(--t-text); border-color: var(--t-tone); }
+.t-alert[data-tone] .t-alert-icon { color: var(--t-tone); }
+.t-alert[data-tone="danger"] .t-alert-body { font-weight: 700; }
+.t-alert-close:focus-visible { outline: 3px solid var(--g-focus); outline-offset: 0; }
+.t-alert[data-size="sm"] { padding: 0.5rem 0.75rem; border-left-width: var(--g-error-w); }
+
+/* toast = govuk-notification-banner: 5px tone border, canvas fill, bold ink text */
+.t-toast { background: var(--t-canvas); border: var(--g-error-w) solid var(--t-tone); border-radius: 0; color: var(--t-text); box-shadow: none; font-weight: 700; }
+.t-toast .t-toast-icon { color: var(--t-tone); }
+
+/* dialog: the GOV.UK timeout-warning pattern — 5px ink border, canvas, no radius, no shadow */
+.t-dialog { background: var(--t-canvas); border: var(--g-error-w) solid var(--t-text); border-radius: 0; box-shadow: none; color: var(--t-text); }
+.t-dialog::backdrop { background: var(--t-backdrop); backdrop-filter: none; }
+.t-dialog-header { border-bottom: 0; padding: 1.25rem 1.25rem 0.25rem; }
+.t-dialog-title { font-weight: 700; font-size: var(--t-text-xl); }
+.t-dialog-body { padding: 0.5rem 1.25rem 1rem; }
+.t-dialog-footer { border-top: 0; padding: 0.25rem 1.25rem 1.25rem; justify-content: flex-start; }
+.t-dialog-close { color: var(--t-text); } .t-dialog-close:hover { color: var(--t-text); text-decoration: underline; }
+.t-dialog-close:focus-visible { outline: 3px solid transparent; background: var(--g-focus); color: var(--g-focus-text); }
+.t-dialog[data-tone="danger"] { border-color: var(--t-danger); } .t-dialog[data-tone="danger"] .t-dialog-title { color: var(--t-danger); }
+/* confirm rides the same dialog */
+
+/* progress: flat square track and fill */
+.t-progress { background: var(--t-selection); border-radius: 0; }
+.t-progress-bar { background: var(--t-tone); color: var(--t-canvas); font-weight: 700; }
+
+/* spinner: ring in the tone */
+.t-spinner { border-color: var(--t-border); border-right-color: var(--t-tone); }
+
+/* default tones (zero specificity, SKIN-CONTRACT rule 9): GOV.UK's default button is green = --t-success
+   (base already says so); primary progress = brand colour */
+:where(.t-progress-bar) { --t-tone: var(--t-accent-solid); }

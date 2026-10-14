@@ -1,0 +1,256 @@
+/* managed by tailor v0.1.0 — skin simple — do not edit, run `tailor sync` */
+/*
+ * tailor skin — simple — Simple.css 2.3.7 (translated, not vendored)
+ * Styles the t-* vocabulary (core/components.json) in Simple.css's look: flat surfaces, 1px solid
+ * borders everywhere, one solid-accent button, zebra tables, boxed details, 5px radius, system fonts.
+ * Simple.css styles bare elements page-wide (body grid, 3rem h1, every button accent-filled), so the
+ * vendored file cannot be aliased onto house markup (SKIN-CONTRACT rule 5); its declarations are
+ * re-expressed here on t-* selectors instead. Colours: --t-* tokens only; palette tokens never set.
+ * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
+ */
+
+/* 1. scale overrides: Simple is flat and uniformly 5px-rounded */
+:root {
+  --t-radius-sm: 5px;
+  --t-radius-md: 5px;
+  --t-radius-lg: 5px;
+  --t-radius-xl: 5px;
+  --t-shadow-sm: none;
+  --t-shadow-md: none;
+  --t-shadow-lg: none;
+}
+
+/* 2. Simple's ~12 variables, bridged onto the tokens (private --s-* helpers, read-only use of --t-*) */
+:root {
+  --s-bg:           var(--t-canvas);      /* --bg            */
+  --s-accent-bg:    var(--t-inset);       /* --accent-bg     */
+  --s-text:         var(--t-text);        /* --text          */
+  --s-text-light:   var(--t-muted);       /* --text-light    */
+  --s-border:       var(--t-border);      /* --border        */
+  --s-accent:       var(--t-accent-solid);/* --accent        */
+  --s-accent-hover: color-mix(in srgb, var(--t-accent-solid) 82%, var(--t-text)); /* --accent-hover */
+  --s-accent-text:  var(--t-on-accent);   /* --accent-text   */
+  --s-disabled:     var(--t-selection);   /* --disabled      */
+}
+
+/* ── shell ─────────────────────────────────────────────────────────────────── */
+/* app-shell: geometry is core; Simple colours = accent-bg bands with plain borders */
+.t-navbar { background: var(--s-accent-bg); border-bottom: var(--t-border-w) solid var(--s-border); }
+.t-navbar-brand { color: var(--s-text); font-weight: 700; }
+/* Simple's one navigation idiom: bordered pill links; current/hover go accent */
+.t-navbar-link { border: var(--t-border-w) solid var(--s-border); border-radius: var(--t-radius-md); padding: 0.1rem 0.8rem; height: auto; margin-bottom: 0; color: var(--s-text); opacity: 1; }
+.t-navbar-link:hover { border-color: var(--s-accent); color: var(--s-accent); }
+.t-navbar-link[aria-current="page"] { border-color: var(--s-accent); color: var(--s-accent); background: transparent; }
+.t-navbar-sep { background: var(--s-border); }
+.t-footer { background: var(--s-accent-bg); border-top: var(--t-border-w) solid var(--s-border); color: var(--s-text-light); }
+
+/* sidebar: plain text rows, the current one a bordered accent pill (no filled selection) */
+.t-sidebar-item { border: var(--t-border-w) solid transparent; border-radius: var(--t-radius-md); color: var(--s-text-light); }
+.t-sidebar-item:hover:not([aria-disabled="true"]) { background: transparent; border-color: var(--s-accent); color: var(--s-accent); }
+.t-sidebar-item[aria-current="page"] { background: transparent; border-color: var(--s-accent); color: var(--s-accent); }
+.t-sidebar-group { color: var(--s-text-light); text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); font-weight: 700; }
+.t-sidebar-divider { border-top-color: var(--s-border); }
+
+/* page / section: plain document headings, no coloured titles */
+.t-page-title { color: var(--s-text); }
+.t-page-lead { color: var(--s-text-light); }
+.t-page-back { color: var(--s-text-light); } .t-page-back:hover { background: transparent; color: var(--s-accent); }
+.t-section-title { text-transform: none; letter-spacing: 0; font-size: var(--t-text-lg); font-weight: 700; color: var(--s-text); border-bottom: var(--t-border-w) solid var(--s-border); }
+/* toolbar / grid / stack / split: geometry only (core) — nothing to colour in Simple */
+
+/* ── button: Simple has exactly one button, solid accent ───────────────────── */
+.t-btn { border: var(--t-border-w) solid var(--s-border); border-radius: var(--t-radius-md); background: transparent; color: var(--s-text); font-weight: 400; }
+.t-btn:hover { background: var(--s-accent-bg); border-color: var(--s-accent); color: var(--s-accent); }
+.t-btn[data-variant="primary"] { background: var(--s-accent); border-color: var(--s-accent); color: var(--s-accent-text); }
+.t-btn[data-variant="primary"]:hover { background: var(--s-accent-hover); border-color: var(--s-accent-hover); color: var(--s-accent-text); }
+.t-btn[data-variant="danger"] { background: var(--t-danger); border-color: var(--t-danger); color: var(--s-bg); }
+.t-btn[data-variant="danger"]:hover { background: color-mix(in srgb, var(--t-danger) 82%, var(--t-text)); border-color: color-mix(in srgb, var(--t-danger) 82%, var(--t-text)); color: var(--s-bg); }
+.t-btn[data-variant="warning"] { background: var(--t-warning); border-color: var(--t-warning); color: var(--s-bg); }
+.t-btn[data-variant="warning"]:hover { background: color-mix(in srgb, var(--t-warning) 82%, var(--t-text)); border-color: color-mix(in srgb, var(--t-warning) 82%, var(--t-text)); color: var(--s-bg); }
+.t-btn[data-variant="ghost"] { border-color: transparent; background: transparent; color: var(--s-text-light); }
+.t-btn[data-variant="ghost"]:hover { background: transparent; color: var(--s-accent); }
+.t-btn[data-variant="ghost"][data-tone] { color: var(--t-tone); }
+.t-btn[data-variant="ghost"][data-tone]:hover { background: transparent; color: var(--t-tone); text-decoration: underline; }
+.t-btn[data-variant="link"] { border-color: transparent; background: transparent; color: var(--t-link); text-decoration: underline; }
+.t-btn[data-variant="link"]:hover { text-decoration: none; }
+/* Simple's disabled: flat --disabled fill, never opacity */
+.t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 1; background: var(--s-disabled); border-color: var(--s-disabled); color: var(--s-text-light); cursor: not-allowed; }
+.t-btn[aria-pressed="true"] { background: var(--s-accent); border-color: var(--s-accent); color: var(--s-accent-text); }
+.t-btn[aria-busy="true"]::before { border-color: currentColor; border-right-color: transparent; }
+
+/* button-group / filter */
+.t-btn-group > .t-btn:hover { position: relative; z-index: 1; }
+.t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"], .t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"]:hover { background: var(--s-accent); border-color: var(--s-accent); color: var(--s-accent-text); }
+
+/* segmented: bordered box, checked segment goes solid accent */
+.t-segmented { background: transparent; border-color: var(--s-border); }
+.t-segmented-item { color: var(--s-text-light); }
+.t-segmented-item:hover { color: var(--s-accent); }
+.t-segmented-item:has(.t-segmented-input:checked) { background: var(--s-accent); color: var(--s-accent-text); border-color: var(--s-accent); box-shadow: none; }
+.t-segmented-item:has(.t-segmented-input:focus-visible) { outline-color: var(--s-accent); }
+
+/* menu: Simple's boxed-details look, floated (position stays core/base) */
+.t-menu-list { background: var(--s-bg); border-color: var(--s-border); box-shadow: none; }
+.t-menu-item:hover { background: var(--s-accent-bg); }
+.t-menu-item[role="menuitemcheckbox"]::before { color: var(--s-accent); }
+.t-menu-header { color: var(--s-text-light); text-transform: none; letter-spacing: 0; font-weight: 700; }
+.t-menu-divider { border-top-color: var(--s-border); }
+.t-menu > summary { font-weight: 700; }
+
+/* ── navigation ────────────────────────────────────────────────────────────── */
+/* tabs: Simple has none; the austere reading = plain text, current underlined in accent */
+.t-tab { color: var(--s-text-light); border-bottom-width: var(--t-border-w); }
+.t-tab:hover { color: var(--s-accent); border-bottom-color: var(--s-accent); }
+.t-tab[aria-selected="true"] { color: var(--s-accent); border-bottom: 2px solid var(--s-accent); font-weight: 700; }
+.t-tabs[data-variant="boxed"] .t-tab[aria-selected="true"] { background: var(--s-accent-bg); border-color: var(--s-border); border-bottom-color: var(--s-accent-bg); color: var(--s-text); }
+.t-tabs[data-variant="boxed"] .t-tab-panel { background: var(--s-accent-bg); border-color: var(--s-border); }
+
+.t-breadcrumb a { color: var(--s-accent); text-decoration: underline; } .t-breadcrumb a:hover { text-decoration: none; color: var(--s-accent); }
+.t-breadcrumb li + li::before { color: var(--s-text-light); }
+
+.t-page-link { background: var(--s-bg); border-color: var(--s-border); color: var(--s-accent); }
+.t-page-link:hover { background: var(--s-accent-bg); color: var(--s-accent); }
+.t-page-link[aria-current="page"] { background: var(--s-accent); border-color: var(--s-accent); color: var(--s-accent-text); }
+.t-page-link[aria-disabled="true"] { color: var(--s-text-light); background: var(--s-disabled); }
+
+/* list: flat bordered rows, selection = accent-bg band + accent lead */
+.t-list { background: var(--s-bg); border-color: var(--s-border); }
+.t-list-item { background: var(--s-bg); border-top-color: var(--s-border); }
+.t-list-item:hover { background: var(--s-accent-bg); }
+.t-list-item[aria-selected="true"] { background: var(--s-accent-bg); box-shadow: inset 3px 0 0 var(--s-accent); }
+.t-list-item[aria-selected="true"] .t-list-lead { color: var(--s-accent); }
+.t-list-item:disabled { background: var(--s-disabled); opacity: 1; color: var(--s-text-light); }
+.t-list-group { color: var(--s-text-light); text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--t-text-sm); border-top-color: var(--s-border); }
+.t-list-divider { border-top-color: var(--s-border); }
+.t-list[aria-multiselectable="true"] .t-list-lead::before { background: var(--s-bg); border-color: var(--s-border); }
+.t-list[aria-multiselectable="true"] .t-list-item[aria-selected="true"] .t-list-lead::before { background: var(--s-accent); border-color: var(--s-accent); color: var(--s-accent-text); }
+
+/* ── forms: Simple labels are plain block text; inputs are bg-coloured, 1px border ── */
+.t-label { color: var(--s-text); font-size: var(--t-text-md); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.t-input, .t-select, .t-textarea { background: var(--s-bg); border: var(--t-border-w) solid var(--s-border); color: var(--s-text); }
+:is(.t-input, .t-select, .t-textarea):focus-visible { outline: 2px solid var(--s-accent); outline-offset: 1px; border-color: var(--s-border); box-shadow: none; }
+:is(.t-input, .t-select, .t-textarea):disabled { background: var(--s-disabled); border-color: var(--s-disabled); color: var(--s-text-light); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"] { border-color: var(--t-danger); outline-color: var(--t-danger); }
+.t-select { background-image: linear-gradient(45deg, transparent 49%, var(--s-text) 51%), linear-gradient(135deg, var(--s-text) 51%, transparent 49%); background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+.t-input-addon { background: var(--s-accent-bg); border-color: var(--s-border); color: var(--s-text-light); }
+.t-input[type="file"]::file-selector-button { background: var(--s-accent-bg); border-right-color: var(--s-border); }
+.t-input[type="range"] { background: transparent; border: 0; accent-color: var(--s-accent); }
+.t-hint, .t-check-desc { color: var(--s-text-light); }
+.t-check-input { accent-color: var(--s-accent); }
+.t-check[data-variant="switch"] .t-check-input { background: var(--s-bg); border-color: var(--s-border); }
+.t-check[data-variant="switch"] .t-check-input::before { background: var(--s-border); }
+.t-check[data-variant="switch"] .t-check-input:checked { background: var(--s-accent); border-color: var(--s-accent); }
+.t-check[data-variant="switch"] .t-check-input:checked::before { background: var(--s-accent-text); }
+
+/* settings rows */
+.t-setting { border-bottom-color: var(--s-border); }
+.t-setting-label label { color: var(--s-text); }
+.t-setting[data-state="saving"] .t-setting-state::before { border-color: var(--s-border); border-right-color: var(--s-accent); }
+
+/* ── data ──────────────────────────────────────────────────────────────────── */
+/* badge / counter / chip: Simple's pills — accent-bg fill, plain border, tone text; no translucent tints */
+.t-badge { background: var(--s-accent-bg); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 55%, var(--s-border)); color: var(--t-tone); border-radius: var(--t-radius-full); font-weight: 400; }
+.t-badge[data-variant="solid"] { background: var(--t-tone); border-color: var(--t-tone); color: var(--s-bg); box-shadow: none; font-weight: 700; }
+.t-badge[data-variant="outline"] { background: transparent; border-color: var(--t-tone); }
+.t-counter { background: var(--s-accent-bg); border: var(--t-border-w) solid var(--s-border); color: var(--s-text); }
+.t-counter[data-tone] { background: var(--s-accent-bg); border-color: color-mix(in srgb, var(--t-tone) 55%, var(--s-border)); color: var(--t-tone); }
+.t-chip { background: var(--s-accent-bg); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 55%, var(--s-border)); color: var(--t-tone); font-weight: 400; }
+.t-state { background: var(--s-accent-bg); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 55%, var(--s-border)); color: var(--t-tone); font-weight: 400; }
+.t-state[data-variant="solid"] { background: var(--t-tone); border-color: var(--t-tone); color: var(--s-bg); font-weight: 700; }
+
+/* avatar: flat, 1px border */
+.t-avatar { background: var(--s-accent-bg); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 55%, var(--s-border)); color: var(--t-tone); font-weight: 700; }
+.t-avatar[data-more] { background: var(--s-disabled); color: var(--s-text); }
+.t-avatar-status { border-color: var(--s-bg); }
+.t-avatar-stack .t-avatar { box-shadow: 0 0 0 2px var(--s-bg); }
+.t-avatar-name { color: var(--s-text); } .t-avatar-desc { color: var(--s-text-light); }
+
+/* table: THE Simple signature — every cell bordered, bold accent-bg head, zebra rows */
+.t-table-wrap { border-color: var(--s-border); }
+.t-table th, .t-table td { border: var(--t-border-w) solid var(--s-border); }
+.t-table thead th { background: var(--s-accent-bg); color: var(--s-text); font-size: var(--t-text-md); font-weight: 700; text-transform: none; letter-spacing: 0; border-bottom-color: var(--s-border); }
+.t-table tbody tr:nth-child(even):not([data-tone]) > td { background: var(--s-accent-bg); }
+.t-table tbody tr:hover > td { background: var(--s-disabled); }
+.t-table tbody tr:last-child > td { border-bottom: 0; }
+.t-table :is(th, td):first-child { border-left: 0; } .t-table :is(th, td):last-child { border-right: 0; }
+.t-table thead th { border-top: 0; }
+.t-table tr[aria-selected="true"] > td { background: var(--s-accent-bg); box-shadow: inset 3px 0 0 var(--s-accent); }
+.t-table-group > td { background: var(--s-accent-bg) !important; color: var(--s-text); text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); }
+.t-sort-icon { color: var(--s-accent); }
+.t-table tr[data-tone] > td { background: var(--s-accent-bg); }
+.t-table tr[data-tone] > td:first-child { box-shadow: inset 3px 0 0 var(--t-tone); }
+.t-table tr[data-tone]:hover > td { filter: none; background: var(--s-disabled); }
+
+/* card: Simple's <article> — plain 1px border on the page background, no raised surface */
+.t-card { background: var(--s-bg); border-color: var(--s-border); }
+.t-card-header { background: transparent; border-bottom-color: var(--s-border); }
+.t-card-title { color: var(--s-text); font-weight: 700; }
+.t-card[data-variant~="clickable"]:hover { border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
+.t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
+.t-card-thumb { background: var(--s-accent-bg); border-bottom-color: var(--s-border); }
+.t-card-footer { border-top-color: var(--s-border); }
+.t-stat-label { color: var(--s-text-light); } .t-stat-value { color: var(--s-text); } .t-stat-sub { color: var(--s-text-light); }
+.t-facts dt { color: var(--s-text-light); }
+
+/* empty state */
+.t-empty { color: var(--s-text-light); } .t-empty-title { color: var(--s-text); }
+
+/* timeline: flat bordered badges on a plain rail */
+.t-timeline::before { background: var(--s-border); }
+.t-timeline-badge { background: var(--s-accent-bg); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 55%, var(--s-border)); color: var(--t-tone); box-shadow: 0 0 0 3px var(--s-bg); }
+.t-timeline-badge[data-variant="solid"] { background: var(--t-tone); border-color: var(--t-tone); color: var(--s-bg); }
+.t-timeline-body { color: var(--s-text-light); } .t-timeline-body :is(b, strong, a) { color: var(--s-text); }
+.t-timeline-card { background: var(--s-accent-bg); border-color: var(--s-border); color: var(--s-text); }
+.t-timeline-break { background: var(--s-border); }
+
+/* relative time */
+.t-time { color: var(--s-text-light); }
+
+/* tooltip: Simple would use plain title text — ours is a flat bordered label */
+.t-tooltip { background: var(--s-bg); color: var(--s-text); border-color: var(--s-border); box-shadow: none; }
+[data-mode="light"] .t-tooltip { background: var(--s-bg); color: var(--s-text); border-color: var(--s-border); }
+
+/* help popover: boxed, like Simple's details */
+.t-help-btn { border-color: var(--t-tone); color: var(--t-tone); }
+.t-help-box { background: var(--s-accent-bg); border: var(--t-border-w) solid var(--s-border); border-radius: var(--t-radius-md); color: var(--s-text); box-shadow: none; }
+
+/* code block: Simple's <pre> — accent-bg box, 1px border, mono */
+.t-code-pre { background: var(--s-accent-bg); border-color: var(--s-border); color: var(--s-text); }
+.t-code-pre[data-variant="shell"] { border: var(--t-border-w) solid var(--s-border); }
+.t-code-tabs button { background: var(--s-bg); border-color: var(--s-border); border-top: var(--t-border-w) solid transparent; color: var(--s-text-light); }
+.t-code-tabs button:hover { color: var(--s-accent); }
+.t-code-tabs button[aria-selected="true"] { background: var(--s-accent-bg); color: var(--s-text); border-top-color: var(--s-accent); border-bottom-color: var(--s-accent-bg); }
+.t-code-copy { color: var(--s-text-light); } .t-code-copy:hover { color: var(--s-accent); background: transparent; } .t-code-copy[data-copied] { color: var(--t-success); }
+.t-tok-prompt { color: var(--s-text-light); } .t-tok-cmd { color: var(--s-text); font-weight: 700; } .t-tok-flag { color: var(--s-text-light); }
+.t-tok-str, .t-tok-url { color: var(--s-accent); } .t-tok-key { color: var(--s-text); font-weight: 700; } .t-tok-num, .t-tok-bool { color: var(--s-accent); }
+
+/* truncate: core behaviour, nothing to colour */
+
+/* ── feedback ──────────────────────────────────────────────────────────────── */
+/* alert: Simple's .notice — accent-bg box, 1px border; the tone colours the border + icon only */
+.t-alert { background: var(--s-accent-bg); border: var(--t-border-w) solid var(--s-border); color: var(--s-text); }
+.t-alert[data-tone]:not([data-tone="neutral"]) { background: var(--s-accent-bg); color: var(--s-text); border-color: color-mix(in srgb, var(--t-tone) 60%, var(--s-border)); box-shadow: inset 3px 0 0 var(--t-tone); }
+.t-alert[data-tone] .t-alert-icon { color: var(--t-tone); }
+
+/* toast: a floating notice */
+.t-toast { background: var(--s-accent-bg); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 60%, var(--s-border)); color: var(--s-text); box-shadow: inset 3px 0 0 var(--t-tone); font-weight: 400; }
+.t-toast .t-toast-icon { color: var(--t-tone); }
+
+/* dialog: Simple styles <dialog> natively — page bg, 1px border, dimmed page as backdrop */
+.t-dialog { background: var(--s-bg); border-color: var(--s-border); box-shadow: none; }
+.t-dialog::backdrop { background: var(--t-backdrop); backdrop-filter: none; }
+.t-dialog-header { border-bottom-color: var(--s-border); }
+.t-dialog-footer { border-top-color: var(--s-border); }
+.t-dialog-close { color: var(--s-text-light); } .t-dialog-close:hover { color: var(--s-text); }
+.t-dialog[data-tone="danger"] .t-dialog-title { color: var(--t-danger); }
+/* confirm rides the same dialog */
+
+/* progress: Simple's <progress> — accent-bg track, flat tone fill */
+.t-progress { background: var(--s-accent-bg); border: var(--t-border-w) solid var(--s-border); }
+.t-progress-bar { background: var(--t-tone); color: var(--s-bg); }
+
+/* spinner: flat ring (base.css shape) */
+.t-spinner { border-color: var(--s-disabled); border-right-color: var(--t-tone); }
+
+/* default tones (zero specificity, SKIN-CONTRACT rule 9) */
+:where(.t-progress-bar) { --t-tone: var(--t-accent-solid); }

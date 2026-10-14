@@ -1,0 +1,434 @@
+/* managed by tailor v0.1.0 — skin luz — do not edit, run `tailor sync` */
+/*
+ * tailor skin — luz — @d00m-gui/luz 0.5.0 translated onto the t-* vocabulary (0.1.0)
+ *
+ * luz is CSS-only, so this is a translation, not a vendoring: each component look from
+ * dist/luz-components.css is re-expressed on house selectors with --t-* tokens.
+ *   --scheme             → var(--t-tone)
+ *   scheme ink (mix 55%) → color-mix(in srgb, var(--t-tone) 55%, var(--t-text))
+ *   soft fill (16-18%)   → color-mix(in srgb, var(--t-tone) 16%, transparent)
+ *   --element-background → the depth chain below (luz's OKLCH l-shift ≈ color-mix with text)
+ *   state hover delta 8% → color-mix(in srgb, <bg> 92%, var(--t-text))
+ *   pressed shift        → transform: translateY(0.1ch)
+ * Depth nesting (luz _depth.css, depthSign 1 like troopy/Dracula): three enumerated
+ * :where() levels set --luz-el / --luz-field (one step deeper, for inputs & table heads);
+ * the shifts decay (5.5% → +3.5% → +2.5% text into canvas), capped at 3 like luz's cap of 4.
+ * Light palettes invert the shift direction (surfaces go slightly darker) — accepted
+ * approximation, mode "both". Palette tokens are never SET here (contract rule 4).
+ */
+
+/* ── 1. scale (manifest.tokens_overridden) ───────────────────────────────── */
+:root {
+  --t-radius-sm: 6px;        /* luz --border-radius is 6px flat          */
+  --t-radius-md: 6px;
+  --t-radius-lg: 8px;
+  --t-radius-xl: 10px;       /* cards: radius * 1.75                     */
+  --t-control-h: 2.35rem;    /* generous luz element-vertical/horizontal */
+  --t-control-h-sm: 1.85rem;
+  --t-control-h-lg: 2.9rem;
+  --t-shadow-sm: 0 1px 3px color-mix(in srgb, var(--t-overlay-bg) 55%, transparent);
+  --t-shadow-md: 0 6px 20px color-mix(in srgb, var(--t-overlay-bg) 70%, transparent);
+  --t-shadow-lg: 0 18px 50px color-mix(in srgb, var(--t-overlay-bg) 85%, transparent);
+}
+
+/* ── 2. skin-private bridge (luz role names, read only by this file) ─────── */
+:root {
+  /* depth ramp: luz shifts l by depthMax(1−decay^n); approximated with text mixed into canvas */
+  --luz-d1: color-mix(in srgb, var(--t-canvas) 94.5%, var(--t-text));
+  --luz-d2: color-mix(in srgb, var(--t-canvas) 91%, var(--t-text));
+  --luz-d3: color-mix(in srgb, var(--t-canvas) 88.5%, var(--t-text));
+  --luz-d4: color-mix(in srgb, var(--t-canvas) 86.5%, var(--t-text));
+  --luz-el: var(--luz-d1);        /* a surface's own background            */
+  --luz-field: var(--luz-d2);     /* controls/ths one step below a surface */
+  --luz-border: color-mix(in srgb, var(--t-border) 72%, transparent); /* luz border-opacity 0.3 feel */
+  --luz-focus: color-mix(in srgb, var(--t-accent) 50%, transparent);
+}
+/* depth nesting, enumerated like luz _depth.css (zero specificity so nothing fights it) */
+:where(.t-card, .t-dialog, .t-drawer, .t-palette, .t-menu-list, .t-toast, .t-help-box,
+       .t-segmented, .t-list, .t-table-wrap, .t-code-pre, .t-timeline-card, .t-navbar, .t-footer)
+  :where(.t-card, .t-dialog, .t-drawer, .t-palette, .t-menu-list, .t-toast, .t-help-box,
+         .t-segmented, .t-list, .t-table-wrap, .t-code-pre, .t-timeline-card) {
+  --luz-el: var(--luz-d2); --luz-field: var(--luz-d3);
+}
+:where(.t-card, .t-dialog, .t-drawer, .t-palette, .t-menu-list, .t-toast, .t-help-box,
+       .t-segmented, .t-list, .t-table-wrap, .t-code-pre, .t-timeline-card, .t-navbar, .t-footer)
+  :where(.t-card, .t-dialog, .t-drawer, .t-palette, .t-menu-list, .t-toast, .t-help-box,
+         .t-segmented, .t-list, .t-table-wrap, .t-code-pre, .t-timeline-card)
+  :where(.t-card, .t-dialog, .t-drawer, .t-palette, .t-menu-list, .t-toast, .t-help-box,
+         .t-segmented, .t-list, .t-table-wrap, .t-code-pre, .t-timeline-card) {
+  --luz-el: var(--luz-d3); --luz-field: var(--luz-d4);
+}
+
+/* luz focus signature: 2px scheme outline at 50% */
+:focus-visible { outline: 2px solid var(--luz-focus); outline-offset: 2px; }
+
+/* typography: luz ships no fonts; keep the system stack, soften emphasis */
+a { color: var(--t-link); }
+a:hover { color: color-mix(in srgb, var(--t-link) 70%, var(--t-text)); }
+kbd { background: var(--luz-d2); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-sm); }
+
+/* ── 3. components, components.json order ────────────────────────────────── */
+
+/* app-shell — geometry is core; panel surfaces below */
+.t-shell-main { background: var(--t-canvas); }
+
+/* navbar = luz .panel-header.top (depth-1 surface, soft border) */
+.t-navbar { background: var(--luz-el); border-bottom: var(--t-border-w) solid var(--luz-border); }
+.t-navbar-brand { color: var(--t-text); font-weight: 700; }
+.t-navbar-link { color: var(--t-muted); opacity: 1; border-bottom: 0; margin-bottom: 0; padding: 0.35rem 0.65rem; border-radius: var(--t-radius-md); transition: background var(--t-duration), color var(--t-duration); }
+.t-navbar-link:hover { color: var(--t-text); background: color-mix(in srgb, var(--luz-el) 92%, var(--t-text)); }
+.t-navbar-link[aria-current="page"] { color: color-mix(in srgb, var(--t-accent) 55%, var(--t-text)); background: color-mix(in srgb, var(--t-accent) 16%, transparent); border-bottom: 0; }
+.t-navbar-sep { background: var(--luz-border); }
+
+/* sidebar = luz nav ul.list > a.list-row */
+.t-sidebar-group { color: color-mix(in srgb, var(--t-text) 65%, transparent); font-weight: 600; }
+.t-sidebar-item { border-radius: var(--t-radius-md); color: var(--t-muted); padding: 0.55rem 0.8rem; }
+.t-sidebar-item:hover:not([aria-disabled="true"]) { background: var(--t-selection); color: var(--t-text); }
+.t-sidebar-item[aria-current="page"] { background: color-mix(in srgb, var(--t-accent) 16%, transparent); color: color-mix(in srgb, var(--t-accent) 55%, var(--t-text)); font-weight: 600; }
+.t-sidebar-divider { border-top-color: var(--luz-border); }
+
+/* footer = luz .panel-header.bottom */
+.t-footer { background: var(--luz-el); border-top: var(--t-border-w) solid var(--luz-border); }
+.t-footer-version { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+
+/* page */
+.t-page-title { color: var(--t-text); font-weight: 700; letter-spacing: -0.01em; }
+.t-page-lead { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+.t-page-back { color: var(--t-muted); }
+.t-page-back:hover { background: var(--t-selection); color: var(--t-text); }
+
+/* section = luz section headers: quiet small caps over a soft rule */
+.t-section-title { color: color-mix(in srgb, var(--t-text) 72%, transparent); border-bottom-color: var(--luz-border); letter-spacing: 0.12em; padding-bottom: 0.45rem; margin-bottom: 1rem; }
+
+/* toolbar / grid / stack / split — geometry only (core) */
+
+/* button — luz buttons: borderless fills, hover +8% fg, pressed 0.1ch shift */
+.t-btn {
+  border: 0; border-radius: var(--t-radius-md); padding: 0 1em; gap: 0.45em;
+  background: color-mix(in srgb, var(--t-muted) 20%, transparent); color: var(--t-text);
+  font-weight: 500; will-change: transform;
+  transition: background var(--t-duration), color var(--t-duration), transform var(--t-duration);
+}
+.t-btn:hover { background: color-mix(in srgb, var(--t-muted) 28%, var(--t-canvas) 8%); color: var(--t-text); }
+.t-btn:active { transform: translateY(0.1ch); }
+.t-btn:focus-visible { outline: 2px solid var(--luz-focus); outline-offset: 2px; }
+/* primary: the one solid button (luz .primary.solid) */
+.t-btn[data-variant="primary"] { background: var(--t-accent-solid); color: var(--t-on-accent); font-weight: 600; }
+.t-btn[data-variant="primary"]:hover { background: color-mix(in srgb, var(--t-accent-solid) 92%, var(--t-text)); color: var(--t-on-accent); }
+/* danger / warning / toned secondary: luz .soft — scheme at 18% behind scheme-mixed ink */
+.t-btn[data-variant="danger"], .t-btn[data-variant="warning"], .t-btn[data-tone]:not([data-variant]) {
+  background: color-mix(in srgb, var(--t-tone) 18%, transparent);
+  color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text));
+}
+.t-btn[data-variant="danger"]:hover, .t-btn[data-variant="warning"]:hover, .t-btn[data-tone]:not([data-variant]):hover {
+  background: color-mix(in srgb, var(--t-tone) 28%, transparent);
+  color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text));
+}
+/* ghost: transparent, ink tinted toward the scheme (luz .ghost) */
+.t-btn[data-variant="ghost"] { background: transparent; color: var(--t-muted); }
+.t-btn[data-variant="ghost"]:hover { background: color-mix(in srgb, var(--t-text) 8%, transparent); color: var(--t-text); }
+.t-btn[data-variant="ghost"][data-tone] { color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+.t-btn[data-variant="ghost"][data-tone]:hover { background: color-mix(in srgb, var(--t-tone) 14%, transparent); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+.t-btn[data-variant="link"] { background: transparent; color: var(--t-link); padding: 0 0.3em; }
+.t-btn[data-variant="link"]:hover { background: transparent; color: color-mix(in srgb, var(--t-link) 70%, var(--t-text)); text-decoration: underline; }
+.t-btn[data-size="sm"] { padding: 0 0.75em; font-size: 0.76rem; }
+.t-btn[data-size="lg"] { padding: 0 1.3em; font-size: 1rem; }
+.t-btn[data-icon="only"] { padding: 0; }
+.t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+.t-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--t-accent) 20%, transparent); color: color-mix(in srgb, var(--t-accent) 55%, var(--t-text)); }
+/* loading: luz's braille spinner */
+.t-btn[aria-busy="true"] { pointer-events: none; opacity: 0.7; }
+.t-btn[aria-busy="true"]::before { content: "⠙"; width: auto; height: auto; border: 0; border-radius: 0; animation: luz-loading 1s steps(1, end) infinite; }
+
+/* button-group — luz .join / .tabs.toggle: fused boxes on the element surface */
+.t-btn-group { border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-md); overflow: hidden; }
+.t-btn-group > .t-btn { border-radius: 0; margin-left: 0; background: var(--luz-el); color: var(--t-muted); }
+.t-btn-group > .t-btn + .t-btn { border-left: var(--t-border-w) solid var(--luz-border); }
+.t-btn-group > .t-btn:first-child, .t-btn-group > .t-btn:last-child { border-radius: 0; }
+.t-btn-group > .t-btn:hover { background: color-mix(in srgb, var(--luz-el) 92%, var(--t-text)); color: var(--t-text); }
+.t-btn-group > .t-btn[aria-pressed="true"],
+.t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"],
+.t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"]:hover {
+  background: var(--t-accent-solid); color: var(--t-on-accent); font-weight: 600; border-color: var(--luz-border);
+}
+
+/* segmented — luz .tabs.segmented: depth track, checked item lifts to a solid */
+.t-segmented { background: var(--luz-el); border: 0; border-radius: var(--t-radius-md); padding: 3px; gap: 3px; }
+.t-segmented-item { border: 0; border-radius: var(--t-radius-sm); color: var(--t-muted); padding: 0.3rem 0.8rem; transition: background var(--t-duration), color var(--t-duration); }
+.t-segmented-item:hover { color: var(--t-text); }
+.t-segmented-item:has(.t-segmented-input:checked) { background: var(--t-accent-solid); color: var(--t-on-accent); border: 0; box-shadow: none; font-weight: 600; }
+.t-segmented-item:has(.t-segmented-input:focus-visible) { outline: 2px solid var(--luz-focus); outline-offset: 1px; }
+
+/* menu — luz .menu[popover]: depth popover, soft rows */
+.t-menu-list { background: var(--luz-el); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-lg); box-shadow: var(--t-shadow-md); padding: var(--t-space-1); }
+.t-menu-item { border-radius: var(--t-radius-sm); color: var(--t-text); }
+.t-menu-item:hover, .t-menu-item:focus-visible { background: var(--t-selection); }
+.t-menu-item[role="menuitemcheckbox"]::before { color: var(--t-accent); }
+.t-menu-item[data-tone="danger"] { color: color-mix(in srgb, var(--t-danger) 55%, var(--t-text)); }
+.t-menu-item[data-tone="danger"]:hover { background: color-mix(in srgb, var(--t-danger) 16%, transparent); }
+.t-menu-header { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+.t-menu-divider { border-top-color: var(--luz-border); }
+.t-menu-kbd { border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-sm); padding: 1px 5px; }
+
+/* tabs — underline = luz .tab (2px accent rail); boxed = luz .tabs.toggle */
+.t-tabs-list { border-bottom-color: var(--luz-border); gap: var(--t-space-2); }
+.t-tab { padding: 0.55rem 1rem; color: var(--t-muted); border-bottom-width: 2px; font-weight: 500; transition: color var(--t-duration), border-color var(--t-duration), background var(--t-duration); }
+.t-tab:hover { color: var(--t-text); border-bottom-color: transparent; }
+.t-tab[aria-selected="true"] { color: var(--t-text); border-bottom-color: color-mix(in srgb, var(--t-accent) 72%, transparent); font-weight: 600; }
+.t-tab:disabled { color: var(--t-disabled); opacity: 1; border-bottom-color: transparent; }
+.t-tabs[data-variant="boxed"] .t-tabs-list { border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-md); overflow: hidden; margin-bottom: var(--t-space-3); width: fit-content; }
+.t-tabs[data-variant="boxed"] .t-tab { border: 0; border-radius: 0; background: var(--luz-el); margin-bottom: 0; padding: 0.5rem 1rem; }
+.t-tabs[data-variant="boxed"] .t-tab + .t-tab { border-left: var(--t-border-w) solid var(--luz-border); }
+.t-tabs[data-variant="boxed"] .t-tab:hover { color: var(--t-text); border-color: var(--luz-border); }
+.t-tabs[data-variant="boxed"] .t-tab[aria-selected="true"] { background: var(--t-accent-solid); color: var(--t-on-accent); font-weight: 600; border-color: var(--luz-border); }
+.t-tabs[data-variant="boxed"] .t-tab-panel { border: 0; border-radius: 0; padding: 0; background: transparent; }
+
+/* breadcrumb — luz breadcrumbs: muted links, plain current */
+.t-breadcrumb a { color: var(--t-muted); }
+.t-breadcrumb a:hover { color: var(--t-text); text-decoration: underline; }
+.t-breadcrumb li + li::before { content: "›"; color: var(--t-disabled); }
+.t-breadcrumb [aria-current="page"] { color: var(--t-text); font-weight: 600; }
+
+/* pagination — luz .tabs.pagination: separate rounded boxes, current solid */
+.t-pagination ul { gap: 0.3rem; }
+.t-page-link { border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-md); background: transparent; color: var(--t-text); margin-left: 0; transition: background var(--t-duration), color var(--t-duration); }
+.t-pagination li:first-child .t-page-link, .t-pagination li:last-child .t-page-link { border-radius: var(--t-radius-md); }
+.t-page-link:hover { background: var(--t-selection); color: var(--t-text); }
+.t-page-link[aria-current="page"] { background: var(--t-accent-solid); border-color: transparent; color: var(--t-on-accent); font-weight: 600; }
+.t-page-link[aria-disabled="true"] { color: var(--t-disabled); border-color: color-mix(in srgb, var(--luz-border) 55%, transparent); }
+
+/* list — luz .list / .list-row: hairline-separated rows on a depth surface
+   (gotcha 14: luz end-aligns the row's last child — deliberately NOT copied) */
+.t-list { background: var(--luz-el); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-lg); }
+.t-list-item { background: transparent; border-top: var(--t-border-w) solid var(--luz-border); padding: 0.65rem 0.9rem; transition: background var(--t-duration); }
+.t-list-group { border-top: var(--t-border-w) solid var(--luz-border); color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+/* gotcha 13: hover from the palette's selection token, never a fixed near-black */
+.t-list-item:hover { background: var(--t-selection); }
+.t-list-item[aria-selected="true"] { background: color-mix(in srgb, var(--t-accent) 15%, transparent); }
+.t-list-item[aria-selected="true"] .t-list-name { color: color-mix(in srgb, var(--t-accent) 45%, var(--t-text)); }
+.t-list-item:disabled { background: transparent; }
+.t-list-desc, .t-list-trail { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+.t-list-divider { border-top-color: var(--luz-border); }
+.t-list[aria-multiselectable="true"] .t-list-lead::before { border-radius: var(--t-radius-sm); border-color: var(--luz-border); background: var(--luz-field); }
+.t-list[aria-multiselectable="true"] .t-list-item[aria-selected="true"] .t-list-lead::before { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-on-accent); }
+
+/* field — luz inputs: depth bg, soft border, scheme-alpha focus outline */
+.t-label { color: color-mix(in srgb, var(--t-text) 78%, transparent); text-transform: none; letter-spacing: 0; font-size: var(--t-text-md); font-weight: 600; }
+.t-input, .t-select, .t-textarea {
+  background: var(--luz-field); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-md);
+  color: var(--t-text); padding: 0.45rem 0.8rem;
+  transition: border-color var(--t-duration), background var(--t-duration), box-shadow var(--t-duration);
+}
+:is(.t-input, .t-select, .t-textarea):focus-visible { border-color: var(--luz-border); box-shadow: none; outline: 2px solid var(--luz-focus); outline-offset: -1px; }
+:is(.t-input, .t-select, .t-textarea):disabled { background: var(--t-canvas); border-color: var(--luz-border); color: var(--t-muted); }
+.t-input[readonly] { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+:is(.t-input, .t-textarea)::placeholder { color: color-mix(in srgb, var(--t-text) 45%, transparent); }
+/* luz colours invalid text, not just the border */
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"] { border-color: color-mix(in srgb, var(--t-danger) 60%, transparent); color: color-mix(in srgb, var(--t-danger) 70%, var(--t-text)); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"]:focus-visible { outline-color: color-mix(in srgb, var(--t-danger) 50%, transparent); }
+.t-select { background-image: linear-gradient(45deg, transparent 50%, var(--t-muted) 50%), linear-gradient(135deg, var(--t-muted) 50%, transparent 50%); background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+.t-input[type="file"]::file-selector-button { background: color-mix(in srgb, var(--t-muted) 20%, transparent); border: 0; color: var(--t-text); border-radius: 0; }
+.t-hint { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+.t-feedback { color: color-mix(in srgb, var(--t-tone) 60%, var(--t-text)); font-weight: 500; }
+/* input-group = luz .field:has(.field-affix): the GROUP is the bordered box */
+.t-input-group { border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-md); background: var(--luz-field); overflow: hidden; transition: box-shadow var(--t-duration); }
+.t-input-group > * { border: 0 !important; border-radius: 0 !important; margin-left: 0; background: transparent; }
+.t-input-group > .t-btn { background: color-mix(in srgb, var(--t-muted) 14%, transparent); border-radius: 0; }
+.t-input-group > .t-btn:hover { background: color-mix(in srgb, var(--t-muted) 24%, transparent); }
+.t-input-group > :is(.t-input, .t-select, .t-textarea):focus-visible { outline: 0; }
+.t-input-group:focus-within { outline: 2px solid var(--luz-focus); outline-offset: -1px; }
+.t-input-addon { background: transparent; border: 0; color: color-mix(in srgb, var(--t-text) 55%, transparent); }
+
+/* check / radio / switch — accent fills, depth boxes */
+.t-check-input { accent-color: var(--t-accent); }
+.t-check-label { color: var(--t-text); }
+.t-check-desc { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+.t-check:has(.t-check-input:disabled) { opacity: 0.4; }
+.t-check[data-variant="switch"] .t-check-input { background: var(--luz-field); border-color: var(--luz-border); }
+.t-check[data-variant="switch"] .t-check-input::before { background: var(--t-muted); }
+.t-check[data-variant="switch"] .t-check-input:checked { background: var(--t-accent-solid); border-color: var(--t-accent-solid); }
+.t-check[data-variant="switch"] .t-check-input:checked::before { background: var(--t-on-accent); }
+.t-check-input:focus-visible { outline: 2px solid var(--luz-focus); outline-offset: 1px; }
+
+/* duration-input — the fused group above does the look */
+.t-duration .t-select { background-color: color-mix(in srgb, var(--t-muted) 14%, transparent); }
+
+/* settings-row */
+.t-setting { border-bottom-color: var(--luz-border); padding: 0.7rem 0; }
+.t-setting-label label { color: var(--t-text); font-weight: 500; }
+.t-setting[data-state="saving"] .t-setting-state::before { border-color: var(--luz-border); border-right-color: var(--t-accent); }
+.t-setting[data-state="saved"] .t-setting-state::before { color: var(--t-success); }
+.t-setting[data-state="failed"] .t-setting-state::before { color: color-mix(in srgb, var(--t-danger) 70%, var(--t-text)); }
+
+/* badge — luz .badge: pill, 16% fill, 30% border, scheme-mixed ink, bold */
+:where(.t-badge) { --t-tone: var(--t-muted); }
+.t-badge { border-radius: var(--t-radius-full); padding: 0.22em 0.75em; font-weight: 600;
+  background: color-mix(in srgb, var(--t-tone) 16%, transparent);
+  border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 32%, transparent);
+  color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+.t-badge[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); border-color: transparent; box-shadow: none; }
+.t-badge[data-variant="outline"] { background: transparent; border-color: color-mix(in srgb, var(--t-tone) 45%, transparent); }
+button.t-badge:hover { background: color-mix(in srgb, var(--t-tone) 26%, transparent); }
+
+/* counter — small pill, same soft recipe */
+:where(.t-counter) { --t-tone: var(--t-muted); }
+.t-counter { background: color-mix(in srgb, var(--t-tone) 16%, transparent); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+.t-counter[data-tone] { background: color-mix(in srgb, var(--t-tone) 18%, transparent); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+
+/* chip — luz .badge.chip: pill, roomier, soft fill */
+:where(.t-chip) { --t-tone: var(--t-muted); }
+.t-chip { border-radius: var(--t-radius-full); padding: 0.3em 0.85em; font-weight: 500;
+  background: color-mix(in srgb, var(--t-tone) 14%, transparent);
+  border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 30%, transparent);
+  color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+.t-chip-remove:hover { background: color-mix(in srgb, var(--t-tone) 24%, transparent); border-radius: 50%; }
+
+/* state-label — badge pill with the icon in the raw scheme colour (luz notice .icon) */
+.t-state { border-radius: var(--t-radius-full); font-weight: 600;
+  background: color-mix(in srgb, var(--t-tone) 16%, transparent);
+  border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 32%, transparent);
+  color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
+.t-state .t-icon { color: var(--t-tone); }
+.t-state[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); border-color: transparent; }
+.t-state[data-variant="solid"] .t-icon { color: var(--t-canvas); }
+
+/* status-dot — luz .status */
+.t-dot { width: 0.55rem; height: 0.55rem; }
+.t-dot[data-status="running"] { background: var(--t-success); }
+.t-dot[data-status="degraded"] { background: var(--t-warning); }
+.t-dot[data-status="stopped"] { background: var(--t-danger); }
+.t-dot[data-status="muted"] { background: var(--t-disabled); }
+
+/* avatar — luz avatars: depth element tinted by scheme, soft border */
+:where(.t-avatar) { --t-tone: var(--t-muted); }
+.t-avatar { background: color-mix(in srgb, var(--t-tone) 22%, var(--luz-el)); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 30%, transparent); }
+.t-avatar[data-more] { background: var(--luz-d2); color: var(--t-text); border-color: var(--luz-border); }
+.t-avatar-status { border-color: var(--luz-el); }
+.t-avatar-stack .t-avatar { box-shadow: 0 0 0 2px var(--t-canvas); }
+.t-avatar-name { color: var(--t-text); }
+.t-avatar-desc { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+
+/* table — luz tables: th on a deeper element bg, soft hairlines, selection hover */
+.t-table-wrap { border-color: var(--luz-border); border-radius: var(--t-radius-lg); background: var(--luz-el); }
+.t-table th, .t-table td { border-bottom-color: var(--luz-border); padding: 0.55rem 0.85rem; }
+.t-table thead th { background: var(--luz-field); color: color-mix(in srgb, var(--t-text) 72%, transparent); border-bottom-color: var(--luz-border); font-weight: 600; }
+.t-sort-icon { color: var(--t-accent); }
+/* gotcha 13: table-hover from the palette's selection token */
+.t-table tbody tr:hover > td { background: var(--t-selection); }
+.t-table tr[aria-selected="true"] > td { background: color-mix(in srgb, var(--t-accent) 15%, transparent); }
+.t-table-group > td { background: var(--luz-field) !important; color: color-mix(in srgb, var(--t-text) 72%, transparent); }
+.t-table tr[data-tone="success"] > td { background: color-mix(in srgb, var(--t-success) 8%, transparent); }
+.t-table tr[data-tone="warning"] > td { background: color-mix(in srgb, var(--t-warning) 10%, transparent); }
+.t-table tr[data-tone="danger"] > td { background: color-mix(in srgb, var(--t-danger) 10%, transparent); }
+.t-table tr[data-tone]:hover > td { filter: none; background: var(--t-selection); }
+.t-table td.t-tone-text { color: color-mix(in srgb, var(--t-tone) 60%, var(--t-text)); }
+
+/* card — luz .card: depth bg, soft border, 1.75× radius, shadow, flat header */
+.t-card { background: var(--luz-el); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-xl); box-shadow: var(--t-shadow-sm); }
+.t-card-header { background: transparent; border-bottom: var(--t-border-w) solid var(--luz-border); padding: 0.75rem 1.1rem; }
+.t-card-title { color: var(--t-text); font-weight: 600; }
+.t-card-body { padding: 1.1rem; }
+.t-card-footer { background: transparent; border-top: var(--t-border-w) solid var(--luz-border); padding: 0.75rem 1.1rem; }
+.t-card[data-variant~="clickable"]:hover { border-color: color-mix(in srgb, var(--t-accent) 45%, transparent); box-shadow: var(--t-shadow-md); }
+.t-card[data-variant~="clickable"]:focus-visible { outline: 2px solid var(--luz-focus); outline-offset: 2px; box-shadow: var(--t-shadow-sm); }
+.t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: color-mix(in srgb, var(--t-accent) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--t-accent) 70%, transparent); }
+.t-card-thumb { background: var(--t-canvas); border-bottom-color: var(--luz-border); }
+.t-stat-label { color: color-mix(in srgb, var(--t-text) 65%, transparent); text-transform: uppercase; font-size: var(--t-text-xs); letter-spacing: 0.08em; }
+.t-stat-value { font-size: 1.1rem; font-weight: 700; color: var(--t-text); }
+.t-stat-sub { color: color-mix(in srgb, var(--t-text) 55%, transparent); }
+.t-facts dt { color: color-mix(in srgb, var(--t-text) 60%, transparent); }
+
+/* empty-state — luz .empty: dashed quiet box (the .undecided dash language) */
+.t-empty { border: var(--t-border-w) dashed var(--luz-border); border-radius: var(--t-radius-xl); color: color-mix(in srgb, var(--t-text) 65%, transparent); }
+.t-empty-icon { color: color-mix(in srgb, var(--t-text) 40%, transparent); }
+.t-empty-title { color: var(--t-text); }
+
+/* timeline — soft scheme badges on a hairline rail */
+.t-timeline::before { background: var(--luz-border); }
+.t-timeline-badge { background: color-mix(in srgb, var(--t-tone) 18%, var(--t-canvas)); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); box-shadow: 0 0 0 3px var(--t-canvas); }
+.t-timeline-badge[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); }
+.t-timeline-body { color: color-mix(in srgb, var(--t-text) 70%, transparent); }
+.t-timeline-card { background: var(--luz-el); border-color: var(--luz-border); border-radius: var(--t-radius-md); }
+.t-timeline-break { background: var(--luz-border); }
+
+/* relative-time */
+.t-time { font-variant-numeric: tabular-nums; }
+
+/* tooltip — luz tooltips: contrast chip (foreground bg, canvas ink) */
+.t-tooltip { background: var(--t-text); color: var(--t-canvas); border: 0; border-radius: var(--t-radius-md); font-weight: 500; box-shadow: var(--t-shadow-sm); }
+
+/* help-popover — a luz popover */
+.t-help-btn { border-width: var(--t-border-w); border-color: color-mix(in srgb, var(--t-tone) 55%, transparent); color: color-mix(in srgb, var(--t-tone) 60%, var(--t-text)); }
+.t-help-box { background: var(--luz-el); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-lg); box-shadow: var(--t-shadow-md); color: color-mix(in srgb, var(--t-text) 78%, transparent); }
+.t-help-box :is(b, code) { color: var(--t-text); }
+.t-help-box[data-pinned] { border-color: color-mix(in srgb, var(--t-tone) 45%, transparent); }
+
+/* code-block — depth element, quiet frame (no shell accent border in luz) */
+.t-code-pre { background: var(--luz-el); border-color: var(--luz-border); border-radius: var(--t-radius-lg); }
+.t-code-pre[data-variant="shell"] { border-right: var(--t-border-w) solid var(--luz-border); border-bottom: var(--t-border-w) solid var(--luz-border); }
+.t-code-tabs button { background: transparent; border: var(--t-border-w) solid transparent; border-radius: var(--t-radius-md) var(--t-radius-md) 0 0; color: var(--t-muted); }
+.t-code-tabs button:hover { color: var(--t-text); }
+.t-code-tabs button[aria-selected="true"] { background: var(--luz-d1); border-color: var(--luz-border); border-bottom-color: var(--luz-d1); color: var(--t-text); }
+.t-code-copy { color: color-mix(in srgb, var(--t-text) 55%, transparent); }
+.t-code-copy:hover { background: var(--t-selection); color: var(--t-text); }
+.t-code-copy[data-copied] { color: var(--t-success); }
+
+/* truncate */
+.t-truncate[data-expand]:hover { color: color-mix(in srgb, var(--t-accent) 55%, var(--t-text)); }
+
+/* alert — luz .alert: scheme 12% over the page bg, scheme-mixed ink, scheme icon */
+:where(.t-alert) { --t-tone: var(--t-muted); }
+.t-alert { background: color-mix(in srgb, var(--t-tone) 12%, var(--t-canvas)); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 30%, transparent); border-radius: var(--t-radius-md); color: color-mix(in srgb, var(--t-tone) 45%, var(--t-text)); padding: 0.85rem 1.1rem; }
+.t-alert[data-tone]:not([data-tone="neutral"]) { background: color-mix(in srgb, var(--t-tone) 12%, var(--t-canvas)); border-color: color-mix(in srgb, var(--t-tone) 30%, transparent); color: color-mix(in srgb, var(--t-tone) 45%, var(--t-text)); }
+.t-alert-icon { color: var(--t-tone); }
+.t-alert b { color: color-mix(in srgb, var(--t-tone) 60%, var(--t-text)); }
+
+/* toast — luz .notice: scheme 18% over the element bg, soft border, shadow */
+:where(.t-toast) { --t-tone: var(--t-muted); }
+.t-toast { background: color-mix(in srgb, var(--t-tone) 18%, var(--luz-d1)); border: var(--t-border-w) solid color-mix(in srgb, var(--t-tone) 30%, transparent); border-radius: var(--t-radius-md); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); box-shadow: var(--t-shadow-md); font-weight: 500; }
+.t-toast-icon { color: var(--t-tone); }
+
+/* dialog + confirm — luz dialog.modal: depth surface, quiet chrome */
+.t-dialog { background: var(--luz-el); border: var(--t-border-w) solid var(--luz-border); border-radius: var(--t-radius-lg); box-shadow: var(--t-shadow-lg); }
+.t-dialog::backdrop { background: var(--t-backdrop); backdrop-filter: blur(2px); }
+.t-dialog-header { border-bottom-color: var(--luz-border); }
+.t-dialog-title { color: var(--t-text); font-weight: 700; }
+.t-dialog[data-tone="danger"] .t-dialog-title { color: color-mix(in srgb, var(--t-danger) 60%, var(--t-text)); }
+.t-dialog-close:hover { color: var(--t-text); }
+.t-dialog-footer { border-top-color: var(--luz-border); }
+
+/* progress — luz progress: pill track on the element bg, scheme fill */
+.t-progress { background: var(--luz-el); border-radius: var(--t-radius-full); }
+.t-progress-bar { background: var(--t-tone); color: var(--t-canvas); border-radius: var(--t-radius-full); }
+.t-progress[data-variant="stacked"] .t-progress-bar { border-radius: 0; }
+.t-progress[data-variant="stacked"] .t-progress-bar:first-child { border-radius: var(--t-radius-full) 0 0 var(--t-radius-full); }
+
+/* spinner — thin luz ring in the scheme ink */
+.t-spinner { border-width: 0.14em; border-color: color-mix(in srgb, var(--t-tone) 22%, transparent); border-right-color: color-mix(in srgb, var(--t-tone) 70%, var(--t-text)); }
+
+/* ── 4. tier-2 extras ────────────────────────────────────────────────────── */
+/* drawer — luz .drawer[popover] */
+.t-drawer { padding: 0; margin: 0; max-width: none; max-height: none; height: 100vh; width: min(420px, 100vw); border: 0; border-left: var(--t-border-w) solid var(--luz-border); background: var(--luz-d1); color: var(--t-text); box-shadow: var(--t-shadow-lg); }
+.t-drawer[data-side="right"] { margin-left: auto; }
+.t-drawer[data-side="left"] { margin-right: auto; border-left: 0; border-right: var(--t-border-w) solid var(--luz-border); }
+.t-drawer[data-size="sm"] { width: min(320px, 100vw); } .t-drawer[data-size="lg"] { width: min(640px, 100vw); }
+.t-drawer::backdrop { background: var(--t-backdrop); }
+.t-drawer[open] { display: flex; flex-direction: column; }
+.t-drawer-header { display: flex; align-items: center; gap: var(--t-space-2); padding: 1rem; border-bottom: var(--t-border-w) solid var(--luz-border); }
+.t-drawer-header h2 { margin: 0; font-size: var(--t-text-lg); }
+.t-drawer-body { padding: 1rem; overflow: auto; flex: 1; }
+.t-drawer-footer { display: flex; justify-content: flex-end; gap: var(--t-space-2); padding: 0.75rem 1rem; border-top: var(--t-border-w) solid var(--luz-border); }
+/* history-bars / mini-bars */
+.t-history { display: inline-flex; gap: 3px; align-items: flex-end; }
+.t-history-bar { width: 4px; height: 12px; border-radius: 2px; flex-shrink: 0; background: var(--luz-d2); }
+.t-history-bar[data-result="ok"] { background: var(--t-success); }
+.t-history-bar[data-result="fail"] { background: var(--t-danger); }
+.t-minibars { display: inline-flex; align-items: flex-end; gap: 2px; height: 22px; }
+.t-minibar { flex: 1 1 0; min-width: 3px; max-width: 14px; height: 100%; display: flex; align-items: flex-end; overflow: hidden; border-radius: 2px; background: var(--luz-d2); }
+.t-minibar::after { content: ""; width: 100%; height: var(--t-value, 0%); border-radius: 2px; background: var(--t-success); transition: height 0.4s ease; }
+
+/* luz braille loading frames (button aria-busy) */
+@keyframes luz-loading {
+  0%    { content: "⠙"; } 12.5% { content: "⠸"; } 25%   { content: "⠴"; } 37.5% { content: "⠦"; }
+  50%   { content: "⠇"; } 62.5% { content: "⠋"; } 75%   { content: "⠉"; } 87.5% { content: "⠙"; }
+}

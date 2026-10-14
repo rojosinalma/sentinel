@@ -1,0 +1,290 @@
+/* managed by tailor v0.1.0 — skin tufte — do not edit, run `tailor sync` */
+/*
+ * tailor skin — tufte — Tufte CSS 1.9.0 (translated, not vendored)
+ * Styles the t-* vocabulary (core/components.json) in Tufte CSS's long-form book look: et-book /
+ * Palatino serif, generous leading, weight-400 italic headings, hairline rules instead of boxes, no
+ * fills, no shadows, 2px corners, sidenote-flavoured (italic, muted) hints and captions. Tufte CSS
+ * styles bare elements page-wide (body width/padding, 1.4rem paragraphs, 55 % measure) and has no
+ * controls at all, so nothing is vendored: its typography is re-expressed on t-* selectors and the app
+ * components it never had (buttons, forms, badges, toasts, dialogs, switches) get a restrained "printed
+ * label" treatment. Colours: --t-* tokens only; palette tokens are never SET here (SKIN-CONTRACT rule 4).
+ * Fonts: the et-book names lead the stack with Palatino/Book Antiqua/Georgia fallbacks; no font files
+ * ship with the skin (see README).
+ * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
+ */
+
+/* 1. scale: book typography, square-ish corners, no shadows */
+:root {
+  --t-font-sans: et-book, "ET Book", Palatino, "Palatino Linotype", "Palatino LT STD", "Book Antiqua", Georgia, serif;
+  --t-font-mono: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  --t-text-xs: 0.75rem;
+  --t-text-sm: 0.875rem;
+  --t-text-md: 0.95rem;
+  --t-text-base: 1.05rem;
+  --t-text-lg: 1.3rem;
+  --t-text-xl: 1.9rem;
+  --t-leading: 1.6;
+  --t-radius-sm: 2px;
+  --t-radius-md: 2px;
+  --t-radius-lg: 2px;
+  --t-radius-xl: 2px;
+  --t-shadow-sm: none;
+  --t-shadow-md: none;
+  --t-shadow-lg: none;
+}
+
+/* 2. private helpers (read-only use of tokens): the three inks a Tufte page knows */
+:root {
+  --tu-ink:   var(--t-text);                                            /* body text, strong rules      */
+  --tu-rule:  var(--t-border);                                          /* hairlines                    */
+  --tu-faint: color-mix(in srgb, var(--t-text) 5%, transparent);        /* the only "fill": a whisper   */
+}
+
+/* ── document typography ───────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 { font-weight: 400; line-height: 1.15; }
+h2, h3 { font-style: italic; }
+a { color: inherit; text-decoration: underline; text-decoration-thickness: 0.05em; text-underline-offset: 0.12em; }
+a:hover { color: var(--t-link); }
+code { color: var(--tu-ink); }
+kbd { background: transparent; border: var(--t-border-w) solid var(--tu-rule); border-radius: var(--t-radius-sm); }
+hr { width: 55%; border-top-color: var(--tu-rule); }
+.t-muted { font-style: italic; }
+::placeholder { font-style: italic; color: var(--t-disabled); }
+
+/* ── shell ─────────────────────────────────────────────────────────────────── */
+/* app-shell: geometry is core; every slot sits on the paper with a hairline between */
+.t-navbar { background: var(--t-canvas); border-bottom: var(--t-border-w) solid var(--tu-rule); }
+.t-navbar-brand { color: var(--tu-ink); font-weight: 400; font-style: italic; font-size: var(--t-text-lg); letter-spacing: 0; text-decoration: none; }
+.t-navbar-link { color: var(--t-muted); opacity: 1; border-bottom: var(--t-border-w) solid transparent; text-decoration: none; }
+.t-navbar-link:hover { color: var(--tu-ink); border-bottom-color: var(--tu-rule); }
+.t-navbar-link[aria-current="page"] { color: var(--tu-ink); border-bottom-color: var(--tu-ink); }
+.t-navbar-sep { background: var(--tu-rule); }
+.t-footer { background: var(--t-canvas); border-top: var(--t-border-w) solid var(--tu-rule); color: var(--t-muted); }
+.t-footer-version { color: var(--t-muted); font-style: italic; font-family: var(--t-font-sans); }
+.t-footer-repo { color: var(--tu-ink); opacity: 0.6; }
+
+/* sidebar: a table of contents — no fills, the current entry is ink with a left hairline */
+.t-sidebar-group { text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); font-style: italic; color: var(--t-muted); }
+.t-sidebar-item { border-radius: 0; border-left: var(--t-border-w) solid transparent; color: var(--t-muted); text-decoration: none; margin-bottom: 0; }
+.t-sidebar-item:hover:not([aria-disabled="true"]) { background: transparent; color: var(--tu-ink); border-left-color: var(--tu-rule); }
+.t-sidebar-item[aria-current="page"] { background: transparent; color: var(--tu-ink); border-left-color: var(--tu-ink); font-style: italic; }
+.t-sidebar-chevron { border-color: var(--t-muted); }
+.t-sidebar-divider { border-top-color: var(--tu-rule); }
+
+/* page / section: weight-400 headings, italic lead, italic section titles over a hairline */
+.t-page-title { color: var(--tu-ink); font-weight: 400; }
+.t-page-lead { color: var(--t-muted); font-style: italic; font-size: var(--t-text-base); }
+.t-page-back { color: var(--t-muted); border-radius: 0; text-decoration: none; } .t-page-back:hover { background: transparent; color: var(--tu-ink); }
+.t-section-title { text-transform: none; letter-spacing: 0; font-size: var(--t-text-lg); font-weight: 400; font-style: italic; color: var(--tu-ink); border-bottom: var(--t-border-w) solid var(--tu-rule); padding-bottom: 0.2rem; }
+/* toolbar / grid / stack / split: geometry only (core) */
+.t-split-side { border-right: var(--t-border-w) solid var(--tu-rule); }
+
+/* ── button: Tufte has none — hairline outline, paper background; primary is ink-ruled ─ */
+.t-btn { border: var(--t-border-w) solid var(--tu-rule); border-radius: var(--t-radius-sm); background: transparent; color: var(--tu-ink); font-weight: 400; font-size: var(--t-text-md); }
+.t-btn:hover { background: var(--tu-faint); border-color: var(--tu-ink); color: var(--tu-ink); }
+.t-btn[data-variant="primary"] { color: var(--tu-ink); border-color: var(--tu-ink); background: transparent; box-shadow: inset 0 0 0 1px var(--tu-ink); }
+.t-btn[data-variant="primary"]:hover { background: var(--tu-ink); color: var(--t-canvas); }
+.t-btn[data-variant="danger"], .t-btn[data-variant="warning"] { color: var(--t-tone); border-color: var(--t-tone); background: transparent; }
+.t-btn[data-variant="danger"]:hover, .t-btn[data-variant="warning"]:hover { background: color-mix(in srgb, var(--t-tone) var(--t-tint-weak), transparent); color: var(--t-tone); border-color: var(--t-tone); }
+.t-btn[data-variant="ghost"] { border-color: transparent; color: var(--t-muted); }
+.t-btn[data-variant="ghost"]:hover { background: transparent; border-color: transparent; color: var(--tu-ink); text-decoration: underline; text-underline-offset: 0.15em; }
+.t-btn[data-variant="ghost"][data-tone] { color: var(--t-tone); }
+.t-btn[data-variant="ghost"][data-tone]:hover { background: transparent; color: var(--t-tone); }
+.t-btn[data-variant="link"] { border-color: transparent; color: var(--tu-ink); text-decoration: underline; text-decoration-thickness: 0.05em; text-underline-offset: 0.12em; }
+.t-btn[data-variant="link"]:hover { background: transparent; color: var(--t-link); }
+.t-btn[data-size="sm"] { font-size: var(--t-text-sm); } .t-btn[data-size="lg"] { font-size: var(--t-text-base); }
+.t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.45; }
+.t-btn[aria-pressed="true"] { background: var(--tu-faint); border-color: var(--tu-ink); color: var(--tu-ink); font-style: italic; }
+.t-btn[aria-busy="true"]::before { border-width: 1px; }
+
+/* button-group / filter: one hairline frame, the pressed filter is ink-ruled italic */
+.t-btn-group > .t-btn { border-radius: 0; }
+.t-btn-group > .t-btn:first-child { border-radius: var(--t-radius-sm) 0 0 var(--t-radius-sm); } .t-btn-group > .t-btn:last-child { border-radius: 0 var(--t-radius-sm) var(--t-radius-sm) 0; }
+.t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"], .t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"]:hover { background: var(--tu-faint); border-color: var(--tu-ink); color: var(--tu-ink); font-style: italic; }
+
+/* segmented: hairline frame, checked item underlined in ink */
+.t-segmented { background: transparent; border: var(--t-border-w) solid var(--tu-rule); border-radius: var(--t-radius-sm); gap: 0; padding: 0; }
+.t-segmented-item { border: 0; border-radius: 0; color: var(--t-muted); padding: 0.3rem 0.8rem; }
+.t-segmented-item + .t-segmented-item { border-left: var(--t-border-w) solid var(--tu-rule); }
+.t-segmented-item:has(.t-segmented-input:checked) { background: var(--tu-faint); color: var(--tu-ink); border-color: var(--tu-rule); box-shadow: inset 0 -1px 0 var(--tu-ink); font-style: italic; }
+.t-segmented-item:has(.t-segmented-input:focus-visible) { outline-color: var(--tu-ink); }
+
+/* menu: a sheet of paper with a hairline edge; check mark in ink */
+.t-menu-list { background: var(--t-canvas); border: var(--t-border-w) solid var(--tu-rule); border-radius: var(--t-radius-sm); box-shadow: none; padding: var(--t-space-2) 0; }
+.t-menu-item { border-radius: 0; color: var(--tu-ink); text-decoration: none; }
+.t-menu-item:hover { background: var(--tu-faint); }
+.t-menu-item[role="menuitemcheckbox"]::before { color: var(--tu-ink); font-weight: 400; }
+.t-menu-item[data-tone="danger"] { color: var(--t-danger); }
+.t-menu-header { text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); font-style: italic; color: var(--t-muted); }
+.t-menu-divider { border-top-color: var(--tu-rule); }
+.t-menu-desc, .t-menu-kbd { font-style: italic; color: var(--t-muted); }
+
+/* ── navigation ────────────────────────────────────────────────────────────── */
+/* tabs: running heads — the selected one is italic over an ink hairline */
+.t-tabs-list { border-bottom-color: var(--tu-rule); }
+.t-tab { color: var(--t-muted); border-bottom: var(--t-border-w) solid transparent; }
+.t-tab:hover { color: var(--tu-ink); border-bottom-color: var(--tu-rule); }
+.t-tab[aria-selected="true"] { color: var(--tu-ink); border-bottom-color: var(--tu-ink); font-weight: 400; font-style: italic; }
+.t-tabs[data-variant="boxed"] .t-tab { border-radius: 0; }
+.t-tabs[data-variant="boxed"] .t-tab[aria-selected="true"] { background: var(--t-canvas); border-color: var(--tu-rule); border-bottom-color: var(--t-canvas); color: var(--tu-ink); }
+.t-tabs[data-variant="boxed"] .t-tab-panel { background: transparent; border-color: var(--tu-rule); border-radius: 0; }
+/* breadcrumb: muted trail, italic current */
+.t-breadcrumb a { color: var(--t-muted); } .t-breadcrumb a:hover { color: var(--tu-ink); }
+.t-breadcrumb li + li::before { content: "·"; color: var(--t-disabled); }
+.t-breadcrumb [aria-current="page"] { font-weight: 400; font-style: italic; color: var(--tu-ink); }
+/* pagination: page numbers, the current one ink-filled like a folio marker */
+.t-page-link { background: transparent; border-color: var(--tu-rule); color: var(--tu-ink); text-decoration: none; font-variant-numeric: tabular-nums; }
+.t-pagination li:first-child .t-page-link { border-radius: var(--t-radius-sm) 0 0 var(--t-radius-sm); } .t-pagination li:last-child .t-page-link { border-radius: 0 var(--t-radius-sm) var(--t-radius-sm) 0; }
+.t-page-link:hover { background: var(--tu-faint); color: var(--tu-ink); }
+.t-page-link[aria-current="page"] { background: var(--tu-ink); border-color: var(--tu-ink); color: var(--t-canvas); font-style: italic; }
+.t-page-link[aria-disabled="true"] { color: var(--t-disabled); }
+/* list: hairline-ruled index; selection is a faint wash plus an ink left rule */
+.t-list { background: transparent; border-color: var(--tu-rule); border-radius: 0; }
+.t-list-item { background: transparent; border-top-color: var(--tu-rule); border-left: 2px solid transparent; color: var(--tu-ink); }
+.t-list-item:hover { background: var(--tu-faint); }
+.t-list-item[aria-selected="true"] { background: var(--tu-faint); border-left-color: var(--tu-ink); }
+.t-list-item[aria-selected="true"] .t-list-lead { color: var(--tu-ink); }
+.t-list-item:disabled { background: transparent; }
+.t-list-desc, .t-list-trail { font-style: italic; }
+.t-list-group { text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); font-style: italic; border-top-color: var(--tu-rule); }
+.t-list-divider { border-top-color: var(--tu-rule); }
+.t-list[aria-multiselectable="true"] .t-list-lead::before { border-radius: 0; border-color: var(--t-muted); background: transparent; }
+.t-list[aria-multiselectable="true"] .t-list-item[aria-selected="true"] .t-list-lead::before { background: var(--tu-ink); border-color: var(--tu-ink); color: var(--t-canvas); }
+
+/* ── forms: underline controls — the only control that looks at home on a Tufte page ─── */
+.t-label { color: var(--tu-ink); font-size: var(--t-text-base); font-weight: 400; text-transform: none; letter-spacing: 0; font-style: italic; }
+.t-input, .t-select, .t-textarea { background: transparent; border: 0; border-bottom: var(--t-border-w) solid var(--t-disabled); border-radius: 0; padding-left: 0.1rem; padding-right: 0.1rem; color: var(--tu-ink); font-size: var(--t-text-base); }
+.t-select { padding-right: 1.6rem; background-position: calc(100% - 9px) 55%, calc(100% - 4px) 55%; }
+:is(.t-input, .t-select, .t-textarea):focus-visible { border-color: var(--tu-ink); box-shadow: none; outline: none; }
+:is(.t-input, .t-select, .t-textarea):disabled { background: transparent; border-bottom-style: dotted; border-color: var(--t-disabled); color: var(--t-disabled); }
+.t-input[readonly] { border-bottom-style: dotted; }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"] { border-color: var(--t-danger); }
+:is(.t-input, .t-select, .t-textarea)[aria-invalid="true"]:focus-visible { box-shadow: none; border-color: var(--t-danger); }
+.t-input[type="range"] { border: 0; accent-color: var(--tu-ink); }
+.t-input[type="file"]::file-selector-button { background: transparent; border: 0; border-right: var(--t-border-w) solid var(--tu-rule); color: var(--tu-ink); font-style: italic; }
+.t-hint { font-style: italic; color: var(--t-muted); }
+.t-feedback { font-style: italic; }
+.t-input-group > * { border-radius: 0; margin-left: 0; } .t-input-group > :first-child, .t-input-group > :last-child { border-radius: 0; }
+.t-input-group > .t-btn { border: 0; border-bottom: var(--t-border-w) solid var(--t-disabled); border-radius: 0; }
+.t-input-group > .t-btn:hover { background: var(--tu-faint); border-bottom-color: var(--tu-ink); }
+.t-input-addon { background: transparent; border: 0; border-bottom: var(--t-border-w) solid var(--t-disabled); color: var(--t-muted); font-style: italic; padding: 0 0.4rem; }
+/* check / switch: ink accent; the switch is an outlined track with an ink thumb */
+.t-check-input { accent-color: var(--tu-ink); }
+.t-check-desc { font-style: italic; }
+.t-check[data-variant="switch"] .t-check-input { background: transparent; border-color: var(--t-muted); }
+.t-check[data-variant="switch"] .t-check-input::before { background: var(--t-muted); }
+.t-check[data-variant="switch"] .t-check-input:checked { background: transparent; border-color: var(--tu-ink); }
+.t-check[data-variant="switch"] .t-check-input:checked::before { background: var(--tu-ink); }
+.t-check:has(.t-check-input:focus-visible) .t-check-input { outline-color: var(--tu-ink); }
+/* duration-input: core geometry + the underline controls above */
+/* settings-row: hairline-separated rows, state glyphs in the semantic inks */
+.t-setting { border-bottom-color: var(--tu-rule); }
+.t-setting-state { font-style: italic; }
+.t-setting[data-state="saving"] .t-setting-state::before { border-width: 1px; border-color: var(--tu-rule); border-right-color: var(--tu-ink); }
+
+/* ── data display ──────────────────────────────────────────────────────────── */
+/* badge / chip / state-label / counter: printed labels — hairline in the tone, no wash; solid is the ink stamp */
+.t-badge { background: transparent; border-color: var(--t-tone); color: var(--t-tone); border-radius: var(--t-radius-sm); font-weight: 400; font-style: italic; letter-spacing: 0.02em; }
+.t-badge[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); box-shadow: none; font-weight: 400; }
+.t-badge[data-variant="outline"] { border-color: var(--t-tone); }
+.t-counter { background: transparent; border: var(--t-border-w) solid var(--t-muted); color: var(--t-muted); font-weight: 400; border-radius: var(--t-radius-sm); }
+.t-counter[data-tone] { background: transparent; border-color: var(--t-tone); color: var(--t-tone); }
+.t-chip { background: transparent; border-color: var(--t-tone); color: var(--t-tone); border-radius: var(--t-radius-sm); font-weight: 400; }
+.t-state { background: transparent; border-color: var(--t-tone); color: var(--t-tone); border-radius: var(--t-radius-sm); font-weight: 400; font-style: italic; }
+.t-state[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); }
+/* status-dot: core colours (a dot is already as quiet as it gets) */
+/* avatar: hairline ring on paper, initials in the tone */
+.t-avatar { background: transparent; border-color: var(--t-tone); color: var(--t-tone); font-weight: 400; }
+.t-avatar[data-more] { background: transparent; border-color: var(--t-muted); color: var(--t-muted); }
+.t-avatar-status { border-color: var(--t-canvas); }
+.t-avatar-stack .t-avatar { box-shadow: 0 0 0 2px var(--t-canvas); }
+.t-avatar-name { font-weight: 400; } .t-avatar-desc { font-style: italic; }
+
+/* table: Tufte's light rules — italic heads over an ink rule, hairlines between rows, no zebra, no sticky fill */
+.t-table-wrap { border: 0; border-radius: 0; }
+.t-table th, .t-table td { padding: 0.45rem 0.8rem 0.45rem 0; vertical-align: baseline; border-bottom-color: var(--tu-rule); }
+.t-table th:first-child, .t-table td:first-child { padding-left: 0.2rem; }
+.t-table thead th { background: var(--t-canvas); color: var(--tu-ink); font-size: var(--t-text-md); font-weight: 400; font-style: italic; text-transform: none; letter-spacing: 0; border-bottom: var(--t-border-w) solid var(--tu-ink); }
+.t-table thead th > button:hover { color: var(--t-link); }
+.t-sort-icon { color: var(--tu-ink); }
+.t-table tbody tr:hover > td { background: var(--tu-faint); }
+.t-table tbody tr:last-child > td { border-bottom: var(--t-border-w) solid var(--tu-rule); }
+.t-table tr[aria-selected="true"] > td { background: var(--tu-faint); }
+.t-table tr[aria-selected="true"] > td:first-child { box-shadow: inset 2px 0 0 var(--tu-ink); }
+.t-table-group > td { background: transparent !important; text-transform: none; letter-spacing: 0; font-weight: 400; font-style: italic; font-size: var(--t-text-sm); color: var(--t-muted); }
+.t-table[data-variant="log"] { font-family: var(--t-font-mono); font-size: var(--t-text-sm); }
+/* toned rows: ink-coloured text plus a 2px rule at the left, no wash */
+.t-table tr[data-tone] > td { background: transparent; }
+.t-table tr[data-tone] > td:first-child { box-shadow: inset 2px 0 0 var(--t-tone); }
+.t-table tr[data-tone]:hover > td { filter: none; background: var(--tu-faint); }
+.t-table td.t-tone-text { font-weight: 400; font-style: italic; }
+
+/* card: no box — a hairline above and below, title in italic, no inset header fill */
+.t-card { background: transparent; border: 0; border-top: var(--t-border-w) solid var(--tu-rule); border-bottom: var(--t-border-w) solid var(--tu-rule); border-radius: 0; }
+.t-card-header { background: transparent; border-bottom: 0; padding: 0.7rem 0.2rem 0.2rem; }
+.t-card-title { color: var(--tu-ink); font-style: italic; font-weight: 400; font-size: var(--t-text-lg); }
+.t-card-body { padding: 0.5rem 0.2rem 0.9rem; }
+.t-card-header + .t-card-body { padding-top: 0.2rem; }
+.t-card-footer { border-top: var(--t-border-w) solid var(--tu-rule); padding: 0.6rem 0.2rem; }
+.t-card[data-variant~="clickable"]:hover { border-color: var(--tu-ink); box-shadow: none; }
+.t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: var(--tu-ink); border-left: 2px solid var(--tu-ink); box-shadow: none; }
+.t-card-thumb { background: transparent; border-bottom: var(--t-border-w) solid var(--tu-rule); }
+.t-card-meta { font-style: italic; color: var(--t-muted); }
+.t-stat-label { color: var(--t-muted); font-style: italic; } .t-stat-value { font-size: var(--t-text-lg); font-variant-numeric: oldstyle-nums; } .t-stat-sub { font-style: italic; }
+.t-facts dt { font-style: italic; }
+/* empty-state: a quiet italic note */
+.t-empty { font-style: italic; } .t-empty-title { font-style: normal; font-weight: 400; }
+
+/* timeline: a hairline rail with ringed markers on the paper */
+.t-timeline::before { width: 1px; background: var(--tu-rule); left: calc(var(--t-rail) / 2 - 0.5px); }
+.t-timeline-badge { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-tone); color: var(--t-tone); box-shadow: 0 0 0 3px var(--t-canvas); }
+.t-timeline-badge[data-variant="solid"] { background: var(--t-tone); color: var(--t-canvas); }
+.t-timeline-body { color: var(--t-muted); }
+.t-timeline-body .t-time { font-style: italic; color: var(--t-disabled); }
+.t-timeline-card { background: transparent; border: 0; border-left: var(--t-border-w) solid var(--tu-rule); border-radius: 0; padding: 0.2rem 0 0.2rem 0.75rem; }
+.t-timeline-break { height: 1px; background: var(--tu-rule); border-radius: 0; }
+/* relative-time: core (a <time>); italics like every aside */
+.t-time { font-style: italic; }
+
+/* tooltip: a marginal note printed in reverse (ink on paper swapped) — stays readable on both modes */
+.t-tooltip { background: var(--tu-ink); color: var(--t-canvas); border: 0; border-radius: var(--t-radius-sm); box-shadow: none; font-style: italic; }
+[data-mode="light"] .t-tooltip { background: var(--tu-ink); color: var(--t-canvas); border-color: var(--tu-ink); }
+/* help-popover: a sidenote in a box with a hairline in the tone */
+.t-help-btn { border-width: 1px; font-weight: 400; font-style: italic; font-family: var(--t-font-sans); }
+.t-help-box { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-tone); border-radius: var(--t-radius-sm); box-shadow: none; font-style: italic; color: var(--t-muted); }
+.t-help-box :is(b, code) { font-style: normal; }
+
+/* code-block: Tufte's pre has no box — a hairline left rule and the mono face */
+.t-code-tabs button { background: transparent; border: 0; border-bottom: var(--t-border-w) solid transparent; border-radius: 0; color: var(--t-muted); font-weight: 400; font-style: italic; font-family: var(--t-font-sans); font-size: var(--t-text-sm); }
+.t-code-tabs button:hover { color: var(--tu-ink); } .t-code-tabs button[aria-selected="true"] { background: transparent; color: var(--tu-ink); border-top-color: transparent; border-bottom-color: var(--tu-ink); }
+.t-code-tabs button:first-child { border-left-color: transparent; }
+.t-code-pre { background: transparent; border: 0; border-left: var(--t-border-w) solid var(--tu-rule); border-radius: 0; padding: 0.4rem 2.5rem 0.4rem 1rem; color: var(--tu-ink); font-size: var(--t-text-sm); line-height: 1.5; }
+.t-code-tabs + .t-code-pre { border-top: var(--t-border-w) solid var(--tu-rule); }
+.t-code-pre[data-variant="shell"] { border-right: 0; border-bottom: 0; border-left-color: var(--t-success); }
+.t-code-pre[data-variant="json"] { border-left-color: var(--t-info); }
+.t-code-copy { border-radius: 0; color: var(--t-muted); } .t-code-copy:hover { background: transparent; color: var(--tu-ink); }
+/* truncate: core */
+
+/* ── feedback ──────────────────────────────────────────────────────────────── */
+/* alert: Tufte's callout — a paragraph with a 2px rule at the left in the tone, no wash, body in ink */
+.t-alert { background: transparent; border: 0; border-left: 2px solid var(--t-tone); border-radius: 0; color: var(--tu-ink); padding: 0.3rem 0 0.3rem 1rem; }
+.t-alert[data-tone]:not([data-tone="neutral"]) { background: transparent; border-color: var(--t-tone); color: var(--tu-ink); }
+.t-alert-icon { color: var(--t-tone); }
+.t-alert-body :is(b, strong) { color: var(--t-tone); font-weight: 400; font-style: italic; }
+.t-alert[data-size="sm"] { padding: 0.15rem 0 0.15rem 0.75rem; }
+/* toast: a slip of paper with a hairline in the tone, no shadow, body in ink */
+.t-toast { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-tone); border-left-width: 3px; border-radius: var(--t-radius-sm); color: var(--tu-ink); box-shadow: none; font-weight: 400; }
+.t-toast-icon { color: var(--t-tone); }
+/* dialog / confirm: a sheet on the paper, hairline edge, italic title, no shadow */
+.t-dialog { background: var(--t-canvas); border: var(--t-border-w) solid var(--t-muted); border-radius: var(--t-radius-sm); box-shadow: none; }
+.t-dialog::backdrop { backdrop-filter: none; }
+.t-dialog-header { border-bottom-color: var(--tu-rule); }
+.t-dialog-title { font-style: italic; font-weight: 400; font-size: var(--t-text-xl); }
+.t-dialog-footer { border-top-color: var(--tu-rule); }
+/* progress: a thin ruled bar; the tone is the only colour */
+.t-progress { height: 4px; border-radius: 0; background: var(--tu-rule); }
+.t-progress[data-size="sm"] { height: 2px; } .t-progress[data-size="lg"] { height: 14px; font-style: italic; font-weight: 400; }
+.t-progress-bar { border-radius: 0; }
+/* spinner: a thin ring */
+.t-spinner { border-width: 1px; border-color: color-mix(in srgb, var(--t-tone) 25%, transparent); border-right-color: var(--t-tone); }
+.t-spinner[data-size="sm"] { border-width: 1px; } .t-spinner[data-size="lg"] { border-width: 2px; }
