@@ -1,84 +1,40 @@
 /* sentinel dashboard — page-specific rules on tailor tokens (loaded after the tailor head snippet).
-   tailor covers the shell, cards, tables, buttons, facts, switch, progress, dialogs. What is here:
-   the classes app.js injects at runtime (badge-tint, status-dot, val-*, stat-*, toast-item, host-* rows,
-   bar-*) and the few utilities the markup still uses (d-none, mt-2 …). No hex: --t-* only. */
+   tailor covers the shell, cards, tables, badges, dots, tone text, stat text, buttons, facts, switch,
+   progress, dialogs, toasts and [hidden]. What is left here is layout only sentinel has: navbar/header
+   meta, the service-host rows, the decider timers, the dry-run output, the footer link. No hex: --t-* only. */
 
-/* utilities kept from the Bootstrap era (used by app.js / the views) */
-.d-none { display: none !important; }
-.mt-2 { margin-top: var(--t-space-2); } .mb-2 { margin-bottom: var(--t-space-2); } .me-2 { margin-right: var(--t-space-2); }
-.small { font-size: var(--t-text-sm); }
-.text-nowrap { white-space: nowrap; }
-.opacity-50 { opacity: .5; }
-.text-danger { color: var(--t-danger); }
+/* spacing helpers used by the views */
+.mt-2 { margin-top: var(--t-space-2); } .mb-2 { margin-bottom: var(--t-space-2); }
 
 /* navbar / page-header meta */
 .nav-meta { color: var(--t-muted); font-size: var(--t-text-xs); font-family: var(--t-font-mono); white-space: nowrap; }
 @media (max-width: 767.98px) { .t-navbar #generated { display: none; } }
-.t-page-header > .badge { margin-top: .2em; }
+.t-page-header > .t-badge { margin-top: .2em; }
 [data-mode="dark"] .theme-icon-light { display: none; } [data-mode="light"] .theme-icon-dark { display: none; }
 
-/* badges: app.js writes `badge badge-tint tint-<hue>` (header flags, role/kind badges, mode badge) */
-.badge { --tint: var(--t-disabled); display: inline-flex; align-items: center; gap: .4ch; padding: 0 1ch; font-size: var(--t-text-xs); font-weight: 700;
-         line-height: inherit; white-space: nowrap; vertical-align: middle; }
-.badge-lg { font-size: var(--t-text-sm); }
-.badge-tint { background: color-mix(in srgb, var(--tint) var(--t-tint-strong), transparent); color: var(--tint); }
-.badge-tint.tint-green  { --tint: var(--t-success); }
-.badge-tint.tint-red    { --tint: var(--t-danger); }
-.badge-tint.tint-orange { --tint: var(--t-warning); }
-.badge-tint.tint-yellow { --tint: var(--t-hue-yellow); }
-.badge-tint.tint-purple { --tint: var(--t-accent); }
-.badge-tint.tint-cyan   { --tint: var(--t-info); }
-.badge-tint.tint-pink   { --tint: var(--t-hue-pink); }
-.badge-tint.tint-muted  { --tint: var(--t-disabled); }
-.badge-attention { background: var(--t-warning); color: var(--t-canvas); }
-
-/* status dot (app.js: bi-circle-fill status-dot status-dot--<state>) — square, 1ch, like .t-dot */
-.status-dot { font-size: .6em; color: var(--t-disabled); vertical-align: middle; }
-.status-dot--running  { color: var(--t-success); }
-.status-dot--degraded { color: var(--t-warning); }
-.status-dot--stopped  { color: var(--t-danger); }
-.status-dot--muted    { color: var(--t-disabled); }
-
-/* value tints + stat text */
-.val-ok { color: var(--t-success); } .val-warn { color: var(--t-warning); } .val-bad { color: var(--t-danger); } .val-muted { color: var(--t-muted); }
-.stat-label { font-size: var(--t-text-sm); color: var(--t-info); }
-.stat-value { font-size: var(--t-text-sm); color: var(--t-text); font-family: var(--t-font-mono); }
-.stat-sub   { font-size: var(--t-text-xs); color: var(--t-muted); }
+/* facts + service state cell */
 .facts-grid dd { white-space: normal; overflow-wrap: anywhere; }
 .svc { display: inline-flex; align-items: center; gap: .5ch; }
 .svc .ver { font-family: var(--t-font-mono); font-size: var(--t-text-xs); color: var(--t-muted); }
 
-/* decider timers: tailor .t-progress holds the app's .progress-bar fill */
+/* decider timers: label/value row over a tailor progress bar; idle = nothing counting */
 .timer { margin-top: var(--t-space-2); }
-.timer.idle { opacity: .45; }
+.timer[data-idle] { opacity: .45; }
 .timer-row { display: flex; justify-content: space-between; gap: var(--t-space-2); }
-.timer-bar .progress-bar { height: 100%; width: 0; background: var(--t-success); transition: width .4s ease; }
-.timer-bar .bar-green  { background: var(--t-success); }
-.timer-bar .bar-orange { background: var(--t-warning); }
-.timer-bar .bar-red    { background: var(--t-danger); }
 
 /* tables: hosts coloured by their role in that service (primary / standby / down) */
 .hosts-table { width: 100%; }
 .hosts-table th { white-space: nowrap; }
 .hosts-table tbody th { text-align: left; font-weight: 500; }
-.service-hosts tr.host-green  th { color: var(--t-success); }
-.service-hosts tr.host-yellow th { color: var(--t-hue-yellow); }
-.service-hosts tr.host-red    th { color: var(--t-danger); }
+.events-table td:first-child, .events-table td:nth-child(2) { white-space: nowrap; }
+.service-hosts tr[data-role="primary"] th { color: var(--t-success); }
+.service-hosts tr[data-role="standby"] th { color: var(--t-hue-yellow); }
+.service-hosts tr[data-role="down"]    th { color: var(--t-danger); }
 .service-actions .t-check-label { font-size: var(--t-text-xs); }
 
-/* dry-run output */
+/* confirm dialog footnote + dry-run output */
+.confirm-note { margin-top: var(--t-space-2); }
 .log-tail { font-size: var(--t-text-xs); line-height: 1.35; max-height: 22rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-
-/* toasts: app.js appends .toast-item.toast-<type> into #toast-container (the tailor .t-toasts region) */
-.toast-item { --toast: var(--t-disabled); pointer-events: auto; display: flex; align-items: center; gap: 1ch; padding: .5lh 1ch; min-width: 260px; max-width: 440px;
-              background: var(--t-canvas); border: var(--t-border-w) solid var(--toast); color: var(--toast); font-family: var(--t-font-mono);
-              animation: toast-in .2s steps(4) forwards; }
-.toast-item.leaving { animation: toast-out .2s steps(4) forwards; }
-.toast-success { --toast: var(--t-success); }
-.toast-warning { --toast: var(--t-warning); }
-.toast-error   { --toast: var(--t-danger); }
-@keyframes toast-in { from { opacity: 0; transform: translateY(-1lh); } to { opacity: 1; transform: none; } }
-@keyframes toast-out { to { opacity: 0; transform: translateY(-1lh); } }
 
 /* footer: link to the other instance (tailor footer centres its content; keep this one on the left) */
 .footer-link { position: absolute; left: var(--t-space-5); color: var(--t-info); font-size: var(--t-text-xs); text-decoration: none; }
