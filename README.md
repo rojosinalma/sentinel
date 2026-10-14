@@ -4,8 +4,8 @@ The homelab's HA decision layer: one sentinel per participating host — **silve
 **witness-1** (witness) — that probes every host, agrees on who is primary by **majority**
 (4 of 7 voters since 2026-10-13: members silver + tiny, witnesses witness-1..4 + pihole), takes a 30 s **majority lease** before any action, runs per-service bash **hooks**
 (`hooks/opencode/` first) to promote and fail back, records every probe/decision/transition in
-SQLite, and serves `/status` byte-compatible with the bash sentinel it replaces, a Dracula
-dashboard and an MCP endpoint for agents.
+SQLite, and serves `/status` byte-compatible with the bash sentinel it replaces, a tailor
+dashboard (WebTUI skin + Dracula palette by default; skin/palette switchers in the navbar) and an MCP endpoint for agents.
 
 This repo is a history-preserving clone of `standby-status` (the status page it absorbs; the
 page still renders on instances without `NODE_NAME`). The design and interfaces are in
