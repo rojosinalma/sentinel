@@ -5,56 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>sentinel · <%= @host %></title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="/css/dracula.css" rel="stylesheet">
-  <link href="/css/app.css" rel="stylesheet">
+  <%# tailor head snippet (public/tailor/tailor-head.html, vendored by `tailor apply`): core links, pre-paint, tailor.js %>
+  <link rel="stylesheet" href="/tailor/tokens.css">
+  <link rel="stylesheet" href="/tailor/base.css">
+  <link rel="stylesheet" href="/tailor/layout.css">
   <script>
-    (function() {
-      var qs = new URLSearchParams(location.search).get('theme');
-      var t = qs || localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-      document.documentElement.setAttribute('data-theme', t);
-    })();
+  (function(){var C={"project":"sentinel","base":"/tailor/","skins":["webtui","none"],"palettes":["dracula"],"modes":{"dracula":["dark","light"]},"defaults":{"skin":"webtui","palette":"dracula","mode":"dark"}};var P=C.project,q=new URLSearchParams(location.search);
+  function g(k){var v=q.get(k);try{return v||localStorage.getItem(P+'.'+k)||C.defaults[k]}catch(e){return v||C.defaults[k]}}
+  var h=document.documentElement,s=g('skin'),p=g('palette'),m=g('mode');
+  if(C.skins.indexOf(s)<0)s=C.defaults.skin;if(C.palettes.indexOf(p)<0)p=C.defaults.palette;
+  if(m==='auto')m=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+  var modes=C.modes[p]||['dark'];if(modes.indexOf(m)<0)m=modes[0];
+  h.dataset.skin=s;h.dataset.palette=p;h.dataset.mode=m;window.TAILOR_CONFIG=C;
+  document.write('<link id="t-skin" rel="stylesheet" data-base="'+C.base+'skins/" href="'+(s==='none'?'':C.base+'skins/'+s+'/skin.css')+'"'+(s==='none'?' disabled':'')+'>');
+  document.write('<link id="t-palette" rel="stylesheet" data-base="'+C.base+'palettes/" href="'+C.base+'palettes/'+p+'.css">');})();
   </script>
+  <script src="/tailor/tailor.js" defer></script>
+  <script>document.addEventListener('DOMContentLoaded',function(){if(window.Tailor)Tailor.theme.init(window.TAILOR_CONFIG)});</script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/css/app.css" rel="stylesheet">
 </head>
 <body>
-  <nav class="navbar navbar-padded sticky-top">
-    <div class="d-flex align-items-center w-100 gap-3">
-      <a class="brand d-flex align-items-center gap-2" href="/"><i class="bi bi-shield-shaded"></i> sentinel</a>
-      <span class="badge badge-tint tint-cyan" title="Which instance of this page answered"><i class="bi bi-hdd-network"></i> served by <%= @host %></span>
-      <span id="stale" class="badge badge-tint tint-orange d-none" title="Last refresh failed; showing the previous result"><i class="bi bi-wifi-off"></i> stale</span>
-      <div class="ms-auto d-flex align-items-center gap-3">
-        <span class="nav-meta" id="generated" title="When the data was collected">—</span>
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="bi bi-sun-fill theme-icon-light"></i><i class="bi bi-moon-fill theme-icon-dark"></i></button>
-      </div>
+<div class="t-shell" data-sidebar="none">
+  <header class="t-navbar t-shell-nav">
+    <a class="t-navbar-brand" href="/"><i class="t-icon bi bi-shield-shaded" aria-hidden="true"></i>sentinel</a>
+    <span class="t-badge" data-tone="info" data-variant="tint" title="Which instance of this page answered"><i class="bi bi-hdd-network"></i> served by <%= @host %></span>
+    <span id="stale" class="t-badge d-none" data-tone="warning" data-variant="solid" title="Last refresh failed; showing the previous result"><i class="bi bi-wifi-off"></i> stale</span>
+    <div class="t-navbar-end">
+      <span class="nav-meta" id="generated" title="When the data was collected">—</span>
+      <button class="t-btn" data-variant="ghost" data-size="sm" data-tailor-mode-toggle type="button" aria-label="Toggle light/dark" title="Toggle light/dark mode"><i class="bi bi-sun-fill theme-icon-light"></i><i class="bi bi-moon-fill theme-icon-dark"></i></button>
     </div>
-  </nav>
+  </header>
 
-  <main class="main-content">
+  <main class="t-shell-main t-page">
     <%== yield %>
   </main>
 
-  <div id="toast-container"></div>
-
-  <footer class="app-footer">
-    <div class="footer-left">
-      <% if @other_url && !@other_url.empty? %>
-        <a class="footer-link" href="<%= @other_url %>" title="Open the instance running on the other host"><i class="bi bi-arrow-left-right"></i> <%= @other_name.empty? ? "other instance" : "#{@other_name} instance" %></a>
-      <% end %>
-    </div>
-    <div class="footer-right">
-      <span class="footer-version">sentinel <%= @version %><% unless @built_at.empty? %> · built <%= @built_at %><% end %> · <%= @host %></span>
+  <footer class="t-footer t-shell-foot">
+    <% if @other_url && !@other_url.empty? %>
+      <a class="footer-link" href="<%= @other_url %>" title="Open the instance running on the other host"><i class="bi bi-arrow-left-right"></i> <%= @other_name.empty? ? "other instance" : "#{@other_name} instance" %></a>
+    <% end %>
+    <div class="t-footer-end">
+      <span class="t-footer-version">sentinel <%= @version %><% unless @built_at.empty? %> · built <%= @built_at %><% end %> · <%= @host %></span>
     </div>
   </footer>
+</div>
 
-  <script>
-    window.STANDBY = { refreshS: <%= @refresh_s.to_i %>, host: <%== @host.to_json %> };
-    function toggleTheme() {
-      const t = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', t); localStorage.setItem('theme', t);
+<%# app.js appends .toast-item here; the region is tailor's toast stack %>
+<div id="toast-container" class="t-toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+  window.STANDBY = { refreshS: <%= @refresh_s.to_i %>, host: <%== @host.to_json %> };
+  // Transitional shim: app.js still drives its two dialogs through the Bootstrap Modal API
+  // (getOrCreateInstance().show()/hide(), data-bs-dismiss, the hidden.bs.modal event). The dialogs
+  // are native <dialog class="t-dialog"> now, so map that API onto showModal()/close() until
+  // app.js is ported to Tailor.confirm / Tailor.dialogs.
+  window.bootstrap = { Modal: { getOrCreateInstance: function (el) {
+    if (!el._shim) {
+      el._shim = {
+        show: function () {
+          el.querySelectorAll('.modal-title').forEach(function (h) { h.classList.add('t-dialog-title'); });
+          el.querySelectorAll('.btn:not(.t-btn)').forEach(function (b) {
+            b.classList.add('t-btn');
+            b.dataset.variant = b.classList.contains('btn-danger') ? 'danger' : b.classList.contains('btn-primary') ? 'primary' : 'secondary';
+          });
+          if (!el.open) el.showModal();
+        },
+        hide: function () { if (el.open) el.close(); }
+      };
+      el.addEventListener('close', function () { el.dispatchEvent(new Event('hidden.bs.modal')); });
+      el.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function (b) { b.addEventListener('click', function () { el._shim.hide(); }); });
     }
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="/js/app.js"></script>
+    return el._shim;
+  } } };
+</script>
+<script src="/js/app.js"></script>
 </body>
 </html>
