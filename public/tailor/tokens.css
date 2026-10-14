@@ -1,0 +1,179 @@
+/* managed by tailor v0.1.0 — core — do not edit, run `tailor sync` */
+/*
+ * tailor — core/tokens.css — THE token contract.
+ *
+ * Every tailor stylesheet (core, skins, consuming projects) colours, spaces and shapes things with
+ * these `--t-*` custom properties and nothing else. No hex in skins or projects.
+ *
+ * Three groups:
+ *   1. Palette tokens  — filled from a canonical palette JSON (web-ui-design/assets/palettes/<id>.json,
+ *      schema palette.schema.json). The mapping is 1:1 and mechanical: `bin/gen-palette <palette>`
+ *      emits palettes/<id>.css with a `[data-palette="<id>"]` block (and a `[data-mode="light"]`
+ *      block when the palette has a `light` counterpart). The `:root` values below ARE the Dracula
+ *      palette, so a page with no palette file still renders the house default.
+ *   2. Derived tokens  — computed from palette tokens with color-mix(); never set per palette.
+ *   3. Scale tokens    — spacing, radius, type, shadow, layout metrics. Skins MAY override these
+ *      (a skin is allowed to be rounder or denser); palettes never do.
+ *
+ * Selectors:  <html data-palette="dracula" data-mode="dark" data-skin="bootstrap">
+ *   - data-palette  which palette block applies (missing → :root Dracula)
+ *   - data-mode     dark | light, the RESOLVED mode (auto is resolved before first paint by tailor.js)
+ *   - data-skin     informational for CSS hooks; the skin itself is a <link id="t-skin">
+ *
+ * palette JSON field  →  token
+ *   canvas            →  --t-canvas          page background
+ *   inset             →  --t-inset           sunken: navbar, sidebar, code, table head
+ *   surface           →  --t-surface         raised: cards, menus, dialogs
+ *   selection         →  --t-selection       hover / selected / current fill
+ *   border            →  --t-border          default border and divider
+ *   text              →  --t-text            body text
+ *   muted             →  --t-muted           secondary text (≥ 4.5:1 on canvas)
+ *   disabled          →  --t-disabled        disabled text, placeholders, decoration (not readable text)
+ *   accent            →  --t-accent          brand hue: focus ring, active nav, primary
+ *   accent_solid      →  --t-accent-solid    fill for solid primary buttons (defaults to accent)
+ *   on_accent         →  --t-on-accent       text on an accent / accent-solid fill
+ *   link              →  --t-link
+ *   success|warning|danger|info → --t-success --t-warning --t-danger --t-info
+ *   extra.<hue>       →  --t-hue-<hue>       red orange yellow green cyan purple pink (+ blue teal magenta when present)
+ *   neutrals[0]       →  --t-overlay-bg      darkest neutral: backdrops, tooltips (dark mode); mode-flipped for light
+ *   mode              →  color-scheme
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── 1. palette (Dracula Classic, the default) ─────────────────────────── */
+  --t-canvas:        #282a36;
+  --t-inset:         #21222c;
+  --t-surface:       #343746;
+  --t-selection:     #44475a;
+  --t-border:        #44475a;
+  --t-overlay-bg:    #191a21;
+
+  --t-text:          #f8f8f2;
+  --t-muted:         #a5b0d6;
+  --t-disabled:      #6272a4;
+
+  --t-accent:        #bd93f9;
+  --t-accent-solid:  #bd93f9;
+  --t-on-accent:     #282a36;
+  --t-link:          #8be9fd;
+  --t-success:       #50fa7b;
+  --t-warning:       #ffb86c;
+  --t-danger:        #ff5555;
+  --t-info:          #8be9fd;
+
+  --t-hue-red:       #ff5555;
+  --t-hue-orange:    #ffb86c;
+  --t-hue-yellow:    #f1fa8c;
+  --t-hue-green:     #50fa7b;
+  --t-hue-cyan:      #8be9fd;
+  --t-hue-purple:    #bd93f9;
+  --t-hue-pink:      #ff79c6;
+
+  /* ── 2. derived (never set by a palette file) ──────────────────────────── */
+  --t-focus-ring:    color-mix(in srgb, var(--t-accent) 35%, transparent);
+  --t-backdrop:      color-mix(in srgb, var(--t-overlay-bg) 72%, transparent);
+  --t-tint-weak:     12%;   /* background of a tinted badge / state label / alert   */
+  --t-tint-border:   30%;   /* border of a tinted badge / alert                     */
+  --t-tint-strong:   20%;   /* background of a tinted counter / selected list item  */
+
+  /* ── 3. scale ──────────────────────────────────────────────────────────── */
+  --t-font-sans:     system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --t-font-mono:     ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --t-text-xs:       0.7rem;
+  --t-text-sm:       0.8rem;
+  --t-text-md:       0.9rem;
+  --t-text-base:     1rem;
+  --t-text-lg:       1.15rem;
+  --t-text-xl:       1.5rem;
+  --t-leading:       1.5;
+
+  --t-space-1:       0.25rem;
+  --t-space-2:       0.5rem;
+  --t-space-3:       0.75rem;
+  --t-space-4:       1rem;
+  --t-space-5:       1.5rem;
+  --t-space-6:       2rem;
+  --t-space-7:       3rem;
+  --t-space-8:       4rem;
+
+  --t-radius-sm:     4px;
+  --t-radius-md:     6px;
+  --t-radius-lg:     8px;
+  --t-radius-xl:     10px;
+  --t-radius-full:   999px;
+
+  --t-shadow-sm:     0 1px 2px rgb(0 0 0 / 0.25);
+  --t-shadow-md:     0 4px 16px rgb(0 0 0 / 0.35);
+  --t-shadow-lg:     0 16px 48px rgb(0 0 0 / 0.5);
+
+  --t-border-w:      1px;
+  --t-control-h:     2.1rem;           /* default control height (button, input)   */
+  --t-control-h-sm:  1.75rem;
+  --t-control-h-lg:  2.75rem;
+  --t-duration:      0.15s;            /* hover / focus transitions                */
+
+  /* layout metrics (layout.css) */
+  --t-nav-h:         56px;
+  --t-footer-h:      32px;
+  --t-sidebar-w:     220px;
+  --t-gutter:        clamp(1rem, 3vw, 3rem);
+  --t-content-max:   1400px;
+  --t-z-sticky:      100;
+  --t-z-overlay:     900;
+  --t-z-dialog:      1000;
+  --t-z-toast:       9999;
+}
+
+/* Dracula's light counterpart (Alucard). Palettes with a `light` block get the same kind of
+   override from gen-palette; palettes without one offer dark only (compat matrix). */
+:root[data-mode="light"],
+[data-palette="dracula"][data-mode="light"] {
+  color-scheme: light;
+  --t-canvas:        #f8f8f2;
+  --t-inset:         #efefea;
+  --t-surface:       #ffffff;
+  --t-selection:     #e9e9e3;
+  --t-border:        #e9e9e3;
+  --t-overlay-bg:    #ffffff;
+  --t-text:          #282a36;
+  --t-muted:         #4f5b8a;
+  --t-disabled:      #6272a4;
+  --t-accent:        #7c4dff;
+  --t-accent-solid:  #7c4dff;
+  --t-on-accent:     #ffffff;
+  --t-link:          #7c4dff;
+  --t-success:       #1a8f1a;
+  --t-warning:       #c47f17;
+  --t-danger:        #e30000;
+  --t-info:          #0189c1;
+  --t-hue-red:       #e30000;
+  --t-hue-orange:    #c47f17;
+  --t-hue-yellow:    #b89500;
+  --t-hue-green:     #1a8f1a;
+  --t-hue-cyan:      #0189c1;
+  --t-hue-purple:    #7c4dff;
+  --t-hue-pink:      #dc3eb7;
+  --t-shadow-sm:     0 1px 2px rgb(0 0 0 / 0.08);
+  --t-shadow-md:     0 4px 16px rgb(0 0 0 / 0.12);
+  --t-shadow-lg:     0 16px 48px rgb(0 0 0 / 0.18);
+}
+
+/* Tone → colour resolution. Any component carrying data-tone gets `--t-tone` set here once, so a
+   skin styles `.t-badge { color: var(--t-tone) }` and never enumerates tones itself. Skins may add
+   rules per tone but must keep these names. */
+[data-tone="neutral"] { --t-tone: var(--t-disabled); }
+[data-tone="accent"]  { --t-tone: var(--t-accent); }
+[data-tone="success"] { --t-tone: var(--t-success); }
+[data-tone="warning"] { --t-tone: var(--t-warning); }
+[data-tone="danger"]  { --t-tone: var(--t-danger); }
+[data-tone="info"]    { --t-tone: var(--t-info); }
+[data-tone="text"]    { --t-tone: var(--t-text); }
+[data-tone="red"]     { --t-tone: var(--t-hue-red); }
+[data-tone="orange"]  { --t-tone: var(--t-hue-orange); }
+[data-tone="yellow"]  { --t-tone: var(--t-hue-yellow); }
+[data-tone="green"]   { --t-tone: var(--t-hue-green); }
+[data-tone="cyan"]    { --t-tone: var(--t-hue-cyan); }
+[data-tone="purple"]  { --t-tone: var(--t-hue-purple); }
+[data-tone="pink"]    { --t-tone: var(--t-hue-pink); }

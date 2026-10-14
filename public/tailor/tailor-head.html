@@ -1,0 +1,19 @@
+<!-- managed by tailor v0.1.0 — head snippet — do not edit, run `tailor sync` -->
+<!-- Paste into <head>. Load order (core/conventions.md §1): tokens → base → layout → pre-paint
+     (writes the skin + palette links so they cascade over tokens.css) → your app.css after. -->
+<link rel="stylesheet" href="/tailor/tokens.css">
+<link rel="stylesheet" href="/tailor/base.css">
+<link rel="stylesheet" href="/tailor/layout.css">
+<script>
+(function(){var C={"project":"sentinel","base":"/tailor/","skins":["webtui","none"],"palettes":["dracula"],"modes":{"dracula":["dark","light"]},"defaults":{"skin":"webtui","palette":"dracula","mode":"dark"}};var P=C.project,q=new URLSearchParams(location.search);
+function g(k){var v=q.get(k);try{return v||localStorage.getItem(P+'.'+k)||C.defaults[k]}catch(e){return v||C.defaults[k]}}
+var h=document.documentElement,s=g('skin'),p=g('palette'),m=g('mode');
+if(C.skins.indexOf(s)<0)s=C.defaults.skin;if(C.palettes.indexOf(p)<0)p=C.defaults.palette;
+if(m==='auto')m=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+var modes=C.modes[p]||['dark'];if(modes.indexOf(m)<0)m=modes[0];
+h.dataset.skin=s;h.dataset.palette=p;h.dataset.mode=m;window.TAILOR_CONFIG=C;
+document.write('<link id="t-skin" rel="stylesheet" data-base="'+C.base+'skins/" href="'+(s==='none'?'':C.base+'skins/'+s+'/skin.css')+'"'+(s==='none'?' disabled':'')+'>');
+document.write('<link id="t-palette" rel="stylesheet" data-base="'+C.base+'palettes/" href="'+C.base+'palettes/'+p+'.css">');})();
+</script>
+<script src="/tailor/tailor.js" defer></script>
+<script>document.addEventListener('DOMContentLoaded',function(){if(window.Tailor)Tailor.theme.init(window.TAILOR_CONFIG)});</script>
