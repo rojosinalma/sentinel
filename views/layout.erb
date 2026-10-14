@@ -14,8 +14,8 @@
 <div class="t-shell" data-sidebar="none">
   <header class="t-navbar t-shell-nav">
     <a class="t-navbar-brand" href="/"><i class="t-icon bi bi-shield-shaded" aria-hidden="true"></i>sentinel</a>
-    <span class="t-badge" data-tone="info" data-variant="tint" title="Which instance of this page answered"><i class="bi bi-hdd-network"></i> served by <%= @host %></span>
-    <span id="stale" class="t-badge d-none" data-tone="warning" data-variant="solid" title="Last refresh failed; showing the previous result"><i class="bi bi-wifi-off"></i> stale</span>
+    <span class="t-badge" data-tone="info" data-variant="tint" title="Which instance of this page answered"><i class="bi bi-hdd-network" aria-hidden="true"></i> served by <%= @host %></span>
+    <span id="stale" class="t-badge" data-tone="warning" data-variant="solid" hidden title="Last refresh failed; showing the previous result"><i class="bi bi-wifi-off" aria-hidden="true"></i> stale</span>
     <div class="t-navbar-end">
       <select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin" title="Skin">
         <% %w[webtui bootstrap daisyui govuk luz pico simple tufte].each do |s| %><option value="<%= s %>"><%= s %></option><% end %>
@@ -42,34 +42,11 @@
   </footer>
 </div>
 
-<%# app.js appends .toast-item here; the region is tailor's toast stack %>
-<div id="toast-container" class="t-toasts" aria-live="polite" aria-atomic="false"></div>
+<%# Tailor.toast appends .t-toast here %>
+<div id="t-toasts" class="t-toasts" aria-live="polite" aria-atomic="false"></div>
 
-<script>
-  window.STANDBY = { refreshS: <%= @refresh_s.to_i %>, host: <%== @host.to_json %> };
-  // Transitional shim: app.js still drives its two dialogs through the Bootstrap Modal API
-  // (getOrCreateInstance().show()/hide(), data-bs-dismiss, the hidden.bs.modal event). The dialogs
-  // are native <dialog class="t-dialog"> now, so map that API onto showModal()/close() until
-  // app.js is ported to Tailor.confirm / Tailor.dialogs.
-  window.bootstrap = { Modal: { getOrCreateInstance: function (el) {
-    if (!el._shim) {
-      el._shim = {
-        show: function () {
-          el.querySelectorAll('.modal-title').forEach(function (h) { h.classList.add('t-dialog-title'); });
-          el.querySelectorAll('.btn:not(.t-btn)').forEach(function (b) {
-            b.classList.add('t-btn');
-            b.dataset.variant = b.classList.contains('btn-danger') ? 'danger' : b.classList.contains('btn-primary') ? 'primary' : 'secondary';
-          });
-          if (!el.open) el.showModal();
-        },
-        hide: function () { if (el.open) el.close(); }
-      };
-      el.addEventListener('close', function () { el.dispatchEvent(new Event('hidden.bs.modal')); });
-      el.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function (b) { b.addEventListener('click', function () { el._shim.hide(); }); });
-    }
-    return el._shim;
-  } } };
-</script>
-<script src="/js/app.js"></script>
+<script>window.STANDBY = { refreshS: <%= @refresh_s.to_i %>, host: <%== @host.to_json %> };</script>
+<%# deferred so it runs after tailor.js (also deferred, earlier in <head>) %>
+<script src="/js/app.js" defer></script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 <header class="t-page-header">
   <h1 class="t-page-title">sentinel · <span id="node-name"><%= @host %></span></h1>
-  <span id="flag-quorum" class="badge badge-tint tint-muted badge-lg" title="Majority agreement across the cluster nodes"><i class="bi bi-diagram-3"></i> quorum <span id="quorum-value">…</span></span>
-  <span id="flag-peers" class="badge badge-tint tint-muted" title="Peer sentinels this node heard from in the last cycle"><i class="bi bi-broadcast"></i> peers <span id="peers-value">—</span></span>
-  <span id="flag-hold" class="badge badge-tint tint-yellow d-none" title="state/hold is present on this node: automatic failback is paused"><i class="bi bi-pause-circle"></i> hold</span>
-  <span id="flag-transition" class="badge badge-attention d-none"></span>
-  <span id="flag-routes" class="badge badge-tint tint-cyan d-none" title="Where the public HA hostnames point (ha-routes)"></span>
+  <span id="flag-quorum" class="t-badge" data-variant="tint" data-tone="neutral" data-size="lg" title="Majority agreement across the cluster nodes"><i class="bi bi-diagram-3" aria-hidden="true"></i> quorum <span id="quorum-value">…</span></span>
+  <span id="flag-peers" class="t-badge" data-variant="tint" data-tone="neutral" title="Peer sentinels this node heard from in the last cycle"><i class="bi bi-broadcast" aria-hidden="true"></i> peers <span id="peers-value">—</span></span>
+  <span id="flag-hold" class="t-badge" data-variant="tint" data-tone="yellow" hidden title="state/hold is present on this node: automatic failback is paused"><i class="bi bi-pause-circle" aria-hidden="true"></i> hold</span>
+  <span id="flag-transition" class="t-badge" data-variant="solid" data-tone="warning" hidden></span>
+  <span id="flag-routes" class="t-badge" data-variant="tint" data-tone="info" hidden title="Where the public HA hostnames point (ha-routes)"></span>
   <div class="t-page-actions">
     <span class="nav-meta" id="cluster-meta" title="Last cycle of this node's loop"></span>
     <span class="nav-meta">v<%= @version %></span>
@@ -24,7 +24,7 @@
           <thead><tr><th>host</th><th>role</th><th>probes</th><th>peer</th></tr></thead>
           <tbody id="hosts-body"></tbody>
         </table>
-        <div class="stat-sub mt-2 d-none" id="hosts-empty">no cycle yet</div>
+        <div class="t-stat-sub mt-2" id="hosts-empty" hidden>no cycle yet</div>
       </div>
     </section>
 
@@ -32,7 +32,7 @@
       <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-clock-history" aria-hidden="true"></i>Transitions</h2></div>
       <div class="t-card-body">
         <dl class="t-facts facts-grid" id="transitions"></dl>
-        <div class="stat-sub" id="transitions-empty">no promote/demote recorded yet</div>
+        <div class="t-stat-sub" id="transitions-empty">no promote/demote recorded yet</div>
       </div>
     </section>
 
@@ -42,13 +42,13 @@
         <table class="t-table hosts-table events-table" data-density="compact">
           <tbody id="events"></tbody>
         </table>
-        <div class="stat-sub d-none" id="events-empty">no events yet</div>
+        <div class="t-stat-sub" id="events-empty" hidden>no events yet</div>
       </div>
     </section>
   </div>
 </div>
 
-<div class="t-empty d-none" id="disabled-state">
+<div class="t-empty" id="disabled-state" hidden>
   <i class="t-icon t-empty-icon bi bi-shield-slash" aria-hidden="true"></i>
   <h3 class="t-empty-title">No sentinel on this instance</h3>
   <p><code>NODE_NAME</code> is unset: nothing to show.</p>
@@ -59,11 +59,11 @@
   <div>
     <section class="t-card service-card">
       <div class="t-card-header">
-        <h2 class="t-card-title"><i class="t-icon bi bi-box" aria-hidden="true"></i><span data-f="name"></span> <a data-f="url" class="small d-none" target="_blank" rel="noopener" title="Open the service"><i class="bi bi-box-arrow-up-right"></i></a></h2>
-        <span class="badge badge-tint tint-muted" data-f="mode-badge"><i class="bi bi-circle-fill status-dot status-dot--muted"></i> primary: <span data-f="mode"></span></span>
+        <h2 class="t-card-title"><i class="t-icon bi bi-box" aria-hidden="true"></i><span data-f="name"></span> <a data-f="url" class="t-small" hidden target="_blank" rel="noopener" title="Open the service"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></h2>
+        <span class="t-badge" data-variant="tint" data-tone="neutral" data-f="mode-badge"><span class="t-dot" data-status="muted"></span> primary: <span data-f="mode"></span></span>
       </div>
       <div class="t-card-body">
-        <div class="stat-sub mb-2" data-f="since"></div>
+        <div class="t-stat-sub mb-2" data-f="since"></div>
         <table class="t-table hosts-table service-hosts mb-2" data-density="compact">
           <thead><tr><th>host</th><th>role</th><th>service</th><th>class</th></tr></thead>
           <tbody data-f="hosts"></tbody>
@@ -77,50 +77,50 @@
           <dt>acting node</dt><dd data-f="acting"></dd>
         </dl>
         <div class="timer" data-f="timer-down">
-          <div class="timer-row"><span class="stat-label" data-f="timer-down-label">primary down</span><span class="stat-value" data-f="timer-down-text">—</span></div>
-          <div class="t-progress timer-bar" data-size="sm"><div class="progress-bar" data-f="timer-down-bar" role="progressbar"></div></div>
+          <div class="timer-row"><span class="t-stat-label" data-f="timer-down-label">primary down</span><span class="t-stat-value t-mono" data-f="timer-down-text">—</span></div>
+          <div class="t-progress" data-size="sm" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="t-progress-bar" data-f="timer-down-bar"></div></div>
         </div>
         <div class="timer" data-f="timer-stable">
-          <div class="timer-row"><span class="stat-label" data-f="timer-stable-label">primary stable</span><span class="stat-value" data-f="timer-stable-text">—</span></div>
-          <div class="t-progress timer-bar" data-size="sm"><div class="progress-bar" data-f="timer-stable-bar" role="progressbar"></div></div>
+          <div class="timer-row"><span class="t-stat-label" data-f="timer-stable-label">primary stable</span><span class="t-stat-value t-mono" data-f="timer-stable-text">—</span></div>
+          <div class="t-progress" data-size="sm" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="t-progress-bar" data-f="timer-stable-bar"></div></div>
         </div>
-        <div class="stat-sub mt-2" data-f="cooldown"></div>
-        <dl class="t-facts facts-grid mt-2 d-none" data-f="replica">
+        <div class="t-stat-sub mt-2" data-f="cooldown"></div>
+        <dl class="t-facts facts-grid mt-2" data-f="replica" hidden>
           <dt>replica</dt><dd data-f="replica-value"></dd>
         </dl>
       </div>
       <div class="t-card-footer service-actions">
         <label class="t-check" data-variant="switch">
           <input class="t-check-input" type="checkbox" role="switch" data-f="hold-switch">
-          <span class="t-check-label stat-sub" data-f="hold-label">hold (block automatic failback)</span>
+          <span class="t-check-label t-stat-sub" data-f="hold-label">hold (block automatic failback)</span>
         </label>
         <div class="t-cluster mt-2" data-gap="2">
-          <button class="t-btn" data-size="sm" data-variant="warning" data-action="promote"><i class="bi bi-arrow-up-circle"></i> promote</button>
-          <button class="t-btn" data-size="sm" data-tone="success" data-action="demote"><i class="bi bi-arrow-down-circle"></i> demote</button>
+          <button class="t-btn" data-size="sm" data-variant="warning" data-action="promote"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> promote</button>
+          <button class="t-btn" data-size="sm" data-tone="success" data-action="demote"><i class="bi bi-arrow-down-circle" aria-hidden="true"></i> demote</button>
           <button class="t-btn" data-size="sm" data-variant="ghost" data-action="promote" data-dry="1">promote --dry-run</button>
           <button class="t-btn" data-size="sm" data-variant="ghost" data-action="demote" data-dry="1">demote --dry-run</button>
         </div>
-        <div class="stat-sub mt-2" data-f="actions-note"></div>
+        <div class="t-stat-sub mt-2" data-f="actions-note"></div>
       </div>
     </section>
   </div>
 </template>
 
-<!-- confirm.js contract (app.js confirmThen): #confirm-modal with #confirm-title, #confirm-body, #confirm-ok -->
-<dialog class="t-dialog" id="confirm-modal" data-variant="confirm" data-tone="danger" aria-labelledby="confirm-title">
-  <div class="t-dialog-header"><h2 class="t-dialog-title modal-title" id="confirm-title"><i class="bi bi-exclamation-triangle me-2"></i><span>Are you sure?</span></h2>
-    <button type="button" class="t-dialog-close" data-bs-dismiss="modal" aria-label="Close">×</button></div>
-  <div class="t-dialog-body" id="confirm-body"></div>
+<!-- Tailor.confirm contract: #t-confirm with #t-confirm-title (text span), #t-confirm-body, #t-confirm-ok -->
+<dialog class="t-dialog" id="t-confirm" data-variant="confirm" data-tone="danger" aria-labelledby="t-confirm-title">
+  <div class="t-dialog-header"><h2 class="t-dialog-title" id="t-confirm-title"><span class="t-icon" aria-hidden="true">▲</span><span>Are you sure?</span></h2>
+    <button type="button" class="t-dialog-close" data-dialog-close aria-label="Close">×</button></div>
+  <div class="t-dialog-body" id="t-confirm-body"></div>
   <div class="t-dialog-footer">
-    <button type="button" class="t-btn" data-bs-dismiss="modal">Cancel</button>
-    <button type="button" class="t-btn btn btn-danger" data-variant="danger" id="confirm-ok">Confirm</button>
+    <button type="button" class="t-btn" data-dialog-close>Cancel</button>
+    <button type="button" class="t-btn t-confirm-ok" data-variant="danger" id="t-confirm-ok">Confirm</button>
   </div>
 </dialog>
 
-<!-- dry-run output -->
+<!-- dry-run output (app.js showOutput: #output-modal, #output-title, #output-text) -->
 <dialog class="t-dialog" id="output-modal" data-size="lg" aria-labelledby="output-title">
   <div class="t-dialog-header"><h2 class="t-dialog-title" id="output-title">Output</h2>
-    <button type="button" class="t-dialog-close" data-bs-dismiss="modal" aria-label="Close">×</button></div>
+    <button type="button" class="t-dialog-close" data-dialog-close aria-label="Close">×</button></div>
   <div class="t-dialog-body"><pre class="t-code-pre log-tail" id="output-text"></pre></div>
-  <div class="t-dialog-footer"><button type="button" class="t-btn" data-size="sm" data-bs-dismiss="modal">Close</button></div>
+  <div class="t-dialog-footer"><button type="button" class="t-btn" data-size="sm" data-dialog-close>Close</button></div>
 </dialog>

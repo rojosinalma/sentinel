@@ -1,8 +1,11 @@
 // sentinel dashboard: one poller on /api/v1/status (the generic multi-service document) plus
 // /api/events and /api/transitions; one card per service, actions per card. Nothing here knows
-// a host or service by name — everything comes from the document.
+// a host or service by name — everything comes from the document. Markup emitted at runtime is
+// tailor vocabulary only (t-badge, t-dot, t-tone-text, t-stat-*, t-progress-bar); feedback goes
+// through Tailor.toast / Tailor.confirm and the native <dialog> elements in index.erb.
 (function () {
   const refreshMs = Math.max(2, Number(window.STANDBY.refreshS || 10)) * 1000;
+  const toastMs = 4000;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -13,15 +16,7 @@
 
   // ---------------------------------------------------------------- helpers
 
-  function toast(type, msg) {
-    const icons = { success: 'check-circle-fill', warning: 'exclamation-triangle-fill', error: 'x-circle-fill' };
-    const el = document.createElement('div');
-    el.className = `toast-item toast-${type}`;
-    el.innerHTML = `<i class="bi bi-${icons[type] || icons.error}"></i><span></span>`;
-    el.querySelector('span').textContent = msg;
-    $('toast-container').appendChild(el);
-    setTimeout(() => { el.classList.add('leaving'); setTimeout(() => el.remove(), 300); }, 4000);
-  }
+  const toast = (tone, msg) => Tailor.toast(tone, msg, { timeout: toastMs });
 
   const fmtAgo = (iso) => {
     if (!iso) return '';
@@ -37,12 +32,21 @@
     if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
     return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
   };
-  const upDown = (v) => v === 'up' ? 'val-ok' : v === 'down' ? 'val-bad' : 'val-muted';
-  const classTint = { ok: 'val-ok', standby: 'val-muted', degraded: 'val-warn', dead: 'val-bad', isolated: 'val-warn' };
-  const kindTint = {
-    'decision': 'tint-orange', 'transition.start': 'tint-orange', 'transition.end': 'tint-purple',
-    'lease.grant': 'tint-cyan', 'lease.deny': 'tint-red', 'class.change': 'tint-yellow',
-    'notify': 'tint-pink', 'hold': 'tint-yellow', 'boot': 'tint-green', 'heartbeat': 'tint-muted'
+
+  // tailor markup emitters
+  const tone = (t, html) => t === 'neutral' ? `<span class="t-muted">${html}</span>` : `<span class="t-tone-text" data-tone="${t}">${html}</span>`;
+  const sub = (html) => `<span class="t-stat-sub">${html}</span>`;
+  const badge = (t, html, title) => `<span class="t-badge" data-variant="tint" data-tone="${t}"${title ? ` title="${esc(title)}"` : ''}>${html}</span>`;
+  const dot = (status, title) => `<span class="t-dot" data-status="${status}"${title ? ` title="${esc(title)}"` : ''}></span>`;
+  const setBadge = (el, t) => { el.className = 't-badge'; el.dataset.variant = 'tint'; el.dataset.tone = t; };
+  const NONE = tone('neutral', '—');
+
+  const upDown = (v) => v === 'up' ? 'success' : v === 'down' ? 'danger' : 'neutral';
+  const classTone = { ok: 'success', standby: 'neutral', degraded: 'warning', dead: 'danger', isolated: 'warning' };
+  const kindTone = {
+    'decision': 'warning', 'transition.start': 'warning', 'transition.end': 'accent',
+    'lease.grant': 'info', 'lease.deny': 'danger', 'class.change': 'yellow',
+    'notify': 'pink', 'hold': 'yellow', 'boot': 'success', 'heartbeat': 'neutral'
   };
 
   // Role of a host within one service: primary (green) / standby (yellow) / down (red).
@@ -50,38 +54,29 @@
     const cls = ((hostDoc || {}).classes || {})[svc.name];
     const state = ((hostDoc || {}).services || {})[svc.name];
     const current = svc.mode === hostName;
-    if (cls === 'dead' || cls === 'isolated' || (current && state === 'down')) return { label: current ? 'primary · down' : 'down', tint: 'red', dot: 'stopped' };
-    if (current) return { label: 'primary', tint: 'green', dot: 'running' };
-    return { label: 'standby', tint: 'yellow', dot: 'degraded' };
+    if (cls === 'dead' || cls === 'isolated' || (current && state === 'down')) return { label: current ? 'primary · down' : 'down', role: 'down', tone: 'danger', dot: 'stopped' };
+    if (current) return { label: 'primary', role: 'primary', tone: 'success', dot: 'running' };
+    return { label: 'standby', role: 'standby', tone: 'yellow', dot: 'degraded' };
   }
-
-  // Route primary of one service: per-service field, else the document-level Hash or String.
-  function routeFor(d, name) {
-    const svc = (d.services || {})[name] || {};
-    if (svc.route_primary) return svc.route_primary;
-    const rp = d.route_primary;
-    return rp && typeof rp === 'object' ? rp[name] : rp;
-  }
-  const routesSummary = (d) => Object.keys(d.services || {}).map((n) => [n, routeFor(d, n)]).filter(([, r]) => r && r !== 'n/a');
 
   function serviceCell(state) {
-    if (!state) return '<span class="val-muted">—</span>';
+    if (!state) return NONE;
     const up = String(state).startsWith('up');
     const ver = up ? String(state).slice(3).trim() : '';
-    return `<span class="svc"><i class="bi bi-circle-fill status-dot status-dot--${up ? 'running' : 'stopped'}"></i>${up ? 'up' : esc(state)}${ver ? `<span class="ver">${esc(ver)}</span>` : ''}</span>`;
+    return `<span class="svc">${dot(up ? 'running' : 'stopped')}${up ? 'up' : esc(state)}${ver ? `<span class="ver">${esc(ver)}</span>` : ''}</span>`;
   }
 
   function timer(card, prefix, sinceIso, afterS, label, idleLabel) {
     const f = (n) => card.querySelector(`[data-f="timer-${prefix}${n}"]`);
-    const box = f(''), text = f('-text'), bar = f('-bar');
+    const box = f(''), text = f('-text'), bar = f('-bar'), track = bar.parentElement;
     f('-label').textContent = label;
-    if (!sinceIso) { box.classList.add('idle'); text.textContent = idleLabel || '—'; bar.style.width = '0%'; bar.className = 'progress-bar'; return; }
-    box.classList.remove('idle');
+    const paint = (pct, t) => { bar.style.setProperty('--t-value', `${pct}%`); bar.dataset.tone = t; track.setAttribute('aria-valuenow', pct); };
+    if (!sinceIso) { box.dataset.idle = ''; text.textContent = idleLabel || '—'; paint(0, 'success'); return; }
+    delete box.dataset.idle;
     const elapsed = (Date.now() - new Date(sinceIso).getTime()) / 1000;
     const pct = afterS ? Math.min(100, Math.round(elapsed / afterS * 100)) : 0;
     text.textContent = afterS ? `${fmtDur(elapsed)} / ${fmtDur(afterS)}` : fmtDur(elapsed);
-    bar.style.width = `${pct}%`;
-    bar.className = `progress-bar ${pct >= 100 ? 'bar-red' : pct >= 60 ? 'bar-orange' : 'bar-green'}`;
+    paint(pct, pct >= 100 ? 'danger' : pct >= 60 ? 'warning' : 'success');
   }
 
   async function getJSON(url) {
@@ -123,13 +118,14 @@
     const onConfigured = known && svc.mode === svc.primary;
 
     // header badge: who is primary; green on the configured primary, orange when failed over
-    const badge = f('mode-badge');
-    badge.className = `badge badge-tint ms-auto ${known ? (onConfigured ? 'tint-green' : 'tint-orange') : 'tint-muted'}`;
-    badge.querySelector('i').className = `bi bi-circle-fill status-dot status-dot--${known ? (onConfigured ? 'running' : 'degraded') : 'muted'}`;
-    badge.title = onConfigured ? 'running on its configured primary' : known ? `failed over to ${svc.mode} (configured primary: ${svc.primary})` : 'primary unknown';
+    const mb = f('mode-badge');
+    setBadge(mb, known ? (onConfigured ? 'success' : 'warning') : 'neutral');
+    mb.querySelector('.t-dot').dataset.status = known ? (onConfigured ? 'running' : 'degraded') : 'muted';
+    mb.title = onConfigured ? 'running on its configured primary' : known ? `failed over to ${svc.mode} (configured primary: ${svc.primary})` : 'primary unknown';
     f('mode').textContent = known ? svc.mode : 'unknown';
     const link = f('url');
-    if (svc.url) { link.href = svc.url; link.classList.remove('d-none'); link.title = `Open ${name} (${svc.url})`; } else link.classList.add('d-none');
+    link.hidden = !svc.url;
+    if (svc.url) { link.href = svc.url; link.title = `Open ${name} (${svc.url})`; }
     f('since').textContent = svc.since ? `primary since ${new Date(svc.since).toLocaleString()} (${fmtAgo(svc.since)})` : (d.note ? d.note : 'since: n/a');
 
     // hosts of this service, coloured by role
@@ -139,34 +135,34 @@
       const cls = ((hd || {}).classes || {})[name];
       const configured = h === svc.primary ? 'configured primary' : 'configured standby';
       const hu = (svc.host_urls || {})[h];
-      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} <i class="bi bi-box-arrow-up-right small opacity-50"></i></a>` : esc(h);
-      return `<tr class="host-${role.tint}"><th><i class="bi bi-circle-fill status-dot status-dot--${role.dot}"></i> ${hostCell}</th>` +
-        `<td><span class="badge badge-tint tint-${role.tint}" title="${esc(configured)}">${esc(role.label)}</span></td>` +
+      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} <i class="bi bi-box-arrow-up-right t-muted" aria-hidden="true"></i></a>` : esc(h);
+      return `<tr data-role="${role.role}"><th>${dot(role.dot)} ${hostCell}</th>` +
+        `<td>${badge(role.tone, esc(role.label), configured)}</td>` +
         `<td>${serviceCell(((hd || {}).services || {})[name])}</td>` +
-        `<td><span class="${classTint[cls] || 'val-muted'}">${esc(cls || (hd ? '—' : 'no view'))}</span></td></tr>`;
+        `<td>${tone(classTone[cls] || 'neutral', esc(cls || (hd ? '—' : 'no view')))}</td></tr>`;
     });
     f('hosts').innerHTML = rows.join('');
 
     // facts
     f('agreed').innerHTML = svc.agreed_class
-      ? `<span class="${classTint[svc.agreed_class] || ''}">${esc(svc.agreed_class)}</span>${svc.classification && svc.classification !== svc.agreed_class ? ` <span class="stat-sub">local ${esc(svc.classification)}</span>` : ''}${svc.busy ? ' · <span class="val-warn">transition in progress</span>' : ''}`
-      : '<span class="val-muted">—</span>';
+      ? `${tone(classTone[svc.agreed_class] || 'text', esc(svc.agreed_class))}${svc.classification && svc.classification !== svc.agreed_class ? ` ${sub(`local ${esc(svc.classification)}`)}` : ''}${svc.busy ? ` · ${tone('warning', 'transition in progress')}` : ''}`
+      : NONE;
     const lease = svc.lease;
     f('lease').innerHTML = lease
-      ? `<span class="val-warn">${esc(lease.holder)}</span> <span class="stat-sub">${esc(lease.action || '')} · until ${new Date(lease.expires_at).toLocaleTimeString()}</span>`
-      : '<span class="val-muted">none</span>';
+      ? `${tone('warning', esc(lease.holder))} ${sub(`${esc(lease.action || '')} · until ${new Date(lease.expires_at).toLocaleTimeString()}`)}`
+      : tone('neutral', 'none');
     f('hold').innerHTML = svc.hold
-      ? '<span class="val-warn">on</span> <span class="stat-sub">automatic failback paused</span>'
-      : `<span class="val-ok">off</span>${d.tunables && d.tunables.auto_failback ? ` <span class="stat-sub">auto failback ${esc(d.tunables.auto_failback)}</span>` : ''}`;
+      ? `${tone('warning', 'on')} ${sub('automatic failback paused')}`
+      : `${tone('success', 'off')}${d.tunables && d.tunables.auto_failback ? ` ${sub(`auto failback ${esc(d.tunables.auto_failback)}`)}` : ''}`;
     const lt = svc.last_transition;
     f('last-transition').innerHTML = lt
-      ? `${esc(lt.action)} <span class="${lt.result === 'ok' ? 'val-ok' : lt.result ? 'val-bad' : 'val-warn'}">${esc(lt.result || 'running…')}</span> <span class="stat-sub">${fmtAgo(lt.started_at)}${lt.data && lt.data.duration_s ? ` · ${esc(lt.data.duration_s)}s` : ''}${lt.node ? ` · ${esc(lt.node)}` : ''}</span>`
-      : '<span class="val-muted">none recorded</span>';
+      ? `${esc(lt.action)} ${tone(lt.result === 'ok' ? 'success' : lt.result ? 'danger' : 'warning', esc(lt.result || 'running…'))} ${sub(`${fmtAgo(lt.started_at)}${lt.data && lt.data.duration_s ? ` · ${esc(lt.data.duration_s)}s` : ''}${lt.node ? ` · ${esc(lt.node)}` : ''}`)}`
+      : tone('neutral', 'none recorded');
     const rp = svc.route_primary;
     f('routes').innerHTML = rp
-      ? `<span class="${rp === svc.mode ? 'val-ok' : rp === 'unknown' ? 'val-muted' : 'val-warn'}">→ ${esc(rp)}</span>${d.ha_connectors != null ? ` <span class="stat-sub">${esc(d.ha_connectors)} tunnel connectors</span>` : ''}`
-      : '<span class="val-muted">—</span>';
-    f('acting').innerHTML = `${esc(svc.standby)}${svc.acting ? ' <span class="stat-sub">(this node)</span>' : ' <span class="stat-sub">(actions forwarded there)</span>'}${svc.standby_stack ? ` · <span class="stat-sub">stack ${esc(svc.standby_stack)}</span>` : ''}`;
+      ? `${tone(rp === svc.mode ? 'success' : rp === 'unknown' ? 'neutral' : 'warning', `→ ${esc(rp)}`)}${d.ha_connectors != null ? ` ${sub(`${esc(d.ha_connectors)} tunnel connectors`)}` : ''}`
+      : NONE;
+    f('acting').innerHTML = `${esc(svc.standby)} ${sub(svc.acting ? '(this node)' : '(actions forwarded there)')}${svc.standby_stack ? ` · ${sub(`stack ${esc(svc.standby_stack)}`)}` : ''}`;
 
     // decider timers
     const g = svc.gates || {}, t = d.tunables || {};
@@ -182,12 +178,12 @@
 
     // replica block only when the document carries replica info for the service
     const rep = svc.replica;
-    f('replica').classList.toggle('d-none', !rep);
+    f('replica').hidden = !rep;
     if (rep) {
       f('replica-value').innerHTML = Object.entries(rep).map(([k, r]) => {
-        if (!r || typeof r !== 'object') return `${esc(k)} <span class="val-muted">${esc(r)}</span>`;
-        const cls = r.lag_s > 900 ? 'val-bad' : r.lag_s > 120 ? 'val-warn' : 'val-ok';
-        return `${esc(k)} <span class="${cls}">${r.lag_s != null ? fmtDur(r.lag_s) : esc(r.state || '—')}</span>`;
+        if (!r || typeof r !== 'object') return `${esc(k)} ${tone('neutral', esc(r))}`;
+        const t = r.lag_s > 900 ? 'danger' : r.lag_s > 120 ? 'warning' : 'success';
+        return `${esc(k)} ${tone(t, r.lag_s != null ? fmtDur(r.lag_s) : esc(r.state || '—'))}`;
       }).join(' · ');
     }
 
@@ -203,6 +199,13 @@
           : `Transitions are forwarded to the acting node (${svc.standby}) and run its hooks under a majority lease.`;
   }
 
+  function showOutput(title, text) {
+    $('output-title').textContent = title;
+    $('output-text').textContent = text;
+    const dlg = $('output-modal');
+    if (!dlg.open) dlg.showModal();
+  }
+
   function wireActions(card, name) {
     card.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -211,11 +214,9 @@
           btn.disabled = true;
           try {
             const res = await post(`/api/${action}`, { dry_run: 'true', service: name });
-            $('output-title').textContent = `${name}: ${action} --dry-run`;
-            $('output-text').textContent = res.message || '(no output)';
-            bootstrap.Modal.getOrCreateInstance($('output-modal')).show();
-            if (!res.ok) toast('error', res.message);
-          } catch (e) { toast('error', `${action} --dry-run failed: ${e.message}`); }
+            showOutput(`${name}: ${action} --dry-run`, res.message || '(no output)');
+            if (!res.ok) toast('danger', res.message);
+          } catch (e) { toast('danger', `${action} --dry-run failed: ${e.message}`); }
           finally { btn.disabled = false; }
           return;
         }
@@ -223,13 +224,13 @@
         const body = action === 'demote'
           ? `Hands <b>${esc(name)}</b> back to <b>${esc(svc.primary)}</b>: stops the stack on ${esc(svc.standby)}, restores the reverse replica onto ${esc(svc.primary)} and starts it there.`
           : `Makes <b>${esc(svc.standby)}</b> primary for <b>${esc(name)}</b>: fences ${esc(svc.primary)}, restores the replica and starts the stack on ${esc(svc.standby)}.`;
-        const ok = await confirmThen(`${action} ${name}?`, `${body}<div class="stat-sub mt-2">Runs the ${esc(name)}/${esc(action)} hook under a majority lease.</div>`, null, { label: action });
+        const ok = await Tailor.confirm(`${action} ${name}?`, `${body}<div class="t-stat-sub confirm-note">Runs the ${esc(name)}/${esc(action)} hook under a majority lease.</div>`, { label: action });
         if (!ok) return;
         btn.disabled = true;
         try {
           const res = await post(`/api/${action}`, { confirm: action, service: name });
-          toast(res.ok ? 'warning' : 'error', res.message);
-        } catch (e) { toast('error', `${action} failed: ${e.message}`); }
+          toast(res.ok ? 'warning' : 'danger', res.message);
+        } catch (e) { toast('danger', `${action} failed: ${e.message}`); }
         tick();
       });
     });
@@ -239,9 +240,9 @@
       holdBusy.add(name);
       try {
         const res = await post('/api/hold', { on: on ? 'true' : 'false', service: name });
-        toast(res.ok ? (on ? 'warning' : 'success') : 'error', res.message);
+        toast(res.ok ? (on ? 'warning' : 'success') : 'danger', res.message);
         if (!res.ok) e.target.checked = !on;
-      } catch (err) { toast('error', `hold failed: ${err.message}`); e.target.checked = !on; }
+      } catch (err) { toast('danger', `hold failed: ${err.message}`); e.target.checked = !on; }
       finally { holdBusy.delete(name); }
       tick();
     });
@@ -253,23 +254,24 @@
     $('node-name').textContent = d.node;
     document.title = `sentinel · ${d.node}`;
     const q = $('flag-quorum');
-    q.className = `badge badge-tint badge-lg ${d.quorum === 'up' ? 'tint-green' : d.quorum ? 'tint-red' : 'tint-muted'}`;
+    setBadge(q, d.quorum === 'up' ? 'success' : d.quorum ? 'danger' : 'neutral');
+    q.dataset.size = 'lg';
     $('quorum-value').textContent = d.quorum || 'no cycle yet';
     const peers = d.reachable_peers || [];
     const hostNames = Object.keys(d.hosts || {});
     const others = hostNames.filter((h) => h !== d.node);
     const pf = $('flag-peers');
-    pf.className = `badge badge-tint ${others.length && peers.length === others.length ? 'tint-green' : peers.length ? 'tint-yellow' : 'tint-muted'}`;
+    setBadge(pf, others.length && peers.length === others.length ? 'success' : peers.length ? 'yellow' : 'neutral');
     $('peers-value').textContent = others.length ? `${peers.length}/${others.length}${d.majority ? ` · majority ${d.majority}` : ''}` : '—';
     pf.title = peers.length ? `reachable: ${peers.join(', ')}` : 'no peer reachable';
-    $('flag-hold').classList.toggle('d-none', !d.hold);
+    $('flag-hold').hidden = !d.hold;
     const tr = $('flag-transition');
-    tr.classList.toggle('d-none', !d.transition);
-    tr.innerHTML = d.transition ? `<i class="bi bi-arrow-repeat"></i> ${esc(d.transition)}` : '';
+    tr.hidden = !d.transition;
+    tr.innerHTML = d.transition ? `<i class="bi bi-arrow-repeat" aria-hidden="true"></i> ${esc(d.transition)}` : '';
     const rf = $('flag-routes');
     const routeList = Object.entries(d.route_primary || {}).filter(([, h]) => h && h !== 'n/a').map(([s, h]) => `${esc(s)} → ${esc(h)}`);
-    rf.classList.toggle('d-none', !routeList.length);
-    rf.innerHTML = routeList.length ? `<i class="bi bi-signpost-split"></i> routes ${routeList.join(' · ')}${d.ha_connectors != null ? ` · ${esc(d.ha_connectors)} connectors` : ''}` : '';
+    rf.hidden = !routeList.length;
+    rf.innerHTML = routeList.length ? `<i class="bi bi-signpost-split" aria-hidden="true"></i> routes ${routeList.join(' · ')}${d.ha_connectors != null ? ` · ${esc(d.ha_connectors)} connectors` : ''}` : '';
     $('cluster-meta').textContent = d.at ? `cycle ${fmtAgo(d.at)}` : (d.note || '');
     $('generated').textContent = `${new Date().toLocaleTimeString()}${d.status_age_s != null ? ` · status age ${d.status_age_s}s` : ''}`;
 
@@ -277,16 +279,16 @@
     const body = hostNames.map((h) => {
       const hd = d.hosts[h] || {};
       const probes = Object.entries(hd.probes || {}).filter(([, v]) => v)
-        .map(([p, v]) => `<span class="${upDown(v)}" title="${esc(p)} ${esc(v)}">${esc(p)}</span>`).join(' ');
-      const peer = h === d.node ? '<span class="val-muted">self</span>'
-        : peers.includes(h) ? '<span class="val-ok">reachable</span>' : '<span class="val-bad">unreachable</span>';
+        .map(([p, v]) => `<span class="t-tone-text" data-tone="${upDown(v)}" title="${esc(p)} ${esc(v)}">${esc(p)}</span>`).join(' ');
+      const peer = h === d.node ? tone('neutral', 'self')
+        : peers.includes(h) ? tone('success', 'reachable') : tone('danger', 'unreachable');
       const roles = svcNames.filter((s) => d.services[s].primary === h || d.services[s].standby === h)
         .map((s) => `${s}: ${d.services[s].primary === h ? 'primary' : 'standby'}`);
-      const role = hd.role === 'witness' ? '<span class="badge badge-tint tint-purple">witness</span>' : `<span class="stat-sub">${esc(roles.join(', ') || hd.role || '—')}</span>`;
-      return `<tr><th>${esc(h)}</th><td>${role}</td><td>${probes || '<span class="val-muted">—</span>'}</td><td>${peer}</td></tr>`;
+      const role = hd.role === 'witness' ? badge('accent', 'witness') : sub(esc(roles.join(', ') || hd.role || '—'));
+      return `<tr><th>${esc(h)}</th><td>${role}</td><td>${probes || NONE}</td><td>${peer}</td></tr>`;
     });
     $('hosts-body').innerHTML = body.join('');
-    $('hosts-empty').classList.toggle('d-none', body.length > 0);
+    $('hosts-empty').hidden = body.length > 0;
     $('hosts-meta').textContent = hostNames.length ? `${hostNames.length} hosts · ${svcNames.length} service${svcNames.length === 1 ? '' : 's'}` : '';
   }
 
@@ -302,11 +304,11 @@
 
   function renderEvents(events) {
     const rows = (events || []).filter((e) => e.kind !== 'heartbeat').slice(0, 15).map((e) =>
-      `<tr><td class="text-nowrap stat-sub" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
-      `<td class="text-nowrap"><span class="badge badge-tint ${kindTint[e.kind] || 'tint-muted'}">${esc(e.kind)}</span></td>` +
-      `<td>${e.service ? `<span class="stat-sub">${esc(e.service)} · </span>` : ''}${esc(e.message)}</td></tr>`);
+      `<tr><td class="t-stat-sub" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
+      `<td>${badge(kindTone[e.kind] || 'neutral', esc(e.kind))}</td>` +
+      `<td>${e.service ? sub(`${esc(e.service)} · `) : ''}${esc(e.message)}</td></tr>`);
     $('events').innerHTML = rows.join('');
-    $('events-empty').classList.toggle('d-none', rows.length > 0);
+    $('events-empty').hidden = rows.length > 0;
     $('events-meta').textContent = rows.length ? `${rows.length} shown · heartbeats hidden` : '';
   }
 
@@ -314,18 +316,18 @@
     const rows = (transitions || []).slice(0, 6).map((t) => {
       const ok = t.result === 'ok';
       const dur = t.data && t.data.duration_s ? ` · ${t.data.duration_s}s` : '';
-      return `<dt>${esc(t.service)} ${esc(t.action)}</dt><dd><span class="${ok ? 'val-ok' : t.result ? 'val-bad' : 'val-warn'}">${esc(t.result || 'running…')}</span>` +
-        `<span class="stat-sub"> ${fmtAgo(t.started_at)}${dur} · ${esc(t.node || '')}</span></dd>`;
+      return `<dt>${esc(t.service)} ${esc(t.action)}</dt><dd>${tone(ok ? 'success' : t.result ? 'danger' : 'warning', esc(t.result || 'running…'))}` +
+        ` ${sub(`${fmtAgo(t.started_at)}${dur} · ${esc(t.node || '')}`)}</dd>`;
     });
     $('transitions').innerHTML = rows.join('');
-    $('transitions-empty').classList.toggle('d-none', rows.length > 0);
+    $('transitions-empty').hidden = rows.length > 0;
   }
 
   // ---------------------------------------------------------------- state-change toasts
 
   function diff(prev, cur) {
     if (!prev) return;
-    if ((prev.quorum || null) !== (cur.quorum || null) && cur.quorum) toast(cur.quorum === 'up' ? 'success' : 'error', `quorum ${cur.quorum}`);
+    if ((prev.quorum || null) !== (cur.quorum || null) && cur.quorum) toast(cur.quorum === 'up' ? 'success' : 'danger', `quorum ${cur.quorum}`);
     if (!!prev.hold !== !!cur.hold) toast('warning', cur.hold ? 'hold set: failback paused' : 'hold released');
     if ((prev.transition || null) !== (cur.transition || null) && cur.transition) toast('warning', `transition: ${cur.transition}`);
     Object.entries(cur.route_primary || {}).forEach(([name, host]) => {
@@ -350,12 +352,12 @@
     if (enabled === false) return;
     try {
       const d = await getJSON('/api/v1/status');
-      if (!d) { $('disabled-state').classList.remove('d-none'); return; }
+      if (!d) { $('disabled-state').hidden = false; return; }
       if (!d.ok) throw new Error(d.message || 'not ok');
       enabled = true;
       if (failures > 0) toast('success', 'status refresh recovered');
       failures = 0;
-      $('stale').classList.add('d-none');
+      $('stale').hidden = true;
       diff(previous, d);
       render(d);
       previous = d;
@@ -364,8 +366,8 @@
       if (tr) renderTransitions(tr.transitions);
     } catch (e) {
       failures += 1;
-      $('stale').classList.remove('d-none');
-      if (failures === 1) toast('error', `status refresh failed: ${e.message}`);
+      $('stale').hidden = false;
+      if (failures === 1) toast('danger', `status refresh failed: ${e.message}`);
     }
   }
 
@@ -374,23 +376,3 @@
   setInterval(() => { if (previous) render(previous); }, 1000); // keep the timers ticking between polls
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 })();
-
-// The house confirm modal (web-ui-design skill, assets/reference/confirm.js).
-function confirmThen(title, bodyHtml, onOk, { label = 'Confirm', danger = true } = {}) {
-  const el = document.getElementById('confirm-modal');
-  const ok = el.querySelector('#confirm-ok');
-  const h = el.querySelector('#confirm-title');
-  h.className = 'modal-title' + (danger ? ' text-danger' : '');
-  h.innerHTML = `<i class="bi ${danger ? 'bi-exclamation-triangle' : 'bi-question-circle'} me-2"></i><span></span>`;
-  h.lastChild.textContent = title;
-  el.querySelector('#confirm-body').innerHTML = bodyHtml;
-  ok.textContent = label;
-  ok.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
-  const modal = bootstrap.Modal.getOrCreateInstance(el);
-  return new Promise((resolve) => {
-    let confirmed = false;
-    ok.onclick = () => { confirmed = true; modal.hide(); };
-    el.addEventListener('hidden.bs.modal', () => { ok.onclick = null; if (confirmed && onOk) onOk(); resolve(confirmed); }, { once: true });
-    modal.show();
-  });
-}
