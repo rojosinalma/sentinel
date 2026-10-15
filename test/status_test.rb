@@ -69,7 +69,7 @@ class StatusTest < Minitest::Test
     assert_equal "up", s["silver_host"]
     assert_equal "ok", s["classification"]
     assert_equal 0, s["dead_polls"]
-    assert_equal({ "ssh" => "up", "icmp" => "down", "traefik" => "down" }, s["host_probes"])
+    assert_equal({ "ssh" => "up", "icmp" => "down", "https" => "down", "traefik" => "down" }, s["host_probes"])
     assert_equal 2, s["poll_interval_s"]
     assert_equal 5, s["dead_confirm_polls"]
     assert_equal false, s["promoting"]
@@ -156,7 +156,7 @@ class StatusTest < Minitest::Test
     assert_equal "up", v1[:quorum]
     assert_equal 0, v1[:status_age_s]
     assert_equal %w[silver tiny witness-1], v1[:hosts].keys
-    assert_equal({ ssh: "up", icmp: nil, traefik: nil }, v1[:hosts]["silver"][:probes])
+    assert_equal({ ssh: "up", icmp: nil, https: nil }, v1[:hosts]["silver"][:probes])
     assert_equal({ "_example" => "up 1.0" }, v1[:hosts]["silver"][:services])
     assert_equal({ "_example" => "ok" }, v1[:hosts]["witness-1"][:classes])
     e = v1[:services]["_example"]

@@ -5,7 +5,7 @@ require_relative "test_helper"
 class HostViewTest < Minitest::Test
   def view(**over)
     defaults = { name: "silver", services: { "opencode" => "up 2.0.25" }, ssh: "up", icmp: "up",
-                 traefik: "up", probed_at: Time.utc(2026, 1, 1, 12, 0, 0) }
+                 https: "up", probed_at: Time.utc(2026, 1, 1, 12, 0, 0) }
     Sentinel::HostView.new(**defaults.merge(over)).freeze
   end
 
@@ -27,9 +27,9 @@ class HostViewTest < Minitest::Test
 
   def test_any_host_probe_up
     assert view.any_host_probe_up?
-    refute view(ssh: "down", icmp: "down", traefik: "down").any_host_probe_up?
-    assert view(ssh: "down", icmp: "down", traefik: "up").any_host_probe_up?
-    refute view(ssh: nil, icmp: nil, traefik: nil).any_host_probe_up?
+    refute view(ssh: "down", icmp: "down", https: "down").any_host_probe_up?
+    assert view(ssh: "down", icmp: "down", https: "up").any_host_probe_up?
+    refute view(ssh: nil, icmp: nil, https: nil).any_host_probe_up?
   end
 
   def test_version
@@ -38,6 +38,14 @@ class HostViewTest < Minitest::Test
     assert_nil view(services: { "opencode" => "up ?" }).version("opencode")
     assert_nil view(services: { "opencode" => "down" }).version("opencode")
     assert_nil view(services: {}).version("opencode")
+  end
+
+  def test_https_keeps_deprecated_traefik_alias
+    hash = view(https: "down").to_h
+    assert_equal "down", hash["https"]
+    assert_equal "down", hash["traefik"], "peers on an older release read the old key"
+    old_peer = hash.reject { |k, _| k == "https" }.merge("traefik" => "up")
+    assert_equal "up", Sentinel::HostView.from_h(old_peer).https
   end
 
   def test_to_h_from_h_roundtrip

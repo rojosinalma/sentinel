@@ -474,7 +474,7 @@ module Sentinel
     def probes_str(view)
       return nil unless view
 
-      "ssh=#{view.ssh || '-'} icmp=#{view.icmp || '-'} traefik=#{view.traefik || '-'}"
+      "ssh=#{view.ssh || '-'} icmp=#{view.icmp || '-'} https=#{view.https || '-'}"
     end
 
     def iso(time) = time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")

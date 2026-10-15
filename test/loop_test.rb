@@ -40,7 +40,7 @@ class LoopTest < Minitest::Test
         [svc, @down.include?("#{host.name}/#{svc}") ? "down" : "up 1.0"]
       end
       Sentinel::HostView.new(name: host.name, services: services, ssh: "up", icmp: nil,
-                             traefik: nil, probed_at: now).freeze
+                             https: nil, probed_at: now).freeze
     end
 
     def quorum(_targets, timeout:) = "up"

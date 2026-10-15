@@ -16,8 +16,9 @@ module Sentinel
       if (ssh_port = host.probes[:ssh])
         jobs[:ssh] = -> { Tcp.open?(host.address, ssh_port, timeout: timeout) }
       end
-      if (traefik_port = host.probes[:traefik])
-        jobs[:traefik] = -> { Tcp.open?(host.address, traefik_port, timeout: timeout) }
+      # https: TCP 443 (Ingressi Caddy). `traefik` is the pre-2026-10-15 name of the same probe.
+      if (https_port = host.probes[:https] || host.probes[:traefik])
+        jobs[:https] = -> { Tcp.open?(host.address, https_port, timeout: timeout) }
       end
       if host.probes[:icmp]
         jobs[:icmp] = -> { Icmp.up?(host.address, timeout: timeout) }
@@ -44,7 +45,7 @@ module Sentinel
         end,
         ssh: jobs.key?(:ssh) ? up_down(results[:ssh]) : nil,
         icmp: jobs.key?(:icmp) ? up_down(results[:icmp]) : nil,
-        traefik: jobs.key?(:traefik) ? up_down(results[:traefik]) : nil,
+        https: jobs.key?(:https) ? up_down(results[:https]) : nil,
         probed_at: now
       ).freeze
     end

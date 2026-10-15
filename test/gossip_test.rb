@@ -142,7 +142,7 @@ class GossipTest < Minitest::Test
   def test_local_view_shape_and_seq
     g = gossip({ "http://silver:4197" => ->(*) { raise "x" }, "http://witness-1:4197" => ->(*) { raise "x" } })
     hosts = { "silver" => Sentinel::HostView.new(name: "silver", services: { "opencode" => "down", "other" => "up 1" },
-                                                 ssh: "up", icmp: "up", traefik: "up", probed_at: @clock.now),
+                                                 ssh: "up", icmp: "up", https: "up", probed_at: @clock.now),
               "witness-1" => Sentinel::HostView.new(name: "witness-1", ssh: "up", probed_at: @clock.now) }
     classes = { "opencode" => { "silver" => :degraded, "witness-1" => :ok }, "other" => { "silver" => :ok } }
     2.times do |i|
