@@ -32,9 +32,9 @@ services:
           create_host_path: false
     networks:
       - default
-      - traefik-proxy
+      - ingress
 
 networks:
   default: {}
-  traefik-proxy:
+  ingress:
     external: true
