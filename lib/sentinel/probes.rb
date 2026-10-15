@@ -4,10 +4,10 @@ require "json"
 
 module Sentinel
   # Fans a host's probes out in parallel (one cycle costs one timeout, not the sum) and folds
-  # the results into a HostView. The service mapping is the bash primary_service_status: a 401
-  # proves the server is up even when the credential is stale. service_urls is {service => url}
+  # the results into a HostView. Service mapping: 200 with a JSON "version" -> "up <version>",
+  # 401 -> "up auth?" (the server answers even when the credential is stale), else "down". service_urls is {service => url}
   # for every service the host carries; service_probes is {service => Config::Probe} (credential,
-  # headers, per-host ip) — a service without one is probed plain.
+  # headers, per-host ip, tls_verify) — a service without one is probed plain.
   module Probes
     module_function
 
@@ -16,7 +16,7 @@ module Sentinel
       if (ssh_port = host.probes[:ssh])
         jobs[:ssh] = -> { Tcp.open?(host.address, ssh_port, timeout: timeout) }
       end
-      # https: TCP 443 (the reverse proxy Caddy)
+      # https: a TCP open on the host's web port
       if (https_port = host.probes[:https])
         jobs[:https] = -> { Tcp.open?(host.address, https_port, timeout: timeout) }
       end
@@ -31,7 +31,8 @@ module Sentinel
         svc_timeout = service_timeouts[service] || timeout
         jobs[[:service, service]] = lambda do
           service_status(url, basic: probe&.basic, headers: probe&.headers,
-                              resolve_ip: probe&.resolve_ip(host.name), timeout: svc_timeout)
+                              resolve_ip: probe&.resolve_ip(host.name), timeout: svc_timeout,
+                              tls_verify: probe.nil? || probe.tls_verify != false)
         end
       end
 
@@ -61,8 +62,8 @@ module Sentinel
       Workers.parallel(jobs, timeout: timeout + 1.0).values.any? { |v| v == true } ? "up" : "down"
     end
 
-    def service_status(url, timeout:, basic: nil, headers: nil, resolve_ip: nil)
-      res = Http.get(url, basic: basic, headers: headers, resolve_ip: resolve_ip, timeout: timeout, tls_verify: false)
+    def service_status(url, timeout:, basic: nil, headers: nil, resolve_ip: nil, tls_verify: true)
+      res = Http.get(url, basic: basic, headers: headers, resolve_ip: resolve_ip, timeout: timeout, tls_verify: tls_verify)
       case res[:code]
       when 200
         version = JSON.parse(res[:body])["version"] rescue nil

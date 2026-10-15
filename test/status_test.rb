@@ -6,7 +6,7 @@ require "json"
 require "yaml"
 
 class StatusTest < Minitest::Test
-  # The bash sentinel's exact key order (live /status, 2026-10-11). Byte compatibility.
+  # The legacy /status document's exact key order (frozen contract, pinned 2026-10-11).
   BASH_KEYS = %w[
     mode since primary_service primary_service_version primary_host primary_host_health quorum
     classification dead_polls host_probes poll_interval_s dead_confirm_polls promoting transition
@@ -84,7 +84,7 @@ class StatusTest < Minitest::Test
     assert_equal 0, s["flips_in_window"]
     assert_nil s["standby_stack"]
     assert_equal "ha-routes", s["route_mode"]
-    assert_equal "unknown", s["route_primary"], "bash parity: no ha-routes binary -> unknown"
+    assert_equal "unknown", s["route_primary"], "legacy contract: no ha-routes binary -> unknown"
     assert_nil s["ha_connectors"]
     assert_match(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/, s["checked_at"])
     assert_equal 0, s["status_age_s"]

@@ -5,12 +5,12 @@ require "yaml"
 
 class ConfigTest < Minitest::Test
   def setup
-    @saved = ENV.to_h.slice("NODE_NAME", "CLUSTER_FILE", "POLL_INTERVAL_S", "AUTO_PROMOTE")
+    @saved = ENV.to_h.slice("NODE_NAME", "CLUSTER_FILE", "POLL_INTERVAL_S", "AUTO_PROMOTE", "ROUTE_MODE")
     Sentinel::Config.reset!
   end
 
   def teardown
-    %w[NODE_NAME CLUSTER_FILE POLL_INTERVAL_S AUTO_PROMOTE].each { |k| ENV.delete(k) }
+    %w[NODE_NAME CLUSTER_FILE POLL_INTERVAL_S AUTO_PROMOTE ROUTE_MODE].each { |k| ENV.delete(k) }
     @saved.each { |k, v| ENV[k] = v }
     Sentinel::Config.reset!
   end
@@ -154,14 +154,33 @@ class ConfigTest < Minitest::Test
     end
   end
 
-  def test_service_routes_default_to_ha_routes_group_named_after_the_service
+  def test_service_routes_default_to_off_group_named_after_the_service
     cluster = Sentinel::Config::Cluster.new(YAML.safe_load(CLUSTER_YML), node_name: "node-b")
     routes = cluster.service("opencode").routes
-    assert_equal "ha-routes", routes.mode
+    assert_equal "off", routes.mode
     assert_equal "opencode", routes.group
     assert_empty routes.pihole_names
-    assert routes.ha_routes?
+    refute routes.ha_routes?
     assert routes.frozen?
+  end
+
+  def test_route_mode_defaults_to_off
+    ENV.delete("ROUTE_MODE")
+    assert_equal "off", Sentinel::Config.fetch(:ROUTE_MODE)
+    assert_equal "", Sentinel::Config.fetch(:ROUTES_ENV_FILE)
+    assert_equal "", Sentinel::Config.fetch(:LEGACY_REDIRECT_FROM)
+    assert_equal "", Sentinel::Config.fetch(:LEGACY_REDIRECT_TO)
+  end
+
+  def test_probe_tls_verify_defaults_true_and_parses_false
+    doc = YAML.safe_load(CLUSTER_YML)
+    assert_equal true, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
+    doc["services"]["opencode"]["probe"] = { "tls_verify" => false }
+    assert_equal false, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
+    doc["services"]["opencode"]["probe"] = { "tls_verify" => "no" }
+    assert_equal false, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
+    doc["services"]["opencode"]["probe"] = { "tls_verify" => true }
+    assert_equal true, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
   end
 
   def test_service_routes_parsed
@@ -172,7 +191,7 @@ class ConfigTest < Minitest::Test
     }
     doc["services"]["grouped"] = {
       "primary" => "node-a", "standby" => "node-b", "health" => {},
-      "routes" => { "group" => "ha-foo" }
+      "routes" => { "mode" => "ha-routes", "group" => "ha-foo" }
     }
     cluster = Sentinel::Config::Cluster.new(doc, node_name: "node-b")
     beacon = cluster.service("beacon").routes
@@ -199,13 +218,13 @@ class ConfigTest < Minitest::Test
         app:
           primary: node-a
           standby: node-b
-          health: {node-a: "http://10.0.0.1:4096/api/info", node-b: "https://app-node-b.node-b.example.com/health"}
+          health: {node-a: "http://10.0.0.1:4096/api/info", node-b: "https://app-b.example.com/health"}
           url: https://app.example.com
-          host_urls: {node-a: https://app.node-a.example.com}
+          host_urls: {node-a: https://app-a.example.com}
     YAML
     svc = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "node-a").services["app"]
     assert_equal "https://app.example.com", svc.url
-    assert_equal({ "node-a" => "https://app.node-a.example.com", "node-b" => "https://app-node-b.node-b.example.com" }, svc.host_urls)
+    assert_equal({ "node-a" => "https://app-a.example.com", "node-b" => "https://app-b.example.com" }, svc.host_urls)
   end
 
   private

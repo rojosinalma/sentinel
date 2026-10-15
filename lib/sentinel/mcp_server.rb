@@ -4,10 +4,15 @@ require "json"
 require "mcp"
 
 module Sentinel
-  # MCP tools over the same runtime the dashboard uses (pattern: a sibling project's lib/mcp_server.rb).
+  # MCP tools over the same runtime the dashboard uses.
   # Mounted at POST /mcp behind the SENTINEL_MCP_TOKEN bearer; stateless.
   module McpServer
     TOOLS = []
+    VERSION = begin
+      File.read(File.expand_path("../../VERSION", __dir__)).strip
+    rescue SystemCallError
+      "dev"
+    end
 
     module_function
 
@@ -43,9 +48,9 @@ module Sentinel
       MCP::Server.new(
         name: "sentinel",
         title: "sentinel",
-        version: "1.0.0",
-        instructions: "The homelab's HA decision layer: one sentinel per cluster host (members plus " \
-                      "a witness) agreeing on who is primary for each service by majority. cluster " \
+        version: VERSION,
+        instructions: "sentinel: HA decision layer — one node per host (members plus witnesses) " \
+                      "agreeing by majority who is primary for each service. cluster " \
                       "lists the configured services and shows one service's view (hosts, classes, " \
                       "lease, hold); status is the legacy single-service /status document (pass " \
                       "service for another one); events and transitions are the SQLite audit trail, " \
@@ -95,7 +100,7 @@ module Sentinel
              agreed_class: entry[:agreed_class], quorum: doc[:quorum],
              reachable_peers: doc[:reachable_peers], classes: doc.dig(:classes, name),
              hosts: (doc[:views] || {}).transform_values(&:to_h),
-             lease: rt[:store].lease_current(service.name),
+             lease: Status.lease_public(rt[:store].lease_current(service.name)),
              hold: rt[:state].for(name).hold?, transition: rt[:state].for(name).transition,
              transitions: rt[:store].transitions(service: name, limit: 5)
            })

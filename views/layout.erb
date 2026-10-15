@@ -45,7 +45,7 @@
 <%# Tailor.toast appends .t-toast here %>
 <div id="t-toasts" class="t-toasts" aria-live="polite" aria-atomic="false"></div>
 
-<script>window.STANDBY = { refreshS: <%= @refresh_s.to_i %>, host: <%== @host.to_json %> };</script>
+<script>window.SENTINEL = { refreshS: <%= @refresh_s.to_i %>, host: <%== @host.to_json %> };</script>
 <%# deferred so it runs after tailor.js (also deferred, earlier in <head>) %>
 <script src="/js/app.js" defer></script>
 </body>

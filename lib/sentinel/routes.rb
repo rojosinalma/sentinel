@@ -7,8 +7,8 @@ require "uri"
 module Sentinel
   # Who the public hostnames reach (ha-routes get) and how many connectors the shared tunnel
   # has (one CF API read). Both are bounded and best-effort: an unknown answer is "unknown"/nil,
-  # never an exception. The bash sentinel refreshed these at the host-health cadence; the loop
-  # does the same, on the acting node only (that is where the CF credential lives).
+  # never an exception. The loop refreshes these at the host-health cadence, on the acting node
+  # only (that is where the CF credential lives).
   #
   # Routes are per group (`ha-routes … --group <name>`, one group per service); an ha-routes
   # that predates groups (its --help has no --group) gets the group-less calls, which act on its
@@ -62,10 +62,12 @@ module Sentinel
     def reset! = @group_support = nil
 
     # Distinct connectors registered on the tunnel, or nil when it cannot be known.
-    # Tunnel id from HA_TUNNEL_ID or the routes.env next to the ha-routes binary (bash parity).
+    # Tunnel id from HA_TUNNEL_ID, else the env file ROUTES_ENV_FILE names, else (legacy) the
+    # routes.env two levels above the ha-routes binary.
     def connectors_current(bin:, timeout:, tunnel_id: ENV["HA_TUNNEL_ID"],
-                           token: ENV["CF_API_TOKEN"], account_id: ENV["CF_ACCOUNT_ID"])
-      tunnel_id = routes_env_tunnel_id(bin) if blank?(tunnel_id)
+                           token: ENV["CF_API_TOKEN"], account_id: ENV["CF_ACCOUNT_ID"],
+                           env_file: ENV["ROUTES_ENV_FILE"])
+      tunnel_id = routes_env_tunnel_id(bin, env_file: env_file) if blank?(tunnel_id)
       return nil if blank?(tunnel_id) || blank?(token) || blank?(account_id)
 
       uri = URI("https://api.cloudflare.com/client/v4/accounts/#{account_id}/cfd_tunnel/#{tunnel_id}")
@@ -84,11 +86,9 @@ module Sentinel
       nil
     end
 
-    def routes_env_tunnel_id(bin)
-      return nil if blank?(bin)
-
-      file = File.expand_path("../../routes.env", bin)
-      return nil unless File.readable?(file)
+    def routes_env_tunnel_id(bin, env_file: nil)
+      file = blank?(env_file) ? (blank?(bin) ? nil : File.expand_path("../../routes.env", bin)) : env_file
+      return nil unless file && File.readable?(file)
 
       File.foreach(file, chomp: true) do |line|
         return Regexp.last_match(1).strip if line =~ /\AHA_TUNNEL_ID=(.+)\z/

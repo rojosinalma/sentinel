@@ -146,6 +146,11 @@ class RoutesTest < Minitest::Test
     File.write(File.expand_path("../../routes.env", bin), "FOO=1\nHA_TUNNEL_ID=abc-123\n")
     assert_equal "abc-123", Sentinel::Routes.routes_env_tunnel_id(bin)
     assert_nil Sentinel::Routes.routes_env_tunnel_id("/nonexistent/bin/x")
+    explicit = File.join(File.dirname(bin), "other.env")
+    File.write(explicit, "HA_TUNNEL_ID=from-env-file\n")
+    assert_equal "from-env-file", Sentinel::Routes.routes_env_tunnel_id(bin, env_file: explicit), "ROUTES_ENV_FILE wins"
+    assert_equal "from-env-file", Sentinel::Routes.routes_env_tunnel_id("", env_file: explicit), "no binary needed"
+    assert_equal "abc-123", Sentinel::Routes.routes_env_tunnel_id(bin, env_file: ""), "empty falls back to the legacy path"
   end
 
   def test_connectors_without_creds_is_nil

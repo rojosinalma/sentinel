@@ -16,6 +16,7 @@ class LoopTest < Minitest::Test
         standby: node-b
         health: {node-a: "http://127.0.0.1:1/api/info", node-b: "http://127.0.0.2:1/api/info"}
         hooks_dir: hooks/_example
+        routes: {mode: ha-routes}
   YAML
 
   # Two services with opposite roles: node-b acts for _example, node-a acts for _example2.
@@ -433,7 +434,7 @@ class LoopTest < Minitest::Test
       standby: node-b
       health: {node-a: "http://127.0.0.1:5/api/info", node-b: "http://127.0.0.2:5/api/info"}
       hooks_dir: hooks/_grouped
-      routes: {group: custom}
+      routes: {mode: ha-routes, group: custom}
   YAML
 
   def test_promote_switches_the_routes_once_for_ha_routes_mode_only

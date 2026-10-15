@@ -36,6 +36,9 @@ RUN bundle config set --local without development && bundle install --jobs 4
 # hooks/ is in this copy only as a fallback: every compose mounts the checkout's hooks/ over it
 # (docs/hooks.md), so a hook change is a file drop, not a rebuild.
 COPY . .
+# data/ (state, logs, sqlite) must be writable by the unprivileged user even without a volume;
+# with a bind mount, create the host dir yourself first so it is not root-owned (README).
+RUN mkdir -p data && chown -R app:app data
 
 ARG APP_VERSION=dev
 ARG BUILD_TIME=""

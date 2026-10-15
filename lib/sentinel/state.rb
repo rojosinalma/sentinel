@@ -4,9 +4,9 @@ require "fileutils"
 require "time"
 
 module Sentinel
-  # The bash-compatible state/ directory. The hooks (bash) and opencode-node-b's bin/verify read
-  # and write these files exactly as the bash sentinel did; this class is the only Ruby-side
-  # accessor. Nothing here caches: every call reads the filesystem, like the bash did.
+  # The state/ directory shared with the hooks: the hooks (bash) and external readers read and
+  # write these plain files; this class is the only Ruby-side accessor. Nothing here caches:
+  # every call reads the filesystem.
   #
   # The node root holds the cluster-wide `hold`; every service owns `STATE_DIR/<service>/`
   # (`for(service)` -> ServiceState) with its mode, transition, lock and markers. The legacy

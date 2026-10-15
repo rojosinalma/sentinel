@@ -1,27 +1,11 @@
 # frozen_string_literal: true
 
-# Every tunable has a typed default here and is overridden by the environment (.env via dotenv).
-# There is no database: the app is stateless so it can run on either host with nothing but .env.
+# The web layer's own knobs (dashboard, /health); typed defaults overridden by the environment
+# (.env via dotenv). The sentinel core's settings live in Sentinel::Config.
 module Config
   DEFAULTS = {
     "HOST_NAME"             => "unknown",
-    "SENTINEL_URL"          => "",
-    "NODE_A_OPENCODE_URL"   => "",
-    "NODE_A_WEBUI_URL" => "",
-    "NODE_B_OPENCODE_URL"     => "",
-    "NODE_B_WEBUI_URL"  => "",
-    "NODE_B_ROOT"             => "",
-    "OPENCODE_SERVER_USERNAME" => "opencode",
-    "OPENCODE_SERVER_PASSWORD" => "",
-    "PROBE_TIMEOUT_S"       => 3.0,
-    "PROBE_TLS_VERIFY"      => true,
     "REFRESH_S"             => 10,
-    "STATUS_CACHE_S"        => 2.0,
-    "LOG_TAIL_LINES"        => 20,
-    "DOH_URL"               => "https://cloudflare-dns.com/dns-query",
-    "DNS_NAMES"             => "webui.example.com,opencode.example.com",
-    "NODE_A_TUNNEL_ID"      => "",
-    "NODE_B_TUNNEL_ID"        => "",
     "OTHER_INSTANCE_URL"    => "",
     "OTHER_INSTANCE_NAME"   => "",
     "APP_VERSION"           => "dev",

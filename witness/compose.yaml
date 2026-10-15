@@ -1,0 +1,24 @@
+# Witness-node compose: no docker socket, no ssh, no hooks run here. The witness only probes,
+# gossips and votes. Plain compose at e.g. /opt/sentinel on a small (possibly ARM) host; the
+# image is multi-arch from GHCR and kept locally (pull_policy missing).
+services:
+  sentinel:
+    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.5.0}
+    pull_policy: missing
+    container_name: sentinel
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      RACK_ENV: production
+      PORT: "9292"
+      TZ: ${TZ:-UTC}
+    ports:
+      - "4197:9292"
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+      # ./hooks: a copy of the repo's hooks/ (copied alongside the compose file). The witness
+      # runs no hook, so a missing dir only mounts an empty one over the image's copy.
+      - ./hooks:/app/hooks:ro
+      # cluster.yml from the host (copied with the compose), so a voter change needs no release
+      - ./config:/app/config:ro
