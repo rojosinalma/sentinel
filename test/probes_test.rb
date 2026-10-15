@@ -55,14 +55,6 @@ class ProbesTest < Minitest::Test
     ssh_server&.close
   end
 
-  def test_legacy_traefik_probe_key_still_probes_https
-    open_server = TCPServer.new("127.0.0.1", 0)
-    host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
-                        role: :member, probes: { traefik: open_server.addr[1] })
-    assert_equal "up", Sentinel::Probes.host(host, timeout: 1).https
-  ensure
-    open_server&.close
-  end
 
   def test_service_401_is_up
     with_http_server(401, "unauthorized") do |port|

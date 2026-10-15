@@ -69,7 +69,7 @@ class StatusTest < Minitest::Test
     assert_equal "up", s["primary_host"]
     assert_equal "ok", s["classification"]
     assert_equal 0, s["dead_polls"]
-    assert_equal({ "ssh" => "up", "icmp" => "down", "https" => "down", "traefik" => "down" }, s["host_probes"])
+    assert_equal({ "ssh" => "up", "icmp" => "down", "https" => "down" }, s["host_probes"])
     assert_equal 2, s["poll_interval_s"]
     assert_equal 5, s["dead_confirm_polls"]
     assert_equal false, s["promoting"]
