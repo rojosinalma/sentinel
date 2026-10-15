@@ -16,6 +16,7 @@ class LoopTest < Minitest::Test
         standby: tiny
         health: {silver: "http://127.0.0.1:1/api/info", tiny: "http://127.0.0.2:1/api/info"}
         hooks_dir: hooks/_example
+        routes: {mode: ha-routes}
   YAML
 
   # Two services with opposite roles: tiny acts for _example, silver acts for _example2.
@@ -433,7 +434,7 @@ class LoopTest < Minitest::Test
       standby: tiny
       health: {silver: "http://127.0.0.1:5/api/info", tiny: "http://127.0.0.2:5/api/info"}
       hooks_dir: hooks/_grouped
-      routes: {group: custom}
+      routes: {mode: ha-routes, group: custom}
   YAML
 
   def test_promote_switches_the_routes_once_for_ha_routes_mode_only

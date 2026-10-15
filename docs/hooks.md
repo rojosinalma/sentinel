@@ -8,7 +8,8 @@ container restart, never an image release; the image's own `COPY` of `hooks/` is
 when that mount is removed.
 
 Reference implementations: `hooks/_example/` (the minimal contract, used by the tests),
-`hooks/opencode/` (the live opencode failover), `hooks/fleet/` (hangar + mosquitto, not wired in).
+`hooks/opencode/` and `hooks/fleet/` (the author's real-world hooks; specific to that setup, read them as
+worked examples rather than templates).
 
 ## Layout
 
@@ -36,12 +37,12 @@ Every run gets the node-wide variables plus the service's:
 | `ACTING_NODE` | this node's `NODE_NAME` (always the service's standby) |
 | `STATE_DIR` | **this service's** state dir: `<node state dir>/<service>/` — `mode`, `mode.history`, `promote.lock`, `transition`, `promote-failed`, `failback-failed`, `last-*`, `stack`/`tiny-stack`, `hold` all live here |
 | `NODE_STATE_DIR` | the node root; its `hold` is the node-wide hold (covers every service — a hook honouring hold checks both) |
-| `SN_ENV` | path of the sentinel `.env` (secrets, `TINY_ROOT`, `*_URL`, per-service `FLEET_*`/`PIHOLE_*` tunables); hooks `source` it |
+| `SN_ENV` | path of the sentinel `.env` (secrets and any hook-specific variables, e.g. the shipped examples' `TINY_ROOT`, `FLEET_*`, `PIHOLE_*`); hooks `source` it |
 | `DRY_RUN` | `true` when invoked with `--dry-run` (print the plan, change nothing), else `false` |
 
-Hooks run as the container user with the container's mounts (docker socket, ssh keys, `$TINY_ROOT`,
-the minica CA — see `tiny/compose.yaml`); anything else they need goes into `.env`, never into the
-hook.
+Hooks run as the container user with the container's mounts (docker socket, ssh keys, the service's
+data directories, a CA file — see `tiny/compose.yaml` for the acting-node example); anything else they
+need goes into `.env`, never into the hook.
 
 ## The four hooks
 
@@ -91,29 +92,29 @@ or through the API/MCP (`POST /api/promote {service, confirm:"promote"|dry_run}`
 1. **`config/cluster.yml`** — one entry under `services:` (identical on every node, synced together):
 
    ```yaml
-   fleet:
-     primary: silver
-     standby: tiny
+   app:
+     primary: node-a
+     standby: node-b
      health:
-       silver: https://hangar.example.com/health
-       tiny: https://hangar.example.com/health
+       node-a: https://app.example.com/health
+       node-b: https://app.example.com/health
      probe:                      # optional
-       username_env: FLEET_USER  # .env var names; `username:` is the literal fallback
-       password_env: FLEET_PASS
+       username_env: APP_USER    # .env var names; `username:` is the literal fallback
+       password_env: APP_PASS
        headers: {X-Probe: sentinel}
-       resolve: {silver: 192.0.2.20, tiny: 192.0.2.50}   # same URL on both hosts → connect per ip
+       resolve: {node-a: 192.0.2.10, node-b: 192.0.2.20}   # same URL on both hosts → connect per ip
+       tls_verify: true          # false for self-signed certificates
      auto_promote: false         # optional, overrides AUTO_PROMOTE for this service
      tunables: {promote_after_s: 90}   # optional, any key in Config::SERVICE_TUNABLES
-     routes: {mode: pihole}      # ha-routes (default, group = service) | pihole | off
-     hooks_dir: hooks/fleet      # optional, default hooks/<name>
+     routes: {mode: off}         # off (default) | pihole (hooks move DNS) | ha-routes (external CLI, group = service)
+     hooks_dir: hooks/app        # optional, default hooks/<name>
    ```
 
    `health` URLs are probed every cycle on each listed host (200 → `up <version>`, 401 → `up auth?`,
    anything else → `down`); a host not listed is judged on its host probes only.
 2. **`hooks/<service>/`** — the four executables above (`chmod +x`), state kept in `$STATE_DIR`,
    secrets read from `$SN_ENV`. Start from `hooks/_example/`.
-3. **Restart the sentinel container** on every node (`docker compose up -d`; on silver the compose
-   is the deployer's, use `control_service start`). The hooks mount picks the files up on its own;
-   the cluster.yml change needs the restart.
+3. **Restart the sentinel container** on every node (`docker compose up -d`). The hooks mount picks
+   the files up on its own; the cluster.yml change needs the restart.
 4. Verify: `GET /api/v1/status` lists the service; `POST /api/promote {service, dry_run: true}` on the
    acting node runs the real hook in dry-run; `GET /api/events?service=<svc>` shows its rows.

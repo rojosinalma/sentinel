@@ -7,13 +7,6 @@ require_relative "lib/log"
 require_relative "lib/config"
 require_relative "lib/workers"
 
-# Stateful files above load once; everything below reloads in development.
-RELOADED = %w[lib/probes/http lib/probes/opencode lib/probes/openchamber lib/probes/sentinel
-              lib/probes/dns lib/probes/tiny_root lib/status].freeze
-RELOADED.each do |file|
-  defined?(Unreloader) ? Unreloader.require(File.expand_path("#{file}.rb", __dir__)) : require_relative(file)
-end
-
 class App < Roda
   plugin :json
   plugin :halt
@@ -33,7 +26,7 @@ class App < Roda
   def json_ok(message, **data) = { ok: true, message: message, **data }
   def json_err(message, **data) = { ok: false, message: message, **data }
 
-  # The sentinel runtime (nil on a plain standby-status instance without NODE_NAME).
+  # The sentinel runtime (nil on an instance without NODE_NAME).
   def sentinel
     defined?(::Sentinel) && ::Sentinel.enabled? ? ::Sentinel.runtime : nil
   end
@@ -77,10 +70,22 @@ class App < Roda
     r.halt response.finish_with_body([JSON.generate(json_err(message))])
   end
 
+  # LEGACY_REDIRECT_FROM/TO: host prefixes; a request whose host starts with FROM is sent
+  # (308, path-preserving) to the same host with TO in its place. Off when either is empty.
+  def legacy_redirect_target(r)
+    from = ::Sentinel::Config.fetch(:LEGACY_REDIRECT_FROM)
+    to = ::Sentinel::Config.fetch(:LEGACY_REDIRECT_TO)
+    return nil if from.empty? || to.empty?
+
+    host = r.host.to_s
+    return nil unless host.start_with?(from)
+
+    "https://#{to}#{host.delete_prefix(from)}#{r.fullpath}"
+  end
+
   route do |r|
-    # standby.* -> sentinel.* (the page this app absorbed; permanent, path-preserving)
-    if (host = r.host.to_s).start_with?("standby.")
-      response["location"] = "https://#{host.sub(/\Astandby\./, 'sentinel.')}#{r.fullpath}"
+    if (target = legacy_redirect_target(r))
+      response["location"] = target
       response.status = 308
       r.halt response.finish
     end
@@ -89,7 +94,7 @@ class App < Roda
 
     r.get("health") { json_ok("healthy", served_by: ::Config.fetch("HOST_NAME"), version: ::Config.fetch("APP_VERSION")) }
 
-    # --- sentinel: byte-compatible with the bash sentinel's :4197/status
+    # --- the frozen legacy single-service document (lib/sentinel/status.rb)
     r.get "status" do
       rt = sentinel!(r)
       response["content-type"] = "application/json"
@@ -142,11 +147,6 @@ class App < Roda
     end
 
     r.on "api" do
-      r.get("status") do
-        response["cache-control"] = "no-store"
-        ::Status.current
-      end
-
       # ?service= narrows both to one service; absent = every service (and node-level rows).
       r.get "events" do
         rt = sentinel!(r)
@@ -194,10 +194,10 @@ class App < Roda
                 hosts: (doc[:views] || {}).transform_values(&:to_h),
                 roles: rt[:cluster].hosts.transform_values { |h| h.role.to_s },
                 gates: entry[:decider] || {},
-                lease: rt[:store].lease_current(service.name),
+                lease: ::Sentinel::Status.lease_public(rt[:store].lease_current(service.name)),
                 route_primary: ::Sentinel::Status.route_primary_for(doc, name),
                 ha_connectors: doc[:ha_connectors],
-                tiny_stack: entry[:tiny_stack],
+                standby_stack: entry[:standby_stack],
                 action_running: ::Sentinel::Actions.running,
                 checked_at: doc[:at]&.utc&.strftime("%Y-%m-%dT%H:%M:%SZ"))
       end

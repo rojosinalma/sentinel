@@ -3,8 +3,7 @@
 require "time"
 
 module Sentinel
-  # The decision state machine ported from the bash sentinel's silver_cycle / failback_cycle /
-  # promote_gate. Pure: no I/O beyond the injected State (hold, file ages, flips), no clock of
+  # The decision state machine (primary-down cycle, failback cycle, promote gate). Pure: no I/O beyond the injected State (hold, file ages, flips), no clock of
   # its own. One step per poll; the Result says what the loop should do.
   #
   # config keys (Hash, symbols): primary, standby, service, label, quorum_targets,
@@ -55,7 +54,7 @@ module Sentinel
         down_since: @down_since && iso(@down_since),
         stable_since: @stable_since && iso(@stable_since),   # silver_stable_since
         host_health: @host_health,                           # silver_host_health
-        stack: @stack,                                       # tiny_stack
+        stack: @stack,                                       # tiny_stack (legacy) / standby_stack
         flips_in_window: @flips,
         promote_cooldown_left_s: cooldown_left(now),
         promote_retry_left_s: promote_retry_left(now),

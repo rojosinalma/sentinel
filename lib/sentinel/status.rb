@@ -3,12 +3,11 @@
 require "json"
 
 module Sentinel
-  # Builds the /status document byte-compatible with the bash sentinel: same keys, same order,
-  # same types, compact JSON. Consumers that depend on it: opencode-guard (.mode), litestream-guard
-  # (substring '"mode":"tiny"' on the raw response), Gatus 79 (ha_connectors, route_primary == mode),
-  # opencode-tiny bin/verify, and the standby-status page (21 keys by name).
+  # Builds the legacy /status document: a FROZEN CONTRACT — same keys, same order, same types,
+  # compact JSON (external guards read .mode, match the raw '"mode":"…"' substring and compare
+  # route_primary with mode). test/fixtures/status_legacy.json pins it.
   #
-  # The legacy document describes one service (the opencode-era contract); `v1` is the generic
+  # The legacy document describes one service (LEGACY_SERVICE); `v1` is the generic
   # multi-service document behind /api/v1/status.
   module Status
     LEGACY_SERVICE = "opencode"
@@ -30,9 +29,8 @@ module Sentinel
 
       {
         # Live from the state file, not the cycle snapshot: a transition hook writes the mode
-        # mid-run while the loop is blocked inside it, and both opencode-guards' ExecCondition
-        # act on this field. Serving the stale snapshot kept tiny's unit skipped through the
-        # whole 2026-10-13 promote (and silver's through both auto-demotes).
+        # mid-run while the loop is blocked inside it, and external guards act on this field
+        # (2026-10-13: the stale snapshot kept a unit skipped through a whole promote).
         "mode" => state.mode(default: svc.primary),
         "since" => iso_or_nil(state.mode_since),
         "silver_opencode" => view&.service_state(service) || "down",
@@ -62,7 +60,7 @@ module Sentinel
         "failback_after_s" => snap[:failback_after_s],
         "failback_retry_left_s" => snap[:failback_retry_left_s],
         "flips_in_window" => snap[:flips_in_window],
-        "tiny_stack" => entry[:tiny_stack],
+        "tiny_stack" => entry[:standby_stack],
         "route_mode" => config[:route_mode],
         "route_primary" => route_primary_for(doc, service),
         "ha_connectors" => doc[:ha_connectors],
@@ -73,7 +71,7 @@ module Sentinel
 
     def to_json(status) = JSON.generate(status)
 
-    # The bash fallback before the first cycle, with the live overlays status-http applied.
+    # Before the first cycle: the minimal document plus the live state-file overlays.
     def no_cycle_yet(service:, state:)
       state = state.for(service.name)
       {
@@ -112,7 +110,7 @@ module Sentinel
           classification: entry&.dig(:decider, :classification),
           gates: entry ? entry[:decider] : {},
           busy: entry ? entry[:busy] : sstate.busy?,
-          standby_stack: entry && entry[:tiny_stack],
+          standby_stack: entry && entry[:standby_stack],
           hold: sstate.hold?, transition: sstate.transition,
           action_running: action_running[name],
           route_primary: doc && route_primary_for(doc, name),

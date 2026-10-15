@@ -32,11 +32,11 @@ File.write(File.join(APP_TEST_ROOT, "cluster.yml"), APP_CLUSTER)
   "LOG_DIR" => File.join(APP_TEST_ROOT, "logs"),
   "DB_PATH" => File.join(APP_TEST_ROOT, "sentinel.db"),
   "SENTINEL_MCP_TOKEN" => "test-token",
-  "TINY_ROOT" => APP_TEST_ROOT,
+  "TINY_ROOT" => APP_TEST_ROOT, # read by hooks/opencode (dry-run test)
   "OPENCODE_DATA_DIR" => File.join(APP_TEST_ROOT, "data"),
   "OPENCODE_CONFIG_DIR" => File.join(APP_TEST_ROOT, "config"),
   "SILVER_HOST" => "127.0.0.1",
-  "SILVER_OPENCODE_URL" => "http://127.0.0.1:1",
+  "TINY_HOST" => "127.0.0.1",
   "SN_ENV" => "/nonexistent-env",
   "TCP_TIMEOUT_S" => "1",
   "HTTP_TIMEOUT_S" => "1",
@@ -97,6 +97,35 @@ class AppTest < Minitest::Test
     assert body["acting"]
     assert_equal "opencode", body["service"]
     assert_equal "witness", body["roles"]["witness-1"]
+    assert body.key?("standby_stack")
+    refute body.key?("tiny_stack")
+  end
+
+  def test_api_sentinel_and_mcp_cluster_hide_the_lease_token
+    @rt[:store].lease_grant!(service: "opencode", holder: "tiny", action: "promote", token: "secret-token", ttl_s: 30)
+    body = JSON.parse(@mock.get("/api/sentinel").body)
+    assert_equal "tiny", body.dig("lease", "holder")
+    refute body["lease"].key?("token")
+    text = mcp_rpc("tools/call", { name: "cluster", arguments: {} }).dig("result", "content", 0, "text")
+    assert_includes text, '"holder": "tiny"'
+    refute_includes text, "secret-token"
+  ensure
+    @rt[:store].lease_release!("secret-token")
+  end
+
+  def test_legacy_redirect_off_by_default_and_on_when_configured
+    res = @mock.get("/health", "HTTP_HOST" => "standby.example.com")
+    assert_equal 200, res.status, "no redirect without LEGACY_REDIRECT_*"
+    ENV["LEGACY_REDIRECT_FROM"] = "standby."
+    ENV["LEGACY_REDIRECT_TO"] = "sentinel."
+    res = @mock.get("/health?x=1", "HTTP_HOST" => "standby.example.com")
+    assert_equal 308, res.status
+    assert_equal "https://sentinel.example.com/health?x=1", res["location"]
+    res = @mock.get("/health", "HTTP_HOST" => "other.example.com")
+    assert_equal 200, res.status, "hosts not starting with FROM are untouched"
+  ensure
+    ENV.delete("LEGACY_REDIRECT_FROM")
+    ENV.delete("LEGACY_REDIRECT_TO")
   end
 
   def test_api_sentinel_unknown_service_is_404
@@ -303,13 +332,14 @@ class AppTest < Minitest::Test
   def test_page_is_generic
     res = @mock.get("/")
     assert_includes res.body, 'id="service-card-tpl"'
-    assert_includes res.body, 'id="confirm-modal"'
+    assert_includes res.body, 'id="t-confirm"'
     assert_includes res.body, 'id="services-row"'
     page = res.body.sub(/served by.*?<\/span>/m, "").sub(/<footer.*<\/footer>/m, "")
     refute_match(/\b(silver|tiny|opencode|openchamber)\b/, page, "no hard-coded host or service names in the view")
     js = File.read(File.expand_path("../public/js/app.js", __dir__))
     refute_match(/\b(silver|tiny|openchamber)\b|'opencode'|"opencode"/, js, "no hard-coded host or service names in the dashboard script")
-    refute_match(%r{/api/status\b}, js, "the page no longer polls the legacy probe endpoint")
+    refute_match(%r{/api/status\b}, js, "the page no longer polls the removed /api/status endpoint")
+    assert_equal 404, @mock.get("/api/status").status, "the old probe page endpoint is gone"
     refute_match(/window\.(confirm|alert|prompt)\(/, js, "no native dialogs")
   end
 

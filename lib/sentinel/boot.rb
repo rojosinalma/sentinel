@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Sentinel
-  # Builds the runtime from Config and starts the loop thread. A node without NODE_NAME (the
-  # plain standby-status page) boots nothing and every sentinel route answers 503.
+  # Builds the runtime from Config and starts the loop thread. A node without NODE_NAME boots
+  # nothing and every sentinel route answers 503.
   class << self
     attr_reader :runtime
 

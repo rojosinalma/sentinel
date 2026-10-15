@@ -165,7 +165,7 @@ class DeciderTest < Minitest::Test
   end
 
   def test_failback_blocked_by_hold_notifies_once
-    @state.hold_on!("rojo")
+    @state.hold_on!("operator")
     step(mode: "tiny", host_health: "up")
     @clock.advance(31)
     r = step(mode: "tiny", host_health: "up")

@@ -37,9 +37,9 @@ class StateTest < Minitest::Test
 
   def test_hold
     refute @state.hold?
-    @state.hold_on!("rojo")
+    @state.hold_on!("operator")
     assert @state.hold?
-    assert_match(/rojo/, File.read(@state.path("hold")))
+    assert_match(/operator/, File.read(@state.path("hold")))
     @state.hold_off!
     refute @state.hold?
   end
@@ -138,14 +138,14 @@ class StateTest < Minitest::Test
     fleet = @state.for("fleet")
     refute oc.hold?
 
-    @state.hold_on!("rojo")
+    @state.hold_on!("operator")
     assert oc.hold?, "node-wide hold covers every service"
     assert fleet.hold?
     refute File.exist?(oc.path("hold"))
     @state.hold_off!
     refute oc.hold?
 
-    fleet.hold_on!("rojo")
+    fleet.hold_on!("operator")
     assert fleet.hold?
     refute oc.hold?, "a service hold is that service's alone"
     refute @state.hold?
@@ -161,7 +161,7 @@ class StateTest < Minitest::Test
     %w[transition promote-failed tiny-stack last-demote last-stack-repair warm.json known_hosts].each do |n|
       File.write(@state.path(n), "#{n}\n")
     end
-    @state.hold_on!("rojo")
+    @state.hold_on!("operator")
 
     moved = @state.migrate_legacy!("opencode")
     oc = @state.for("opencode")

@@ -26,7 +26,6 @@ module Sentinel
       "HOST_HEALTH_INTERVAL_S"  => 15,
       "FENCE_INTERVAL_S"        => 60,
       "STACK_CHECK_INTERVAL_S"  => 30,
-      "STACK_RETRY_S"           => 120,
       "NOTIFY_DOWN_AFTER_S"     => 60,
       "HEARTBEAT_S"             => 300,
       "AUTO_PROMOTE"            => "on",
@@ -46,12 +45,15 @@ module Sentinel
       "SENTINEL_PORT"           => 4197,
       "DISCORD_WEBHOOK_URL"     => "",
       "APPRISE_URL"             => "",
-      "ROUTE_MODE"              => "ha-routes",
+      "ROUTE_MODE"              => "off",
       "HA_ROUTES_BIN"           => "",
+      "ROUTES_ENV_FILE"         => "",
       "HA_TUNNEL_ID"            => "",
       "CF_API_TOKEN"            => "",
       "CF_ACCOUNT_ID"           => "",
       "ROUTE_TIMEOUT_S"         => 60,
+      "LEGACY_REDIRECT_FROM"    => "",
+      "LEGACY_REDIRECT_TO"      => "",
       "LOG_LEVEL"               => "info"
     }.freeze
 
@@ -60,16 +62,17 @@ module Sentinel
     end
 
     # How a service's health URLs are probed: basic = [user, pass] resolved from the env vars
-    # named in cluster.yml (nil when the password is empty), extra request headers, and
-    # resolve = {host => ip} for URLs whose hostname is the same on every host.
-    Probe = Struct.new(:basic, :headers, :resolve, keyword_init: true) do
+    # named in cluster.yml (nil when the password is empty), extra request headers,
+    # resolve = {host => ip} for URLs whose hostname is the same on every host, and
+    # tls_verify (default true; false for self-signed health endpoints).
+    Probe = Struct.new(:basic, :headers, :resolve, :tls_verify, keyword_init: true) do
       def resolve_ip(host) = resolve[host]
     end
 
     # Decider timers a service may override in cluster.yml (`tunables:`); the rest is node-wide.
     # probe_timeout_s is consumed by the probe fan-out (loop), degraded_confirm_polls by the
-    # decider: both exist because one service (opencode under load) needs a laxer probe than
-    # the node-wide 2 s without touching every other check.
+    # decider: both exist because one slow-but-healthy service may need a laxer probe than
+    # the node-wide default without touching every other check.
     SERVICE_TUNABLES = %i[promote_after_s failback_after_s promote_cooldown_s promote_retry_s
                           failback_retry_s flap_flips flap_window_s flap_failback_after_s
                           dead_confirm_polls degraded_confirm_polls probe_timeout_s
@@ -77,8 +80,8 @@ module Sentinel
                           stack_check_interval_s host_health_interval_s].freeze
 
     # How a service's public hostnames follow its primary: mode ha-routes (the core runs
-    # `ha-routes set <host> --group <group>`), pihole (the hooks rewrite Pi-hole records; the core
-    # does nothing) or off. group defaults to the service name; pihole_names are informational.
+    # `ha-routes set <host> --group <group>`), pihole (the hooks rewrite DNS records; the core
+    # does nothing) or off (default). group defaults to the service name; pihole_names are informational.
     ROUTE_MODES = %w[ha-routes pihole off].freeze
     ServiceRoutes = Struct.new(:mode, :group, :pihole_names, keyword_init: true) do
       def ha_routes? = mode == "ha-routes"
@@ -134,7 +137,7 @@ module Sentinel
       end
 
       def parse_routes(service, r)
-        mode = r.fetch("mode", "ha-routes")
+        mode = r.fetch("mode", "off")
         mode = "off" if mode == false # YAML 1.1 reads a bare `off` as false
         mode = mode.to_s
         raise Error, "service #{service}: routes.mode #{mode.inspect} not in #{ROUTE_MODES}" unless ROUTE_MODES.include?(mode)
@@ -149,7 +152,8 @@ module Sentinel
         pass = (p["password_env"] && env[p["password_env"]]).to_s
         Probe.new(basic: pass.empty? ? nil : [user, pass].freeze,
                   headers: (p["headers"] || {}).transform_values(&:to_s).freeze,
-                  resolve: (p["resolve"] || {}).freeze).freeze
+                  resolve: (p["resolve"] || {}).freeze,
+                  tls_verify: !%w[false no off 0].include?(p.fetch("tls_verify", true).to_s.downcase)).freeze
       end
 
       def parse_tunables(service, t)

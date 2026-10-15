@@ -1,0 +1,56 @@
+# The cluster table: identical on every node. NODE_NAME (in .env) tells a sentinel which `hosts`
+# row is itself. Hosts carry their probe targets; services name who acts for whom. Changing this
+# file is a deliberate cluster-wide operation: sync it to every node, then restart them one by one.
+# Keep the voter count odd; majority = floor(hosts / 2) + 1.
+#
+# Copy to config/cluster.yml (or point CLUSTER_FILE elsewhere) and edit.
+hosts:
+  node-a:                                # a member: runs services, can be primary
+    address: 192.0.2.10                  # ip the probes (ssh/https/icmp) target
+    sentinel_url: http://192.0.2.10:4197 # this node's sentinel (peer gossip, lease votes)
+    role: member                         # member | witness
+    probes: {ssh: 22, https: 443, icmp: true} # ssh/https: TCP ports; icmp: ping
+  node-b:
+    address: 192.0.2.11
+    sentinel_url: http://192.0.2.11:4197
+    role: member
+    probes: {ssh: 22, https: 443, icmp: true}
+  witness-1:                             # a witness: votes only, runs no service
+    address: 192.0.2.12
+    sentinel_url: http://192.0.2.12:4197
+    role: witness
+    probes: {ssh: 22, icmp: true}
+# host:port targets; if ANY answers, this node can see the network itself ("quorum up").
+quorum_tcp: [192.0.2.1:53]
+# services.<name>:
+#   primary/standby: host names from `hosts`; the standby is the acting node (runs the hooks)
+#   health:   {<host>: url}   probed every cycle on each host that carries the service
+#             (200 with a JSON "version" -> up <version>; 401 -> up auth?; else down)
+#   probe:    username_env/password_env name the .env vars holding the Basic credential
+#             (`username` is the literal fallback); headers are added to every request;
+#             resolve: {<host>: ip} connects to that ip while keeping the URL's hostname
+#             (Host header + SNI) for URLs that read the same on every host;
+#             tls_verify: true|false (default true) verifies the health URL's certificate
+#   auto_promote: true|false overrides AUTO_PROMOTE for this service only
+#   tunables: per-service decider timers (promote_after_s, failback_after_s, dead_confirm_polls,
+#             degraded_confirm_polls, probe_timeout_s, … — see Sentinel::Config::SERVICE_TUNABLES);
+#             anything absent is the node-wide value from .env
+#   hooks_dir: where this service's promote/demote/health/replicate live (docs/hooks.md)
+#   url:      the service's user-facing page (dashboard card title links there)
+#   host_urls: {<host>: url} to open one host's instance (default: the health URL's origin)
+#   routes:   {mode: off|ha-routes|pihole, group: <ha-routes group, default = service name>,
+#             pihole_names: [...]} — off (default): nothing; ha-routes: the core runs
+#             `ha-routes set <host> --group <group>` after a successful promote/demote;
+#             pihole: the hooks move DNS records themselves and the core does nothing
+services:
+  app:
+    primary: node-a
+    standby: node-b
+    health:
+      node-a: http://192.0.2.10:8080/health
+      node-b: http://192.0.2.11:8080/health
+    url: https://app.example.com
+    probe: {username_env: APP_USER, password_env: APP_PASSWORD, tls_verify: true}
+    tunables: {probe_timeout_s: 5, degraded_confirm_polls: 2}
+    hooks_dir: hooks/_example
+    routes: {mode: off}

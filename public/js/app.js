@@ -4,7 +4,7 @@
 // tailor vocabulary only (t-badge, t-dot, t-tone-text, t-stat-*, t-progress-bar); feedback goes
 // through Tailor.toast / Tailor.confirm and the native <dialog> elements in index.erb.
 (function () {
-  const refreshMs = Math.max(2, Number(window.STANDBY.refreshS || 10)) * 1000;
+  const refreshMs = Math.max(2, Number(window.SENTINEL.refreshS || 10)) * 1000;
   const toastMs = 4000;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

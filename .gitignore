@@ -5,3 +5,8 @@
 .tunnel
 compose.override.yaml
 data/
+config/cluster.yml
+*.db
+*.db-wal
+*.db-shm
+tmp-shots/

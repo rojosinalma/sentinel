@@ -405,7 +405,7 @@ module Sentinel
       {
         primary: service.primary, standby: service.standby, mode: mode, agreed_class: agreed,
         acting: acting, busy: busy, decider: @deciders[service.name].snapshot(now: now),
-        tiny_stack: acting && mode == service.standby ? state.stack : nil,
+        standby_stack: acting && mode == service.standby ? state.stack : nil,
         hold: state.hold?, transition: state.transition
       }
     end

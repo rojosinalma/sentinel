@@ -2,10 +2,13 @@
 */.env
 **/token
 .git
+.github/
 .gitignore
 .openchamber
-connector/
 tiny/
+witness/
+docs/
+test/
 tmp-shots/
 README.md
 AGENTS.md
