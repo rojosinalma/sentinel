@@ -1,5 +1,5 @@
 # node-a instance (NODE_NAME=node-a) — base compose owned by this repo, handed to the orchestrator
-# with PUT /api/services/:id/compose at the phase-4 cutover (the orchestrator adds Traefik/homepage
+# with PUT /api/services/:id/compose at the phase-4 cutover (the orchestrator adds homepage
 # labels in compose.override.yaml). Port 4197 is the cluster port: guards, gossip and Gatus all
 # speak to <host>:4197. Node-a is not the acting node, so no docker socket / ssh mounts here.
 services:
