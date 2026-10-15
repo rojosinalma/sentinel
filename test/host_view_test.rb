@@ -40,13 +40,6 @@ class HostViewTest < Minitest::Test
     assert_nil view(services: {}).version("opencode")
   end
 
-  def test_https_keeps_deprecated_traefik_alias
-    hash = view(https: "down").to_h
-    assert_equal "down", hash["https"]
-    assert_equal "down", hash["traefik"], "peers on an older release read the old key"
-    old_peer = hash.reject { |k, _| k == "https" }.merge("traefik" => "up")
-    assert_equal "up", Sentinel::HostView.from_h(old_peer).https
-  end
 
   def test_to_h_from_h_roundtrip
     original = view

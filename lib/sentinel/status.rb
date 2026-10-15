@@ -45,9 +45,7 @@ module Sentinel
         "host_probes" => {
           "ssh" => view&.ssh || "down",
           "icmp" => view&.icmp || "down",
-          "https" => view&.https || "down",
-          # deprecated alias of "https" (the legacy document's contract name)
-          "traefik" => view&.https || "down"
+          "https" => view&.https || "down"
         },
         "poll_interval_s" => config[:poll_interval_s],
         "dead_confirm_polls" => config[:dead_confirm_polls],

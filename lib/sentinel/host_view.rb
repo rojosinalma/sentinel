@@ -27,15 +27,14 @@ module Sentinel
     def to_h
       {
         "name" => name, "services" => services.dup, "ssh" => ssh, "icmp" => icmp,
-        # "traefik" is the deprecated alias of "https", kept so peers on an older release still read it.
-        "https" => https, "traefik" => https, "probed_at" => probed_at&.utc&.strftime("%Y-%m-%dT%H:%M:%SZ")
+        "https" => https, "probed_at" => probed_at&.utc&.strftime("%Y-%m-%dT%H:%M:%SZ")
       }
     end
 
     def self.from_h(hash)
       new(
         name: hash["name"], services: hash["services"] || {}, ssh: hash["ssh"], icmp: hash["icmp"],
-        https: hash.key?("https") ? hash["https"] : hash["traefik"],
+        https: hash["https"],
         probed_at: hash["probed_at"] && Time.iso8601(hash["probed_at"])
       ).freeze
     end
