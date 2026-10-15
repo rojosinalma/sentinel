@@ -40,12 +40,12 @@ class ProbesTest < Minitest::Test
 
     with_http_server(200, '{"version":"9.9.9"}') do |svc_port|
       host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
-                          role: :member, probes: { ssh: ssh_port, traefik: closed_port })
+                          role: :member, probes: { ssh: ssh_port, https: closed_port })
       view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" },
                                          timeout: 1)
       assert_equal "up 9.9.9", view.service_state("opencode")
       assert_equal "up", view.ssh
-      assert_equal "down", view.traefik
+      assert_equal "down", view.https
       assert_nil view.icmp
       assert view.service_up?("opencode")
       assert view.any_host_probe_up?
@@ -53,6 +53,15 @@ class ProbesTest < Minitest::Test
     end
   ensure
     ssh_server&.close
+  end
+
+  def test_legacy_traefik_probe_key_still_probes_https
+    open_server = TCPServer.new("127.0.0.1", 0)
+    host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
+                        role: :member, probes: { traefik: open_server.addr[1] })
+    assert_equal "up", Sentinel::Probes.host(host, timeout: 1).https
+  ensure
+    open_server&.close
   end
 
   def test_service_401_is_up

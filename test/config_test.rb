@@ -52,7 +52,7 @@ class ConfigTest < Minitest::Test
       assert_equal :witness, cluster.host("witness-1").role
       assert cluster.host("witness-1").witness?
       assert_equal 22, cluster.host("node-a").probes[:ssh]
-      assert_nil cluster.host("witness-1").probes[:traefik]
+      assert_nil cluster.host("witness-1").probes[:https]
 
       svc = cluster.service("opencode")
       assert_equal "node-a", svc.primary
@@ -212,8 +212,8 @@ class ConfigTest < Minitest::Test
 
   CLUSTER_YML = <<~YAML
     hosts:
-      node-a:   {address: 10.0.0.1, sentinel_url: http://10.0.0.1:4197, role: member, probes: {ssh: 22, traefik: 443, icmp: true}}
-      node-b:     {address: 10.0.0.2, sentinel_url: http://10.0.0.2:4197, role: member, probes: {ssh: 22, traefik: 443, icmp: true}}
+      node-a:   {address: 10.0.0.1, sentinel_url: http://10.0.0.1:4197, role: member, probes: {ssh: 22, https: 443, icmp: true}}
+      node-b:     {address: 10.0.0.2, sentinel_url: http://10.0.0.2:4197, role: member, probes: {ssh: 22, https: 443, icmp: true}}
       witness-1: {address: 10.0.0.5, sentinel_url: http://10.0.0.5:4197, role: witness, probes: {ssh: 22, icmp: true}}
     quorum_tcp: [10.0.0.3:53]
     services:
