@@ -12,7 +12,7 @@
 #   CA_FILE           a CA bundle for privately signed https endpoints (optional)
 services:
   sentinel:
-    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.5.3}
+    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.5.4}
     pull_policy: missing
     container_name: sentinel
     restart: unless-stopped
