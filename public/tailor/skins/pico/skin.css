@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin pico — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin pico — do not edit, run `tailor sync` */
 /*
  * tailor skin — pico — Pico CSS 2.1.1 (MIT, https://picocss.com)
  * Styles the t-* vocabulary (core/components.json) in Pico's look: one small radius everywhere, generous
@@ -208,7 +208,7 @@ hr { border-top: var(--pico-border-width) solid var(--pico-muted-border-color); 
 .t-btn[data-variant="link"] { --pico-background-color: transparent; --pico-border-color: transparent; --pico-color: var(--pico-primary); padding: 0 0.3em; text-decoration: underline; text-decoration-color: var(--pico-primary-underline); text-underline-offset: 0.1rem; }
 .t-btn[data-variant="link"]:is(:hover, :active) { --pico-background-color: transparent; --pico-border-color: transparent; --pico-color: var(--pico-primary-hover); background: transparent; color: var(--pico-color); text-decoration-color: var(--pico-primary-hover); }
 .t-btn[data-variant] { background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
-.t-btn[data-size="sm"] { font-size: 0.8rem; padding: 0 0.75rem; } .t-btn[data-size="lg"] { font-size: 1.05rem; padding: 0 1.5rem; }
+.t-btn[data-size="xs"] { font-size: 0.72rem; padding: 0 0.5rem; } .t-btn[data-size="sm"] { font-size: 0.8rem; padding: 0 0.75rem; } .t-btn[data-size="lg"] { font-size: 1.05rem; padding: 0 1.5rem; }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: var(--pico-form-element-disabled-opacity); pointer-events: none; }
 .t-btn[aria-pressed="true"] { --pico-background-color: var(--pico-primary-background); --pico-border-color: var(--pico-primary-border); --pico-color: var(--pico-primary-inverse); background: var(--pico-background-color); border-color: var(--pico-border-color); color: var(--pico-color); }
 .t-btn[aria-busy="true"] { pointer-events: none; } .t-btn[aria-busy="true"]::before { opacity: var(--pico-loading-spinner-opacity); }

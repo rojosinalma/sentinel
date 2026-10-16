@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin webtui — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin webtui — do not edit, run `tailor sync` */
 /*
  * tailor skin — webtui — WebTUI (@webtui/css 0.1.10, MIT) translated
  * Styles the t-* vocabulary (core/components.json) in WebTUI's terminal look: monospace character grid,
@@ -108,10 +108,11 @@ details:not([open]) > .t-sidebar-item .t-sidebar-chevron::before, details:not([o
 .t-btn[data-variant="link"] { background: transparent; color: var(--t-link); padding: 0 0.5ch; text-decoration: underline; }
 .t-btn[data-variant="link"]:hover { background: transparent; color: var(--t-accent); }
 .t-btn:is([data-variant="primary"], [data-variant="warning"], [data-variant="danger"], [data-variant="ghost"], [data-variant="link"]):active { background: var(--t-text); color: var(--t-canvas); }
+.t-btn[data-size="xs"] { min-height: var(--t-control-h-xs); font-size: var(--t-text-xs); padding: 0 1ch; }
 .t-btn[data-size="sm"] { min-height: var(--t-control-h-sm); font-size: var(--t-text-sm); padding: 0 1ch; }
 .t-btn[data-size="lg"] { min-height: var(--t-control-h-lg); font-size: var(--t-text-base); padding: 0 2ch; }
 .t-btn[data-icon="only"] { width: auto; min-width: 3ch; padding: 0 1ch; }
-.t-btn[data-icon="only"][data-size="sm"] { width: auto; } .t-btn[data-icon="only"][data-size="lg"] { width: auto; font-size: var(--t-text-base); }
+.t-btn[data-icon="only"][data-size="xs"] { width: auto; } .t-btn[data-icon="only"][data-size="sm"] { width: auto; } .t-btn[data-icon="only"][data-size="lg"] { width: auto; font-size: var(--t-text-base); }
 .t-btn:focus-visible { outline-offset: 0; text-decoration: underline; }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.55; text-decoration: line-through; }
 .t-btn[aria-pressed="true"] { background: var(--t-text); color: var(--t-canvas); border: 0; }

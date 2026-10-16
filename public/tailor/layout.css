@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/layout.css — layout primitives. System-agnostic: CSS grid/flex + --t-* tokens only.
  * Owns geometry (app shell, page, section, toolbar, grid, stack/cluster, split). Skins colour these
@@ -28,6 +28,7 @@
 
 @media (max-width: 991.98px) {
   .t-shell { grid-template-columns: minmax(0, 1fr); grid-template-areas: "nav" "side" "main" "foot"; grid-template-rows: var(--t-nav-h) auto 1fr var(--t-footer-h); }
+  .t-shell[data-sidebar="none"] { grid-template-areas: "nav" "main" "foot"; grid-template-rows: var(--t-nav-h) 1fr var(--t-footer-h); }
   .t-shell-side { position: static; max-height: none; }
 }
 
@@ -77,7 +78,19 @@
 .t-grid[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .t-grid[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .t-grid[data-cols="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-@media (max-width: 767.98px) { .t-grid[data-cols] { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--t-grid-min)), 1fr)); } }
+.t-grid[data-cols="12"] { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--t-space-3); }
+/* column spans: any child of a .t-grid; in the 12-column form grid an unspanned child takes the whole row */
+.t-grid[data-cols="12"] > :not([data-span]) { grid-column: 1 / -1; }
+.t-grid > [data-span="1"] { grid-column: span 1; } .t-grid > [data-span="2"] { grid-column: span 2; } .t-grid > [data-span="3"] { grid-column: span 3; }
+.t-grid > [data-span="4"] { grid-column: span 4; } .t-grid > [data-span="5"] { grid-column: span 5; } .t-grid > [data-span="6"] { grid-column: span 6; }
+.t-grid > [data-span="7"] { grid-column: span 7; } .t-grid > [data-span="8"] { grid-column: span 8; } .t-grid > [data-span="9"] { grid-column: span 9; }
+.t-grid > [data-span="10"] { grid-column: span 10; } .t-grid > [data-span="11"] { grid-column: span 11; } .t-grid > [data-span="12"] { grid-column: span 12; }
+.t-grid[data-align="start"] { align-items: start; } .t-grid[data-align="center"] { align-items: center; } .t-grid[data-align="end"] { align-items: end; }
+@media (max-width: 767.98px) {
+  .t-grid[data-cols] { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--t-grid-min)), 1fr)); }
+  .t-grid[data-cols="12"] { grid-template-columns: minmax(0, 1fr); }
+  .t-grid > [data-span] { grid-column: auto; }
+}
 .t-grid[data-gap="1"] { gap: var(--t-space-1); } .t-grid[data-gap="2"] { gap: var(--t-space-2); } .t-grid[data-gap="3"] { gap: var(--t-space-3); } .t-grid[data-gap="5"] { gap: var(--t-space-5); }
 
 /* ── stack / cluster ───────────────────────────────────────────────────────── */

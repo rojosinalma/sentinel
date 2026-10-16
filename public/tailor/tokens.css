@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tokens.css — THE token contract.
  *
@@ -110,6 +110,7 @@
 
   --t-border-w:      1px;
   --t-control-h:     2.1rem;           /* default control height (button, input)   */
+  --t-control-h-xs:  1.4rem;           /* compact toolbar / icon buttons            */
   --t-control-h-sm:  1.75rem;
   --t-control-h-lg:  2.75rem;
   --t-duration:      0.15s;            /* hover / focus transitions                */

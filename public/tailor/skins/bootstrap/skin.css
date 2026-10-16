@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin bootstrap — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin bootstrap — do not edit, run `tailor sync` */
 /*
  * tailor skin — bootstrap — Bootstrap 5.3 metrics in the Dracula look (0.1.0)
  *
@@ -119,10 +119,11 @@ kbd { background: var(--t-selection); color: var(--t-text); border-radius: var(-
 /* link = .btn-link: purple, pink underline on hover */
 .t-btn[data-variant="link"] { border-color: transparent; background: transparent; color: var(--t-accent); padding-left: 0.3rem; padding-right: 0.3rem; }
 .t-btn[data-variant="link"]:hover { background: transparent; color: var(--t-hue-pink); text-decoration: underline; }
+.t-btn[data-size="xs"] { padding: 0.1rem 0.4rem; font-size: 0.7rem; line-height: 1.3; }
 .t-btn[data-size="sm"] { padding: var(--bs-btn-padding-sm); font-size: 0.75rem; }
 .t-btn[data-size="lg"] { padding: var(--bs-btn-padding-lg); font-size: 1rem; }
 .t-btn[data-icon="only"] { width: 2.1rem; height: 2.1rem; padding: 0; }
-.t-btn[data-icon="only"][data-size="sm"] { width: 1.75rem; height: 1.75rem; }
+.t-btn[data-icon="only"][data-size="xs"] { width: 1.4rem; height: 1.4rem; padding: 0; } .t-btn[data-icon="only"][data-size="sm"] { width: 1.75rem; height: 1.75rem; }
 .t-btn[data-icon="only"][data-size="lg"] { width: 2.75rem; height: 2.75rem; font-size: 1.1rem; }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.65; pointer-events: none; cursor: not-allowed; }
 .t-btn[aria-pressed="true"] { background: var(--t-selection); color: var(--t-text); border-color: var(--t-border); }
