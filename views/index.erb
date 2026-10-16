@@ -1,8 +1,8 @@
 <header class="t-page-header">
   <h1 class="t-page-title">sentinel · <span id="node-name"><%= @host %></span></h1>
-  <span id="flag-quorum" class="t-badge" data-variant="tint" data-tone="neutral" data-size="lg" title="Majority agreement across the cluster nodes"><i class="bi bi-diagram-3" aria-hidden="true"></i> quorum <span id="quorum-value">…</span></span>
-  <span id="flag-peers" class="t-badge" data-variant="tint" data-tone="neutral" title="Peer sentinels this node heard from in the last cycle"><i class="bi bi-broadcast" aria-hidden="true"></i> peers <span id="peers-value">—</span></span>
-  <span id="flag-hold" class="t-badge" data-variant="tint" data-tone="yellow" hidden title="state/hold is present on this node: automatic failback is paused"><i class="bi bi-pause-circle" aria-hidden="true"></i> hold</span>
+  <span id="flag-quorum" class="t-badge" data-variant="tint" data-tone="neutral" data-size="lg" title="Majority agreement across the cluster nodes"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-diagram-3"/></svg> quorum <span id="quorum-value">…</span></span>
+  <span id="flag-peers" class="t-badge" data-variant="tint" data-tone="neutral" title="Peer sentinels this node heard from in the last cycle"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-broadcast"/></svg> peers <span id="peers-value">—</span></span>
+  <span id="flag-hold" class="t-badge" data-variant="tint" data-tone="yellow" hidden title="state/hold is present on this node: automatic failback is paused"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-pause-circle"/></svg> hold</span>
   <span id="flag-transition" class="t-badge" data-variant="solid" data-tone="warning" hidden></span>
   <span id="flag-routes" class="t-badge" data-variant="tint" data-tone="info" hidden title="Where the public HA hostnames point"></span>
   <div class="t-page-actions">
@@ -18,20 +18,20 @@
 
   <div class="t-grid" data-min="md">
     <section class="t-card">
-      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-hdd-rack" aria-hidden="true"></i>Hosts</h2><span class="t-card-tools nav-meta t-nowrap" id="hosts-meta"></span></div>
-      <div class="t-card-body">
+      <div class="t-card-header"><h2 class="t-card-title"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-hdd-rack"/></svg>Hosts</h2><span class="t-card-tools nav-meta t-nowrap" id="hosts-meta"></span></div>
+      <div class="t-card-body t-stack" data-gap="2">
         <div class="table-scroll">
           <table class="t-table hosts-table" data-density="compact">
             <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">probes</th><th class="t-nowrap">peer</th></tr></thead>
             <tbody id="hosts-body"></tbody>
           </table>
         </div>
-        <div class="t-stat-sub mt-2" id="hosts-empty" hidden>no cycle yet</div>
+        <div class="t-stat-sub" id="hosts-empty" hidden>no cycle yet</div>
       </div>
     </section>
 
     <section class="t-card">
-      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-clock-history" aria-hidden="true"></i>Transitions</h2></div>
+      <div class="t-card-header"><h2 class="t-card-title"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-clock-history"/></svg>Transitions</h2></div>
       <div class="t-card-body">
         <dl class="t-facts facts-grid" id="transitions"></dl>
         <div class="t-stat-sub" id="transitions-empty">no promote/demote recorded yet</div>
@@ -39,7 +39,7 @@
     </section>
 
     <section class="t-card">
-      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-list-ul" aria-hidden="true"></i>Events</h2><span class="t-card-tools nav-meta t-nowrap" id="events-meta"></span></div>
+      <div class="t-card-header"><h2 class="t-card-title"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-list-ul"/></svg>Events</h2><span class="t-card-tools nav-meta t-nowrap" id="events-meta"></span></div>
       <div class="t-card-body">
         <div class="table-scroll">
           <table class="t-table hosts-table events-table" data-density="compact">
@@ -53,7 +53,7 @@
 </div>
 
 <div class="t-empty" id="disabled-state" hidden>
-  <i class="t-icon t-empty-icon bi bi-shield-slash" aria-hidden="true"></i>
+  <svg class="t-icon t-empty-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-shield-slash"/></svg>
   <h3 class="t-empty-title">No sentinel on this instance</h3>
   <p><code>NODE_NAME</code> is unset: nothing to show.</p>
 </div>
@@ -63,12 +63,12 @@
   <div>
     <section class="t-card service-card">
       <div class="t-card-header">
-        <h2 class="t-card-title"><i class="t-icon bi bi-box" aria-hidden="true"></i><span data-f="name"></span> <a data-f="url" class="t-small" hidden target="_blank" rel="noopener" title="Open the service"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></h2>
+        <h2 class="t-card-title"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-box"/></svg><span data-f="name"></span> <a data-f="url" class="t-small" hidden target="_blank" rel="noopener" title="Open the service"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-box-arrow-up-right"/></svg></a></h2>
         <span class="t-badge" data-variant="tint" data-tone="neutral" data-f="mode-badge"><span class="t-dot" data-status="muted"></span> primary: <span data-f="mode"></span></span>
       </div>
-      <div class="t-card-body">
-        <div class="t-stat-sub mb-2" data-f="since"></div>
-        <div class="table-scroll mb-2">
+      <div class="t-card-body t-stack" data-gap="2">
+        <div class="t-stat-sub" data-f="since"></div>
+        <div class="table-scroll">
           <table class="t-table hosts-table service-hosts" data-density="compact">
             <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">service</th><th class="t-nowrap">class</th></tr></thead>
             <tbody data-f="hosts"></tbody>
@@ -90,23 +90,23 @@
           <div class="timer-row"><span class="t-stat-label" data-f="timer-stable-label">primary stable</span><span class="t-stat-value t-mono" data-f="timer-stable-text">—</span></div>
           <div class="t-progress" data-size="sm" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="t-progress-bar" data-f="timer-stable-bar"></div></div>
         </div>
-        <div class="t-stat-sub mt-2" data-f="cooldown"></div>
-        <dl class="t-facts facts-grid mt-2" data-f="replica" hidden>
+        <div class="t-stat-sub" data-f="cooldown"></div>
+        <dl class="t-facts facts-grid" data-f="replica" hidden>
           <dt>replica</dt><dd data-f="replica-value"></dd>
         </dl>
       </div>
-      <div class="t-card-footer service-actions">
+      <div class="t-card-footer service-actions t-stack" data-gap="2">
         <label class="t-check" data-variant="switch">
           <input class="t-check-input" type="checkbox" role="switch" data-f="hold-switch">
           <span class="t-check-label t-stat-sub" data-f="hold-label">hold (block automatic failback)</span>
         </label>
-        <div class="t-cluster mt-2" data-gap="2">
-          <button class="t-btn" data-size="sm" data-variant="warning" data-action="promote"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> promote</button>
-          <button class="t-btn" data-size="sm" data-tone="success" data-action="demote"><i class="bi bi-arrow-down-circle" aria-hidden="true"></i> demote</button>
+        <div class="t-cluster" data-gap="2">
+          <button class="t-btn" data-size="sm" data-variant="warning" data-action="promote"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-arrow-up-circle"/></svg> promote</button>
+          <button class="t-btn" data-size="sm" data-tone="success" data-action="demote"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-arrow-down-circle"/></svg> demote</button>
           <button class="t-btn" data-size="sm" data-variant="ghost" data-action="promote" data-dry="1">promote --dry-run</button>
           <button class="t-btn" data-size="sm" data-variant="ghost" data-action="demote" data-dry="1">demote --dry-run</button>
         </div>
-        <div class="t-stat-sub mt-2" data-f="actions-note"></div>
+        <div class="t-stat-sub" data-f="actions-note"></div>
       </div>
     </section>
   </div>

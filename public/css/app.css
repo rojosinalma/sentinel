@@ -1,10 +1,8 @@
 /* sentinel dashboard — page-specific rules on tailor tokens (loaded after the tailor head snippet).
    tailor covers the shell, cards, tables, badges, dots, tone text, stat text, buttons, facts, switch,
-   progress, dialogs, toasts, [hidden] and the t-nowrap / t-hide / t-card-tools utilities. What is left here is layout only sentinel has: navbar/header
+   progress, dialogs, toasts, [hidden], the t-stack/t-cluster spacing and the t-nowrap / t-hide / t-card-tools utilities;
+   icons are the vendored sprite (public/tailor/icons.svg). What is left here is layout only sentinel has: navbar/header
    meta, the service-host rows, the decider timers, the dry-run output, the footer link. No hex: --t-* only. */
-
-/* spacing helpers used by the views */
-.mt-2 { margin-top: var(--t-space-2); } .mb-2 { margin-bottom: var(--t-space-2); }
 
 /* navbar / page-header meta */
 .nav-meta { color: var(--t-muted); font-size: var(--t-text-xs); font-family: var(--t-font-mono); }
@@ -16,7 +14,6 @@
 .svc .ver { font-family: var(--t-font-mono); font-size: var(--t-text-xs); color: var(--t-muted); }
 
 /* decider timers: label/value row over a tailor progress bar; idle = nothing counting */
-.timer { margin-top: var(--t-space-2); }
 .timer[data-idle] { opacity: .45; }
 .timer-row { display: flex; justify-content: space-between; gap: var(--t-space-2); }
 

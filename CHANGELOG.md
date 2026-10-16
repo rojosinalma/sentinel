@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-10-16
+
+### Changed
+- Dashboard icons come from tailor's Iconify sprite (`public/tailor/icons.svg`, 17 Bootstrap Icons
+  subsetted by `tailor apply --icons`) as inline `<svg class="t-icon"><use>` references; I dropped
+  the vendored Bootstrap Icons font and its stylesheet. Icons the page builds at runtime go through
+  one `icon()` helper in `app.js`.
+- Card bodies and footers space their children with tailor's `t-stack`/`t-cluster` instead of the
+  `.mt-2`/`.mb-2` helpers, which are gone from `app.css` along with the timer margin.
+
 ## [0.5.4] - 2026-10-16
 
 ### Fixed
