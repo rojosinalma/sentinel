@@ -6,8 +6,8 @@
   <span id="flag-transition" class="t-badge" data-variant="solid" data-tone="warning" hidden></span>
   <span id="flag-routes" class="t-badge" data-variant="tint" data-tone="info" hidden title="Where the public HA hostnames point"></span>
   <div class="t-page-actions">
-    <span class="nav-meta" id="cluster-meta" title="Last cycle of this node's loop"></span>
-    <span class="nav-meta">v<%= @version %></span>
+    <span class="nav-meta t-nowrap" id="cluster-meta" title="Last cycle of this node's loop"></span>
+    <span class="nav-meta t-nowrap">v<%= @version %></span>
   </div>
 </header>
 
@@ -18,10 +18,10 @@
 
   <div class="t-grid" data-min="md">
     <section class="t-card">
-      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-hdd-rack" aria-hidden="true"></i>Hosts</h2><span class="nav-meta" id="hosts-meta"></span></div>
+      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-hdd-rack" aria-hidden="true"></i>Hosts</h2><span class="t-card-tools nav-meta t-nowrap" id="hosts-meta"></span></div>
       <div class="t-card-body">
         <table class="t-table hosts-table" data-density="compact">
-          <thead><tr><th>host</th><th>role</th><th>probes</th><th>peer</th></tr></thead>
+          <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">probes</th><th class="t-nowrap">peer</th></tr></thead>
           <tbody id="hosts-body"></tbody>
         </table>
         <div class="t-stat-sub mt-2" id="hosts-empty" hidden>no cycle yet</div>
@@ -37,7 +37,7 @@
     </section>
 
     <section class="t-card">
-      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-list-ul" aria-hidden="true"></i>Events</h2><span class="nav-meta" id="events-meta"></span></div>
+      <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-list-ul" aria-hidden="true"></i>Events</h2><span class="t-card-tools nav-meta t-nowrap" id="events-meta"></span></div>
       <div class="t-card-body">
         <table class="t-table hosts-table events-table" data-density="compact">
           <tbody id="events"></tbody>
@@ -65,7 +65,7 @@
       <div class="t-card-body">
         <div class="t-stat-sub mb-2" data-f="since"></div>
         <table class="t-table hosts-table service-hosts mb-2" data-density="compact">
-          <thead><tr><th>host</th><th>role</th><th>service</th><th>class</th></tr></thead>
+          <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">service</th><th class="t-nowrap">class</th></tr></thead>
           <tbody data-f="hosts"></tbody>
         </table>
         <dl class="t-facts facts-grid">

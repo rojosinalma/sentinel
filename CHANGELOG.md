@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-10-16
+
+### Changed
+- Dashboard on tailor core 0.5.0 (vendored assets refreshed from 0.3.0): the shell no longer
+  leaves an empty row above the footer below 992px; the card-header meta uses the `t-card-tools`
+  slot, the navbar timestamp hides on small screens via `t-hide`, and table cells use `t-nowrap`
+  — the matching rules in `app.css` are gone.
+
 ## [0.5.2] - 2026-10-16
 
 ### Changed
