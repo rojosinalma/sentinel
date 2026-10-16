@@ -19,7 +19,7 @@ sed -i -E "s/(SENTINEL_TAG:-)[0-9.]+/\1$version/" compose.yaml witness/compose.y
 sed -i -E "s/^SENTINEL_TAG=.*/SENTINEL_TAG=$version/" .env.example
 git add VERSION compose.yaml witness/compose.yaml examples/acting-node/compose.yaml .env.example
 git commit -q -m "Release $version"
-git tag -a "v$version" -m "sentinel $version"
+git tag -s "v$version" -m "sentinel $version"
 echo "tagged v$version"
 
 [[ "${RELEASE_NO_PUSH:-0}" == 1 ]] && exit 0

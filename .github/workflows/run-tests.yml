@@ -1,4 +1,5 @@
 name: run-tests
+run-name: ${{ github.event.pull_request.title || github.event.head_commit.message }} · ${{ github.actor }}
 
 on:
   push:
