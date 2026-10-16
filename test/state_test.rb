@@ -100,32 +100,32 @@ class StateTest < Minitest::Test
   def test_services_are_isolated
     clock = FakeClock.new
     oc = @state.for("opencode")
-    fleet = @state.for("fleet")
-    fleet.set_mode!("node-b", now: clock.now)
-    fleet.set_transition!("promote", "20260101T120000Z")
-    fleet.touch!("promote-failed")
-    File.write(fleet.path("stack"), "degraded: hangar\n")
+    hangar = @state.for("hangar")
+    hangar.set_mode!("node-b", now: clock.now)
+    hangar.set_transition!("promote", "20260101T120000Z")
+    hangar.touch!("promote-failed")
+    File.write(hangar.path("stack"), "degraded: hangar\n")
 
-    assert_equal "node-b", fleet.mode(default: "node-a")
+    assert_equal "node-b", hangar.mode(default: "node-a")
     assert_equal "node-a", oc.mode(default: "node-a"), "the other service's mode is untouched"
     assert_equal "node-a", @state.mode(default: "node-a"), "and so is the node root"
-    assert_equal 1, fleet.flips_in_window(3600, now: clock.now)
+    assert_equal 1, hangar.flips_in_window(3600, now: clock.now)
     assert_equal 0, oc.flips_in_window(3600, now: clock.now)
-    assert_equal "promote 20260101T120000Z", fleet.transition
+    assert_equal "promote 20260101T120000Z", hangar.transition
     assert_nil oc.transition
-    assert_equal 0, fleet.file_age_s("promote-failed", now: Time.now)
+    assert_equal 0, hangar.file_age_s("promote-failed", now: Time.now)
     assert_equal Sentinel::State::ABSENT_AGE, oc.file_age_s("promote-failed")
-    assert_equal "degraded: hangar", fleet.stack
+    assert_equal "degraded: hangar", hangar.stack
     assert_nil oc.stack
-    fleet.clear_transition!
-    assert_nil fleet.transition
+    hangar.clear_transition!
+    assert_nil hangar.transition
   end
 
   def test_busy_is_per_service
-    fleet = @state.for("fleet")
-    lock = File.open(fleet.path("promote.lock"), File::CREAT | File::RDWR)
+    hangar = @state.for("hangar")
+    lock = File.open(hangar.path("promote.lock"), File::CREAT | File::RDWR)
     lock.flock(File::LOCK_EX)
-    assert fleet.busy?
+    assert hangar.busy?
     refute @state.for("opencode").busy?
     refute @state.busy?
   ensure
@@ -135,22 +135,22 @@ class StateTest < Minitest::Test
 
   def test_hold_is_node_wide_or_per_service
     oc = @state.for("opencode")
-    fleet = @state.for("fleet")
+    hangar = @state.for("hangar")
     refute oc.hold?
 
     @state.hold_on!("operator")
     assert oc.hold?, "node-wide hold covers every service"
-    assert fleet.hold?
+    assert hangar.hold?
     refute File.exist?(oc.path("hold"))
     @state.hold_off!
     refute oc.hold?
 
-    fleet.hold_on!("operator")
-    assert fleet.hold?
+    hangar.hold_on!("operator")
+    assert hangar.hold?
     refute oc.hold?, "a service hold is that service's alone"
     refute @state.hold?
-    fleet.hold_off!
-    refute fleet.hold?
+    hangar.hold_off!
+    refute hangar.hold?
   end
 
   # ---------------------------------------------------------------- migration

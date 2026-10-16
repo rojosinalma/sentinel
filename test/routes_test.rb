@@ -100,25 +100,25 @@ class RoutesTest < Minitest::Test
   def test_groups_get_and_set
     bin = stub_bin(GROUPED)
     log = File.join(tmp_state_dir, "calls.log")
-    with_env("ROUTES_FAKE" => "opencode=node-a fleet=node-b", "ROUTES_FAKE_LOG" => log) do
+    with_env("ROUTES_FAKE" => "opencode=node-a hangar=node-b", "ROUTES_FAKE_LOG" => log) do
       assert Sentinel::Routes.supports_groups?(bin, timeout: 5)
       assert_equal "node-a", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "opencode", hosts: HOSTS)
-      assert_equal "node-b", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "fleet", hosts: HOSTS)
+      assert_equal "node-b", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "hangar", hosts: HOSTS)
       assert_equal "unknown", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "ghost", hosts: HOSTS)
-      assert_equal "ok", Sentinel::Routes.set_primary("node-b", bin: bin, timeout: 5, group: "fleet")
-      assert_equal "failed", Sentinel::Routes.set_primary("mars", bin: bin, timeout: 5, group: "fleet")
+      assert_equal "ok", Sentinel::Routes.set_primary("node-b", bin: bin, timeout: 5, group: "hangar")
+      assert_equal "failed", Sentinel::Routes.set_primary("mars", bin: bin, timeout: 5, group: "hangar")
     end
     calls = File.readlines(log, chomp: true)
     assert_includes calls, "get  --group opencode"
-    assert_includes calls, "get  --group fleet"
-    assert_includes calls, "set node-b --group fleet"
+    assert_includes calls, "get  --group hangar"
+    assert_includes calls, "set node-b --group hangar"
   end
 
   def test_get_all_lists_every_group
     bin = stub_bin(GROUPED)
-    with_env("ROUTES_FAKE" => "opencode=node-a fleet=node-b") do
+    with_env("ROUTES_FAKE" => "opencode=node-a hangar=node-b") do
       out = Sentinel::Routes.capture(bin, "get", "--all", timeout: 5)
-      assert_equal %w[opencode=node-a fleet=node-b], out.lines(chomp: true)
+      assert_equal %w[opencode=node-a hangar=node-b], out.lines(chomp: true)
     end
   end
 

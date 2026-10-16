@@ -68,8 +68,8 @@ class ConfigTest < Minitest::Test
   def test_service_probe_auto_promote_and_tunables
     with_cluster_file(CLUSTER_YML + SECOND_SERVICE_YML) do
       ENV["NODE_NAME"] = "node-b"
-      ENV["FLEET_USER"] = "fleet"
-      ENV["FLEET_PASS"] = "s3cret"
+      ENV["HANGAR_USER"] = "hangar"
+      ENV["HANGAR_PASS"] = "s3cret"
       Sentinel::Config.reset!
       cluster = Sentinel::Config.cluster
 
@@ -80,18 +80,18 @@ class ConfigTest < Minitest::Test
       assert_nil plain.auto_promote
       assert_equal({}, plain.tunables)
 
-      fleet = cluster.service("fleet")
-      assert_equal %w[fleet s3cret], fleet.probe.basic
-      assert_equal({ "X-Probe" => "sentinel" }, fleet.probe.headers)
-      assert_equal "10.0.0.1", fleet.probe.resolve_ip("node-a")
-      assert_equal "10.0.0.2", fleet.probe.resolve_ip("node-b")
-      assert_equal false, fleet.auto_promote
-      assert_equal({ promote_after_s: 90, dead_confirm_polls: 3 }, fleet.tunables)
-      assert_equal "hooks/fleet", fleet.hooks_dir
+      hangar = cluster.service("hangar")
+      assert_equal %w[hangar s3cret], hangar.probe.basic
+      assert_equal({ "X-Probe" => "sentinel" }, hangar.probe.headers)
+      assert_equal "10.0.0.1", hangar.probe.resolve_ip("node-a")
+      assert_equal "10.0.0.2", hangar.probe.resolve_ip("node-b")
+      assert_equal false, hangar.auto_promote
+      assert_equal({ promote_after_s: 90, dead_confirm_polls: 3 }, hangar.tunables)
+      assert_equal "hooks/hangar", hangar.hooks_dir
     end
   ensure
-    ENV.delete("FLEET_USER")
-    ENV.delete("FLEET_PASS")
+    ENV.delete("HANGAR_USER")
+    ENV.delete("HANGAR_PASS")
   end
 
   def test_decider_config_applies_service_overrides
@@ -105,12 +105,12 @@ class ConfigTest < Minitest::Test
       assert_equal "on", plain[:auto_promote]
       assert_equal 60, plain[:promote_after_s]
 
-      fleet = Sentinel.decider_config(node, cluster.service("fleet"))
-      assert_equal "off", fleet[:auto_promote]
-      assert_equal 90, fleet[:promote_after_s]
-      assert_equal 3, fleet[:dead_confirm_polls]
-      assert_equal 30, fleet[:failback_after_s], "untouched tunables stay node-wide"
-      assert_equal "fleet-node-b", fleet[:label]
+      hangar = Sentinel.decider_config(node, cluster.service("hangar"))
+      assert_equal "off", hangar[:auto_promote]
+      assert_equal 90, hangar[:promote_after_s]
+      assert_equal 3, hangar[:dead_confirm_polls]
+      assert_equal 30, hangar[:failback_after_s], "untouched tunables stay node-wide"
+      assert_equal "hangar-node-b", hangar[:label]
     end
   end
 
@@ -185,20 +185,20 @@ class ConfigTest < Minitest::Test
 
   def test_service_routes_parsed
     doc = YAML.safe_load(CLUSTER_YML)
-    doc["services"]["fleet"] = {
+    doc["services"]["hangar"] = {
       "primary" => "node-a", "standby" => "node-b", "health" => {},
-      "routes" => { "mode" => "pihole", "pihole_names" => ["fleet.example.com", "mqtt.example.com"] }
+      "routes" => { "mode" => "pihole", "pihole_names" => ["hangar.example.com", "mqtt.example.com"] }
     }
     doc["services"]["grouped"] = {
       "primary" => "node-a", "standby" => "node-b", "health" => {},
       "routes" => { "mode" => "ha-routes", "group" => "ha-foo" }
     }
     cluster = Sentinel::Config::Cluster.new(doc, node_name: "node-b")
-    fleet = cluster.service("fleet").routes
-    assert_equal "pihole", fleet.mode
-    assert_equal "fleet", fleet.group
-    assert_equal %w[fleet.example.com mqtt.example.com], fleet.pihole_names
-    refute fleet.ha_routes?
+    hangar = cluster.service("hangar").routes
+    assert_equal "pihole", hangar.mode
+    assert_equal "hangar", hangar.group
+    assert_equal %w[hangar.example.com mqtt.example.com], hangar.pihole_names
+    refute hangar.ha_routes?
     assert_equal ["ha-routes", "ha-foo"], cluster.service("grouped").routes.then { |r| [r.mode, r.group] }
   end
 
@@ -244,13 +244,13 @@ class ConfigTest < Minitest::Test
   YAML
 
   SECOND_SERVICE_YML = <<~YAML.gsub(/^/, "  ")
-    fleet:
+    hangar:
       primary: node-a
       standby: node-b
-      health: {node-a: "https://fleet.example/health", node-b: "https://fleet.example/health"}
+      health: {node-a: "https://hangar.example/health", node-b: "https://hangar.example/health"}
       probe:
-        username_env: FLEET_USER
-        password_env: FLEET_PASS
+        username_env: HANGAR_USER
+        password_env: HANGAR_PASS
         headers: {X-Probe: sentinel}
         resolve: {node-a: 10.0.0.1, node-b: 10.0.0.2}
       auto_promote: false

@@ -34,10 +34,10 @@ class StoreTest < Minitest::Test
 
   def test_events_filter_by_service
     @store.event!("decision", "a", service: "opencode")
-    @store.event!("decision", "b", service: "fleet")
+    @store.event!("decision", "b", service: "hangar")
     @store.event!("boot", "node-level")
     assert_equal %w[a], @store.events(service: "opencode").map { |e| e[:message] }
-    assert_equal %w[b], @store.events(service: "fleet", kind: "decision").map { |e| e[:message] }
+    assert_equal %w[b], @store.events(service: "hangar", kind: "decision").map { |e| e[:message] }
     assert_equal 3, @store.events.size, "no filter = every row incl. node-level ones"
   end
 

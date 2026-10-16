@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+### Changed
+- Tests use `hangar` as the second-service fixture (was `fleet`); nothing in the core knows a
+  service name, so the rename of the homelab's hangar service is a `cluster.yml` change only.
+
 ## [0.5.5] - 2026-10-16
 
 ### Changed
