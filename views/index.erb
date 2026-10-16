@@ -20,10 +20,12 @@
     <section class="t-card">
       <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-hdd-rack" aria-hidden="true"></i>Hosts</h2><span class="t-card-tools nav-meta t-nowrap" id="hosts-meta"></span></div>
       <div class="t-card-body">
-        <table class="t-table hosts-table" data-density="compact">
-          <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">probes</th><th class="t-nowrap">peer</th></tr></thead>
-          <tbody id="hosts-body"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="t-table hosts-table" data-density="compact">
+            <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">probes</th><th class="t-nowrap">peer</th></tr></thead>
+            <tbody id="hosts-body"></tbody>
+          </table>
+        </div>
         <div class="t-stat-sub mt-2" id="hosts-empty" hidden>no cycle yet</div>
       </div>
     </section>
@@ -39,9 +41,11 @@
     <section class="t-card">
       <div class="t-card-header"><h2 class="t-card-title"><i class="t-icon bi bi-list-ul" aria-hidden="true"></i>Events</h2><span class="t-card-tools nav-meta t-nowrap" id="events-meta"></span></div>
       <div class="t-card-body">
-        <table class="t-table hosts-table events-table" data-density="compact">
-          <tbody id="events"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="t-table hosts-table events-table" data-density="compact">
+            <tbody id="events"></tbody>
+          </table>
+        </div>
         <div class="t-stat-sub" id="events-empty" hidden>no events yet</div>
       </div>
     </section>
@@ -64,10 +68,12 @@
       </div>
       <div class="t-card-body">
         <div class="t-stat-sub mb-2" data-f="since"></div>
-        <table class="t-table hosts-table service-hosts mb-2" data-density="compact">
-          <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">service</th><th class="t-nowrap">class</th></tr></thead>
-          <tbody data-f="hosts"></tbody>
-        </table>
+        <div class="table-scroll mb-2">
+          <table class="t-table hosts-table service-hosts" data-density="compact">
+            <thead><tr><th class="t-nowrap">host</th><th class="t-nowrap">role</th><th class="t-nowrap">service</th><th class="t-nowrap">class</th></tr></thead>
+            <tbody data-f="hosts"></tbody>
+          </table>
+        </div>
         <dl class="t-facts facts-grid">
           <dt>agreed</dt><dd data-f="agreed"></dd>
           <dt>lease</dt><dd data-f="lease"></dd>
