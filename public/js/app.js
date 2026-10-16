@@ -33,7 +33,8 @@
     return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
   };
 
-  // tailor markup emitters
+  // tailor markup emitters; icons come from the vendored sprite (public/tailor/icons.svg, subset by `tailor apply --icons`)
+  const icon = (name, cls) => `<svg class="t-icon${cls ? ` ${cls}` : ''}" aria-hidden="true"><use href="/tailor/icons.svg#bi-${name}"/></svg>`;
   const tone = (t, html) => t === 'neutral' ? `<span class="t-muted">${html}</span>` : `<span class="t-tone-text" data-tone="${t}">${html}</span>`;
   const sub = (html) => `<span class="t-stat-sub">${html}</span>`;
   const badge = (t, html, title) => `<span class="t-badge" data-variant="tint" data-tone="${t}"${title ? ` title="${esc(title)}"` : ''}>${html}</span>`;
@@ -135,7 +136,7 @@
       const cls = ((hd || {}).classes || {})[name];
       const configured = h === svc.primary ? 'configured primary' : 'configured standby';
       const hu = (svc.host_urls || {})[h];
-      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} <i class="bi bi-box-arrow-up-right t-muted" aria-hidden="true"></i></a>` : esc(h);
+      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} ${icon('box-arrow-up-right', 't-muted')}</a>` : esc(h);
       return `<tr data-role="${role.role}"><th class="t-nowrap">${dot(role.dot)} ${hostCell}</th>` +
         `<td>${badge(role.tone, esc(role.label), configured)}</td>` +
         `<td>${serviceCell(((hd || {}).services || {})[name])}</td>` +
@@ -267,11 +268,11 @@
     $('flag-hold').hidden = !d.hold;
     const tr = $('flag-transition');
     tr.hidden = !d.transition;
-    tr.innerHTML = d.transition ? `<i class="bi bi-arrow-repeat" aria-hidden="true"></i> ${esc(d.transition)}` : '';
+    tr.innerHTML = d.transition ? `${icon('arrow-repeat')} ${esc(d.transition)}` : '';
     const rf = $('flag-routes');
     const routeList = Object.entries(d.route_primary || {}).filter(([, h]) => h && h !== 'n/a').map(([s, h]) => `${esc(s)} → ${esc(h)}`);
     rf.hidden = !routeList.length;
-    rf.innerHTML = routeList.length ? `<i class="bi bi-signpost-split" aria-hidden="true"></i> routes ${routeList.join(' · ')}${d.ha_connectors != null ? ` · ${esc(d.ha_connectors)} connectors` : ''}` : '';
+    rf.innerHTML = routeList.length ? `${icon('signpost-split')} routes ${routeList.join(' · ')}${d.ha_connectors != null ? ` · ${esc(d.ha_connectors)} connectors` : ''}` : '';
     $('cluster-meta').textContent = d.at ? `cycle ${fmtAgo(d.at)}` : (d.note || '');
     $('generated').textContent = `${new Date().toLocaleTimeString()}${d.status_age_s != null ? ` · status age ${d.status_age_s}s` : ''}`;
 
