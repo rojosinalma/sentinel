@@ -20,7 +20,9 @@
 .timer[data-idle] { opacity: .45; }
 .timer-row { display: flex; justify-content: space-between; gap: var(--t-space-2); }
 
-/* tables: hosts coloured by their role in that service (primary / standby / down) */
+/* tables: scroll sideways inside a narrow card instead of bleeding past its border (no frame: the card
+   is the frame, so tailor's bordered t-table-wrap is not used); hosts coloured by their role */
+.table-scroll { overflow-x: auto; }
 .hosts-table { width: 100%; }
 .hosts-table tbody th { text-align: left; font-weight: 500; }
 .service-hosts tr[data-role="primary"] th { color: var(--t-success); }

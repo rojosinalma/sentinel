@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10-16
+
+### Fixed
+- Dashboard: the host tables scroll sideways inside a narrow card instead of running past its
+  border (the service cards at two-per-row widths).
+
 ## [0.5.3] - 2026-10-16
 
 ### Changed
