@@ -5,7 +5,7 @@ agrees on who is primary, takes a lease and runs your promote/demote scripts.
 
 ![dashboard](docs/images/dashboard.png)
 
-*(screenshot to be added)*
+
 
 ## How it works
 
