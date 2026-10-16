@@ -78,22 +78,33 @@ module Sentinel
     end
 
     # The replicated primary: newest primary_at wins across fresh views and the local store.
-    def primary(service_name)
+    def primary(service_name) = primary_state(service_name)&.fetch(:host)
+
+    # The replicated primary with its provenance: {host:, at: Time, transition:}, newest
+    # primary_at wins across fresh views and the local store; nil when nobody has dated news.
+    # transition is the publishing node's per-service transition ("transitions" in its view,
+    # nil for a pre-0.5.6 view or when the local store wins): only the acting node writes
+    # primary_at, so a non-acting node reads the acting node's hook progress through this.
+    def primary_state(service_name)
       candidates = []
       views.each_value do |body|
         host = body.dig("primary", service_name)
         at = body.dig("primary_at", service_name)
-        candidates << [Time.iso8601(at), host] if host && at
+        next unless host && at
+
+        candidates << { host: host, at: Time.iso8601(at), transition: body.dig("transitions", service_name) }
       end
       if (host = @store.get("primary.#{service_name}")) && (at = @store.get("primary_at.#{service_name}"))
-        candidates << [Time.iso8601(at), host]
+        candidates << { host: host, at: Time.iso8601(at), transition: nil }
       end
-      candidates.max_by(&:first)&.last
+      candidates.max_by { |c| c[:at] }
     end
 
     # The body /peer/view serves (schema v2: every host carries "classes" {service => class}).
     # classes: {service => {host => :sym}}. seq is monotonic and survives restarts via the store.
-    def local_view(hosts:, classes:, primary:, primary_at:, hold:, transition:, quorum:)
+    # transitions: {service => transition or nil}, additive since 0.5.6; "transition" stays the
+    # node-wide first-in-flight value older readers expect.
+    def local_view(hosts:, classes:, primary:, primary_at:, hold:, transition:, quorum:, transitions: {})
       seq = @store.get("gossip.seq").to_i + 1
       @store.set("gossip.seq", seq)
       {
@@ -110,6 +121,7 @@ module Sentinel
         "reachable_peers" => reachable_peers,
         "hold" => hold,
         "transition" => transition,
+        "transitions" => transitions,
         "lease" => current_lease
       }
     end

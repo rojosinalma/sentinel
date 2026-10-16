@@ -23,19 +23,17 @@ module Sentinel
     def build(loop:, state:, config:, now: Time.now, service: legacy_service)
       doc = loop.last
       svc = loop.services.fetch(service) { raise ArgumentError, "unknown service #{service.inspect}" }
-      return no_cycle_yet(service: svc, state: state) unless doc
+      return no_cycle_yet(service: svc, state: state, loop: loop) unless doc
 
       entry = doc[:services].fetch(service)
       view = doc[:views][svc.primary]
       snap = entry[:decider]
+      live = mode_source(loop: loop, service: svc, state: state)
       state = state.for(service)
 
       {
-        # Live from the state file, not the cycle snapshot: a transition hook writes the mode
-        # mid-run while the loop is blocked inside it, and external guards act on this field
-        # (2026-10-13: the stale snapshot kept a unit skipped through a whole promote).
-        "mode" => state.mode(default: svc.primary),
-        "since" => iso_or_nil(state.mode_since),
+        "mode" => live[:mode],
+        "since" => iso_or_nil(live[:since]),
         "primary_service" => view&.service_state(service) || "down",
         "primary_service_version" => view&.version(service),
         "primary_host" => view&.ssh || "down",
@@ -50,8 +48,8 @@ module Sentinel
         },
         "poll_interval_s" => config[:poll_interval_s],
         "dead_confirm_polls" => config[:dead_confirm_polls],
-        "promoting" => state.busy?,
-        "transition" => state.transition,
+        "promoting" => live[:promoting],
+        "transition" => live[:transition],
         "auto_promote" => config[:auto_promote],
         "auto_failback" => config[:auto_failback],
         "hold" => state.hold?,
@@ -74,19 +72,41 @@ module Sentinel
 
     def to_json(status) = JSON.generate(status)
 
-    # Before the first cycle: the minimal document plus the live state-file overlays.
-    def no_cycle_yet(service:, state:)
-      state = state.for(service.name)
+    # Before the first cycle: the minimal document plus the live mode overlays.
+    def no_cycle_yet(service:, state:, loop:)
+      live = mode_source(loop: loop, service: service, state: state)
       {
-        "mode" => state.mode(default: service.primary),
-        "since" => iso_or_nil(state.mode_since),
+        "mode" => live[:mode],
+        "since" => iso_or_nil(live[:since]),
         "primary_service" => "unknown",
-        "promoting" => state.busy?,
-        "hold" => state.hold?,
-        "transition" => state.transition,
+        "promoting" => live[:promoting],
+        "hold" => state.for(service.name).hold?,
+        "transition" => live[:transition],
         "note" => "no cycle yet",
         "status_age_s" => nil
       }
+    end
+
+    # Where mode/since/transition/promoting come from: {mode:, since: Time|nil, transition:, promoting:}.
+    #
+    # The acting node reads its state files live, not the cycle snapshot: a transition hook
+    # writes the mode mid-run while the loop is blocked inside it, and external guards act on
+    # this field (2026-10-13: the stale snapshot kept a unit skipped through a whole promote).
+    #
+    # Every other node has no state files for the service (only the acting node's hooks write
+    # them), so it reports the acting node's gossip view — newest primary_at wins, its
+    # per-service transition — then the store, then the configured primary
+    # (2026-10-16 drill: node-a's own /status said mode=node-a throughout node-b's promote and its
+    # guard started the unit mid-demote).
+    def mode_source(loop:, service:, state:)
+      if loop.acting?(service.name)
+        sstate = state.for(service.name)
+        { mode: sstate.mode(default: service.primary), since: sstate.mode_since,
+          transition: sstate.transition, promoting: sstate.busy? }
+      else
+        rep = loop.replicated_primary(service)
+        { mode: rep[:mode], since: rep[:since], transition: rep[:transition], promoting: !rep[:transition].nil? }
+      end
     end
 
     # The generic document: every host's probes and service states, every service's decision
@@ -105,16 +125,17 @@ module Sentinel
       services = loop.services.to_h do |name, svc|
         entry = doc&.dig(:services, name)
         sstate = state.for(name)
+        live = mode_source(loop: loop, service: svc, state: state) # same sources as the legacy doc
         [name, {
           primary: svc.primary, standby: svc.standby, acting: loop.acting?(name),
-          mode: sstate.mode(default: svc.primary), # live file, same reason as the legacy doc
-          since: (store && store.get("primary_at.#{name}")) || iso_or_nil(sstate.mode_since),
+          mode: live[:mode],
+          since: (loop.acting?(name) && store && store.get("primary_at.#{name}")) || iso_or_nil(live[:since]),
           agreed_class: entry && entry[:agreed_class]&.to_s,
           classification: entry&.dig(:decider, :classification),
           gates: entry ? entry[:decider] : {},
           busy: entry ? entry[:busy] : sstate.busy?,
           standby_stack: entry && entry[:standby_stack],
-          hold: sstate.hold?, transition: sstate.transition,
+          hold: sstate.hold?, transition: live[:transition],
           action_running: action_running[name],
           route_primary: doc && route_primary_for(doc, name),
           routes: svc.routes && { mode: svc.routes.mode, group: svc.routes.group, pihole_names: svc.routes.pihole_names },

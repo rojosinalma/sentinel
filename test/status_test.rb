@@ -19,11 +19,18 @@ class StatusTest < Minitest::Test
     @h = build_harness
   end
 
-  def build_harness
+  # A gossip stub whose primary_state is scripted: what a non-acting node hears from the acting one.
+  class ScriptedGossip < LoopTest::GossipStub
+    attr_accessor :state
+
+    def primary_state(_service) = @state
+  end
+
+  def build_harness(node: "node-b", gossip: LoopTest::GossipStub.new)
     clock = FakeClock.new
     state = Sentinel::State.new(tmp_state_dir)
-    store = Sentinel::Store.memory(node: "node-b")
-    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "node-b")
+    store = Sentinel::Store.memory(node: node)
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: node)
     config = LoopTest::CONFIG.merge(route_mode: "ha-routes")
     hooks = Sentinel::Hooks.new(dir: LoopTest.hooks_dir_for(cluster, tmp_state_dir),
                                 log_dir: File.join(tmp_state_dir, "logs"),
@@ -35,11 +42,11 @@ class StatusTest < Minitest::Test
     end
     loop_obj = Sentinel::Loop.new(
       config: config, cluster: cluster, store: store, state: state,
-      probes: LoopTest::ProbesStub.new, gossip: LoopTest::GossipStub.new,
+      probes: LoopTest::ProbesStub.new, gossip: gossip,
       lease: LoopTest::LeaseStub.new, hooks: hooks, deciders: deciders,
       notifier: ->(*) {}, now: clock.to_proc
     )
-    { loop: loop_obj, state: state, config: config, clock: clock }
+    { loop: loop_obj, state: state, config: config, clock: clock, store: store, gossip: gossip }
   end
 
   # The fixture's service is _example; the live legacy document describes opencode.
@@ -231,4 +238,98 @@ class StatusTest < Minitest::Test
     assert_equal "node-b", v1[:services]["_example"][:mode]
   end
 
+  # ------------------------------------------------------------ non-acting nodes (0.5.6)
+  # Only the acting node's hooks write the service's state files; every other node (the primary
+  # host itself, the witnesses) reports what the acting node gossips (2026-10-16 drill: node-a's
+  # /status said mode=node-a throughout node-b's promote and its guard started the unit mid-demote).
+
+  def non_acting_harness
+    gossip = ScriptedGossip.new
+    build_harness(node: "node-a", gossip: gossip) # node-a is _example's primary, node-b acts
+  end
+
+  def test_non_acting_node_reports_the_acting_nodes_primary
+    @h = non_acting_harness
+    refute @h[:loop].acting?("_example")
+    at = Time.utc(2026, 1, 1, 11, 30, 0)
+    @h[:gossip].state = { host: "node-b", at: at, transition: "promote 20260101T113000Z" }
+    @h[:loop].cycle!
+
+    s = build_status
+    assert_equal "node-b", s["mode"]
+    assert_equal "2026-01-01T11:30:00Z", s["since"]
+    assert_equal "promote 20260101T113000Z", s["transition"]
+    assert_equal true, s["promoting"]
+    assert_equal BASH_KEYS, s.keys, "value sources changed, the frozen contract did not"
+    refute File.exist?(@h[:state].for("_example").path("mode")), "no local state file was involved"
+
+    @h[:gossip].state = { host: "node-b", at: at, transition: nil }
+    s = build_status
+    assert_nil s["transition"]
+    assert_equal false, s["promoting"]
+  end
+
+  def test_non_acting_node_is_live_between_cycles
+    @h = non_acting_harness
+    @h[:loop].cycle!
+    assert_equal "node-a", build_status["mode"]
+    @h[:gossip].state = { host: "node-b", at: @h[:clock].now, transition: "promote 20260101T120000Z" }
+    assert_equal "node-b", build_status["mode"], "no new cycle ran, the mode must follow the fresh view"
+  end
+
+  def test_non_acting_fallback_chain
+    @h = non_acting_harness
+    @h[:loop].cycle!
+    @h[:store].set("primary._example", "node-b")
+    s = build_status
+    assert_equal "node-b", s["mode"], "no fresh view -> the store's last agreed primary"
+    assert_nil s["since"]
+    assert_nil s["transition"]
+    assert_equal false, s["promoting"]
+
+    @h = non_acting_harness
+    @h[:loop].cycle!
+    s = build_status
+    assert_equal "node-a", s["mode"], "nothing known -> the configured primary"
+    assert_nil s["since"]
+  end
+
+  def test_non_acting_no_cycle_yet_uses_gossip
+    @h = non_acting_harness
+    @h[:gossip].state = { host: "node-b", at: @h[:clock].now, transition: nil }
+    s = build_status
+    assert_equal "no cycle yet", s["note"]
+    assert_equal "node-b", s["mode"]
+    assert_equal "2026-01-01T12:00:00Z", s["since"]
+  end
+
+  def test_non_acting_v1_entry_follows_gossip
+    @h = non_acting_harness
+    at = Time.utc(2026, 1, 1, 11, 30, 0)
+    @h[:gossip].state = { host: "node-b", at: at, transition: "demote 20260101T113000Z" }
+    @h[:store].set("primary_at._example", "2025-12-31T00:00:00Z") # stale local row, must not win
+    @h[:loop].cycle!
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now, store: @h[:store])
+    e = v1[:services]["_example"]
+    refute e[:acting]
+    assert_equal "node-b", e[:mode]
+    assert_equal "2026-01-01T11:30:00Z", e[:since]
+    assert_equal "demote 20260101T113000Z", e[:transition]
+    assert_equal "demote 20260101T113000Z", v1[:transition]
+  end
+
+  def test_acting_node_ignores_gossip_and_reads_its_state_file
+    gossip = ScriptedGossip.new
+    gossip.state = { host: "node-a", at: Time.utc(2030, 1, 1), transition: "promote 20300101T000000Z" }
+    @h = build_harness(node: "node-b", gossip: gossip)
+    assert @h[:loop].acting?("_example")
+    @h[:state].for("_example").set_mode!("node-b", now: @h[:clock].now)
+    @h[:loop].cycle!
+    s = build_status
+    assert_equal "node-b", s["mode"], "the acting node trusts its own state file, not the gossip"
+    assert_nil s["transition"]
+    assert_equal false, s["promoting"]
+    v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now)
+    assert_equal "node-b", v1[:services]["_example"][:mode]
+  end
 end

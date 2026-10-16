@@ -60,6 +60,19 @@ module Sentinel
 
     def acting_services = @services.keys.select { |name| acting?(name) }
 
+    # What a node that does not act for a service knows about its primary: the acting node's
+    # gossip view (newest primary_at wins, with that node's per-service transition), then the
+    # store's last agreed primary, then the configured primary. Only the acting node writes
+    # the service's state files, so /status on every other node reads this instead
+    # (2026-10-16 drill: node-a's guard saw mode=node-a throughout node-b's promote).
+    def replicated_primary(service)
+      if (ps = @gossip.primary_state(service.name))
+        { mode: ps[:host], since: ps[:at], transition: ps[:transition] }
+      else
+        { mode: @store.get("primary.#{service.name}") || service.primary, since: nil, transition: nil }
+      end
+    end
+
     def last = @mutex.synchronize { @last }
     def peer_view = @mutex.synchronize { @peer_view }
 
@@ -201,7 +214,7 @@ module Sentinel
       if acting?(service.name)
         @state.for(service.name).mode(default: service.primary)
       else
-        @gossip.primary(service.name) || @store.get("primary.#{service.name}") || service.primary
+        replicated_primary(service)[:mode]
       end
     end
 
@@ -421,7 +434,8 @@ module Sentinel
       transition = entries.values.filter_map { |e| e[:transition] }.first
       view_doc = @gossip.local_view(hosts: views, classes: classes, primary: primary,
                                     primary_at: primary_at, hold: @state.hold?,
-                                    transition: transition, quorum: quorum)
+                                    transition: transition, quorum: quorum,
+                                    transitions: entries.transform_values { |e| e[:transition] })
       doc = {
         at: now, node: @cluster.node_name, quorum: quorum, reachable_peers: @gossip.reachable_peers,
         views: views, classes: classes, services: entries,
