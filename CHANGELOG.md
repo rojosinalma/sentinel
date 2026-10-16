@@ -12,6 +12,9 @@ All notable changes to this project are documented here. The format is
 - Dashboard: the host tables scroll sideways inside a narrow card instead of running past its
   border (the service cards at two-per-row widths).
 
+### Changed
+- Vendored tailor assets 0.5.1 (`.t-empty-icon` sizing fix for sprite SVGs).
+
 ## [0.5.3] - 2026-10-16
 
 ### Changed
