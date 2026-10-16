@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.7] - 2026-10-16
+
+### Fixed
+- `/peer/view` was served from the document the loop built in its last cycle, and a transition
+  hook runs synchronously inside that cycle: for the whole hook (minutes) the acting node kept
+  publishing the pre-hook primary. 2026-10-16 23:09 failback: node-b's view said `primary=node-b`
+  after the demote hook had written `mode=node-a`, node-a's `/status` (0.5.6, read from gossip)
+  still answered `mode=node-b`, its service-guard `ExecCondition` refused the start, the hook
+  timed out and rolled back. The served view now overlays the live state of every service this
+  node acts for at request time: `primary` from the mode file, `primary_at` the newer of the
+  store's agreed value and the mode file's mtime (so the hook's write wins the newest-at rule in
+  `Gossip#primary_state` on the next peer poll), `transitions`/`transition` and `hold` live.
+  Non-acting services and a service without a mode file keep the cycle values; keys unchanged.
+
 ## [0.5.6] - 2026-10-16
 
 ### Fixed
