@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-16
+
+### Changed
+- Dashboard: the skin/palette/mode switcher is tailor's `data-tailor-pickers` element in the footer
+  (options sorted by name); the hand-written selects and the mode toggle in the navbar are gone.
+  Vendored tailor assets refreshed to 0.3.0.
+
 ## [0.5.1] - 2026-10-16
 
 ### Added
