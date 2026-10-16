@@ -52,9 +52,9 @@ module Sentinel
         classification: @classification.to_s,
         dead_polls: @dead_polls,
         down_since: @down_since && iso(@down_since),
-        stable_since: @stable_since && iso(@stable_since),   # primary_stable_since
-        host_health: @host_health,                           # primary_host_health
-        stack: @stack,                                       # standby_stack (legacy) / standby_stack
+        stable_since: @stable_since && iso(@stable_since),   # legacy key primary_stable_since
+        host_health: @host_health,                           # legacy key primary_host_health
+        stack: @stack,                                       # legacy key standby_stack / standby_stack
         flips_in_window: @flips,
         promote_cooldown_left_s: cooldown_left(now),
         promote_retry_left_s: promote_retry_left(now),

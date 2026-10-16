@@ -7,17 +7,20 @@ module Sentinel
   # compact JSON (external guards read .mode, match the raw '"mode":"…"' substring and compare
   # route_primary with mode). test/fixtures/status_legacy.json pins it.
   #
-  # The legacy document describes one service (LEGACY_SERVICE); `v1` is the generic
-  # multi-service document behind /api/v1/status.
+  # The legacy document describes one service (LEGACY_SERVICE, configurable; the default keeps the
+  # original name); `v1` is the generic multi-service document behind /api/v1/status.
   module Status
     LEGACY_SERVICE = "opencode"
 
     module_function
 
+    # The service the legacy document, the CLI and the MCP tools default to.
+    def legacy_service = Config.fetch(:LEGACY_SERVICE)
+
     # loop: Sentinel::Loop (its #last may be nil before the first cycle); state: Sentinel::State;
     # config: the same tunables Hash the loop got; now: Time source; service: the service the
     # legacy document describes.
-    def build(loop:, state:, config:, now: Time.now, service: LEGACY_SERVICE)
+    def build(loop:, state:, config:, now: Time.now, service: legacy_service)
       doc = loop.last
       svc = loop.services.fetch(service) { raise ArgumentError, "unknown service #{service.inspect}" }
       return no_cycle_yet(service: svc, state: state) unless doc

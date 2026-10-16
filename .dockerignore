@@ -4,14 +4,12 @@
 .git
 .github/
 .gitignore
-.webui
-node-b/
 witness/
+examples/
 docs/
 test/
 tmp-shots/
 README.md
-AGENTS.md
 compose.yaml
 compose.override.yaml
 .tunnel

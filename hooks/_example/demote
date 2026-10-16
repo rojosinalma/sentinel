@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Example hook: the real demote (hooks/opencode) restores the reverse replica onto the primary
-# and starts it. This one only moves the mode file back, after the hold check every demote owes.
+# Example demote hook (docs/hooks.md). A real demote stops the standby's copy of the service,
+# carries the data back to the primary and starts it there, then writes PRIMARY to $STATE_DIR/mode.
+# This one only does the hold check every demote owes and moves the mode file back.
+# Called as: demote --yes --auto [--dry-run]. Exit 0 done, 1 refused/nothing changed, 2 degraded.
 set -euo pipefail
 echo "$(date -u +%FT%TZ) [example-demote] args=$* SERVICE=${SERVICE:-} PRIMARY=${PRIMARY:-} STANDBY=${STANDBY:-} DRY_RUN=${DRY_RUN:-}"
 [[ "${DRY_RUN:-false}" == true ]] && exit 0

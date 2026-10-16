@@ -1,79 +1,31 @@
 #!/usr/bin/env bash
-# Build the image and distribute it: multi-arch (amd64 + arm64, for the witnesses on small ARM
-# hosts) to GHCR via buildx, plus optionally an amd64 build to a private registry mirror
-# (+ pre-pull on the acting node). Never prints the GHCR token.
+# Cut a release: write VERSION, commit, tag vX.Y.Z and push. The publish-image workflow builds the
+# multi-arch image for the tag and pushes ghcr.io/rojosinalma/sentinel:X.Y.Z, :X.Y and :sha-<short>.
 #
-#   bin/release [tag]        default tag: VERSION file; `sha` uses the git short sha
-#   RELEASE_NO_GHCR=1        skip the multi-arch GHCR push (local + private registry only)
-#   RELEASE_NO_REGISTRY=1    skip the private registry tag/push and the acting-node pre-pull
-#   RELEASE_NO_STANDBY=1        skip only the acting-node pre-pull
-#
-# Tunables (env, with defaults):
-#   REGISTRY      private registry mirror (default: the author's registry.example.com;
-#                 set RELEASE_NO_REGISTRY=1 if you have none)
-#   GHCR_REPO     GHCR image path (default ghcr.io/rojosinalma/sentinel)
-#   GHCR_USER     GHCR login user
-#   GHCR_TOKEN    GHCR token; when set it is used directly, otherwise read from SERVER_ENV
-#   SERVER_ENV    env file holding GHCR_TOKEN=... (default ~/.config/opencode/server.env)
-#   NODE_B_SSH      ssh alias of the acting node to pre-pull on
+#   bin/release <version>      e.g. bin/release 0.6.0
+#   RELEASE_GH=1               also create a GitHub release from the CHANGELOG section (needs gh)
+#   RELEASE_NO_PUSH=1          commit and tag only
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-REGISTRY="${REGISTRY:-registry.example.com}"
-GHCR_REPO="${GHCR_REPO:-ghcr.io/rojosinalma/sentinel}"
-GHCR_USER="${GHCR_USER:-rojosinalma}"
-SERVER_ENV="${SERVER_ENV:-$HOME/.config/opencode/server.env}"
-NODE_B_SSH="${NODE_B_SSH:-node-b}"
-SOURCE_URL="https://github.com/rojosinalma/sentinel"
-NAME=sentinel
+version="${1:?usage: bin/release <version>}"
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must be X.Y.Z" >&2; exit 1; }
+[[ -z "$(git status --porcelain)" ]] || { echo "working tree not clean" >&2; exit 1; }
+git rev-parse -q --verify "refs/tags/v$version" >/dev/null && { echo "tag v$version exists" >&2; exit 1; }
+grep -q "^## \[$version\]" CHANGELOG.md || { echo "CHANGELOG.md has no [$version] section" >&2; exit 1; }
 
-tag="${1:-$(tr -d '[:space:]' < VERSION)}"
-[[ "$tag" == sha ]] && tag="$(git rev-parse --short HEAD)"
-built="$(date -u +%Y-%m-%dT%H:%MZ)"
-local_ref="$NAME:$tag"
-no_registry="${RELEASE_NO_REGISTRY:-0}"
+printf '%s\n' "$version" > VERSION
+sed -i -E "s/(SENTINEL_TAG:-)[0-9.]+/\1$version/" compose.yaml witness/compose.yaml examples/acting-node/compose.yaml
+sed -i -E "s/^SENTINEL_TAG=.*/SENTINEL_TAG=$version/" .env.example
+git add VERSION compose.yaml witness/compose.yaml examples/acting-node/compose.yaml .env.example
+git commit -q -m "Release $version"
+git tag -a "v$version" -m "sentinel $version"
+echo "tagged v$version"
 
-log() { printf '[release] %s\n' "$*"; }
-fail() { printf '[release] ERROR: %s\n' "$*" >&2; exit 1; }
+[[ "${RELEASE_NO_PUSH:-0}" == 1 ]] && exit 0
+git push origin HEAD "v$version"
 
-ghcr_token() {
-  if [[ -n "${GHCR_TOKEN:-}" ]]; then
-    printf '%s' "$GHCR_TOKEN"
-    return
-  fi
-  [[ -r "$SERVER_ENV" ]] || fail "GHCR_TOKEN not set and cannot read $SERVER_ENV"
-  grep -q '^GHCR_TOKEN=' "$SERVER_ENV" || fail "no GHCR_TOKEN in $SERVER_ENV"
-  sed -n 's/^GHCR_TOKEN=//p' "$SERVER_ENV" | head -n1 | tr -d "\"'"
-}
-
-log "building $local_ref (built $built)"
-docker build -q --build-arg APP_VERSION="$tag" --build-arg BUILD_TIME="$built" \
-  --label "org.opencontainers.image.source=$SOURCE_URL" -t "$local_ref" . >/dev/null
-
-if [[ "$no_registry" != 1 ]]; then
-  docker tag "$local_ref" "$REGISTRY/$NAME:$tag"
-  log "pushing $REGISTRY/$NAME:$tag"
-  docker push -q "$REGISTRY/$NAME:$tag" >/dev/null
+if [[ "${RELEASE_GH:-0}" == 1 ]]; then
+  notes="$(awk -v v="$version" '$0 ~ "^## \\["v"\\]" {p=1; next} /^## \[/ {p=0} p' CHANGELOG.md)"
+  gh release create "v$version" --title "sentinel $version" --notes "$notes"
 fi
-
-if [[ "${RELEASE_NO_GHCR:-0}" != 1 ]]; then
-  ghcr_token | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1 \
-    || fail "docker login ghcr.io failed"
-  log "pushing $GHCR_REPO:$tag (multi-arch amd64+arm64 via buildx)"
-  docker buildx build --platform linux/amd64,linux/arm64 \
-    --build-arg APP_VERSION="$tag" --build-arg BUILD_TIME="$built" \
-    --label "org.opencontainers.image.source=$SOURCE_URL" \
-    -t "$GHCR_REPO:$tag" --push . >/dev/null 2>&1 || fail "buildx multi-arch push failed"
-fi
-
-if [[ "$no_registry" != 1 && "${RELEASE_NO_STANDBY:-0}" != 1 ]]; then
-  log "pre-pulling $REGISTRY/$NAME:$tag on $NODE_B_SSH"
-  ssh -o BatchMode=yes -o ConnectTimeout=10 "$NODE_B_SSH" "docker pull -q $REGISTRY/$NAME:$tag" >/dev/null \
-    || fail "pre-pull on $NODE_B_SSH failed"
-fi
-
-done_refs="$local_ref"
-[[ "$no_registry" != 1 ]] && done_refs="$done_refs  $REGISTRY/$NAME:$tag"
-[[ "${RELEASE_NO_GHCR:-0}" != 1 ]] && done_refs="$done_refs  $GHCR_REPO:$tag"
-log "done: $done_refs"
-echo "$tag"

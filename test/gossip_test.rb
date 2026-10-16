@@ -48,9 +48,9 @@ class GossipTest < Minitest::Test
   end
 
   def test_poll_stores_fresh_views_and_reachability
-    primary_body = view_body("node-a", at: iso(@clock.now))
+    peer_body = view_body("node-a", at: iso(@clock.now))
     apps = {
-      "http://node-a:4197" => ->(_m, _p, _b) { [200, primary_body] },
+      "http://node-a:4197" => ->(_m, _p, _b) { [200, peer_body] },
       "http://witness-1:4197" => ->(_m, _p, _b) { raise "down" }
     }
     g = gossip(apps)

@@ -66,7 +66,7 @@ module Sentinel
     SERVICE_ARG = { type: "string", description: "Service name from cluster.yml (default: the legacy service)" }.freeze
     SERVICE_FILTER = { type: "string", description: "Only this service's rows (default: every service)" }.freeze
 
-    def service_arg(args) = (args[:service] || Status::LEGACY_SERVICE).to_s
+    def service_arg(args) = (args[:service] || Status.legacy_service).to_s
 
     # nil when absent; an unknown name raises (the tool answers with the error text).
     def service_filter(args)

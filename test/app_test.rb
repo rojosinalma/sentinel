@@ -21,7 +21,7 @@ APP_CLUSTER = <<~YAML
       primary: node-a
       standby: node-b
       health: {node-a: "http://127.0.0.1:1/api/info", node-b: "http://127.0.0.1:2/api/info"}
-      hooks_dir: hooks/opencode
+      hooks_dir: hooks/_example
 YAML
 
 File.write(File.join(APP_TEST_ROOT, "cluster.yml"), APP_CLUSTER)
@@ -32,11 +32,6 @@ File.write(File.join(APP_TEST_ROOT, "cluster.yml"), APP_CLUSTER)
   "LOG_DIR" => File.join(APP_TEST_ROOT, "logs"),
   "DB_PATH" => File.join(APP_TEST_ROOT, "sentinel.db"),
   "SENTINEL_MCP_TOKEN" => "test-token",
-  "NODE_B_ROOT" => APP_TEST_ROOT, # read by hooks/opencode (dry-run test)
-  "OPENCODE_DATA_DIR" => File.join(APP_TEST_ROOT, "data"),
-  "OPENCODE_CONFIG_DIR" => File.join(APP_TEST_ROOT, "config"),
-  "NODE_A_HOST" => "127.0.0.1",
-  "NODE_B_HOST" => "127.0.0.1",
   "SN_ENV" => "/nonexistent-env",
   "TCP_TIMEOUT_S" => "1",
   "HTTP_TIMEOUT_S" => "1",
@@ -335,9 +330,9 @@ class AppTest < Minitest::Test
     assert_includes res.body, 'id="t-confirm"'
     assert_includes res.body, 'id="services-row"'
     page = res.body.sub(/served by.*?<\/span>/m, "").sub(/<footer.*<\/footer>/m, "")
-    refute_match(/\b(node-a|node-b|opencode|webui)\b/, page, "no hard-coded host or service names in the view")
+    refute_match(/\b(node-a|node-b|opencode)\b/, page, "no hard-coded host or service names in the view")
     js = File.read(File.expand_path("../public/js/app.js", __dir__))
-    refute_match(/\b(node-a|node-b|webui)\b|'opencode'|"opencode"/, js, "no hard-coded host or service names in the dashboard script")
+    refute_match(/\b(node-a|node-b)\b|'opencode'|"opencode"/, js, "no hard-coded host or service names in the dashboard script")
     refute_match(%r{/api/status\b}, js, "the page no longer polls the removed /api/status endpoint")
     assert_equal 404, @mock.get("/api/status").status, "the old probe page endpoint is gone"
     refute_match(/window\.(confirm|alert|prompt)\(/, js, "no native dialogs")

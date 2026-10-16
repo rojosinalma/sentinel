@@ -5,13 +5,14 @@
 #   bin/sentinel serve            run the app (puma) with the loop
 #   bin/sentinel once             one cycle, print the /status JSON, exit (parity with bash --once)
 #   bin/sentinel status           alias of once
-#   bin/sentinel hold [on|off]    block/release automatic failback; no argument prints the state
+#   bin/sentinel hold [on|off]    block/release the automatic failback; no argument prints the state
 #   bin/sentinel promote [...]    run the service's promote hook under a majority lease
 #                                 (--dry-run skips the lease; flags pass through: --force --fast)
 #   bin/sentinel demote [...]     run the demote hook under a majority lease (asks for the word
 #                                 "demote" unless --yes; --dry-run skips the lease)
 #
-# --service <name> (default opencode) picks the service for status/promote/demote.
+# --service <name> picks the service for status/promote/demote; the default is LEGACY_SERVICE
+# (the service the legacy /status document describes, see docs/api.md).
 
 require "dotenv"
 Dotenv.load(File.expand_path("../.env", __dir__))
@@ -19,7 +20,7 @@ require_relative "../lib/log"
 require_relative "../lib/sentinel"
 
 def service_option
-  i = ARGV.index("--service") or return Sentinel::Status::LEGACY_SERVICE
+  i = ARGV.index("--service") or return Sentinel::Status.legacy_service
   ARGV.delete_at(i)
   ARGV.delete_at(i) or abort "--service needs a name"
 end

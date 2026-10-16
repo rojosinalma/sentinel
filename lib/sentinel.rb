@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-# Load order per docs/architecture.md. Tolerant of files that other phase-1 agents have not
-# landed yet; once phase 1 is complete every file exists and the glob guard is a no-op.
+# Load order per docs/SDD.md (each module only depends on the ones before it).
 %w[
   config workers store state
   probes/http probes/tcp probes/icmp probes host_view classifier
