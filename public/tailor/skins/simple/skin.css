@@ -1,10 +1,10 @@
-/* managed by tailor v0.1.0 — skin simple — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin simple — do not edit, run `tailor sync` */
 /*
  * tailor skin — simple — Simple.css 2.3.7 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in Simple.css's look: flat surfaces, 1px solid
  * borders everywhere, one solid-accent button, zebra tables, boxed details, 5px radius, system fonts.
  * Simple.css styles bare elements page-wide (body grid, 3rem h1, every button accent-filled), so the
- * vendored file cannot be aliased onto house markup (SKIN-CONTRACT rule 5); its declarations are
+ * vendored file cannot be aliased onto tailor markup (SKIN-CONTRACT rule 5); its declarations are
  * re-expressed here on t-* selectors instead. Colours: --t-* tokens only; palette tokens never set.
  * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
  */

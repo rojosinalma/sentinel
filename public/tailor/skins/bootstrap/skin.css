@@ -1,16 +1,16 @@
-/* managed by tailor v0.1.0 — skin bootstrap — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin bootstrap — do not edit, run `tailor sync` */
 /*
- * tailor skin — bootstrap — Bootstrap 5.3 metrics in the house Dracula look (0.1.0)
+ * tailor skin — bootstrap — Bootstrap 5.3 metrics in the Dracula look (0.1.0)
  *
- * The migration skin. Every rule here is a translation of web-ui-design's foundation (assets/dracula.css)
- * and its reference component set (assets/reference/*.css) onto the t-* vocabulary:
+ * The migration skin. Every rule here is a translation of a Bootstrap 5 + Dracula foundation (dracula.css)
+ * and its reference component set onto the t-* vocabulary:
  *   --drac-bg → --t-canvas · --drac-bg-dark → --t-inset · --drac-bg-darker → --t-overlay-bg ·
  *   --drac-surface → --t-surface · --drac-selection → --t-selection / --t-border · --drac-comment → --t-disabled ·
  *   --drac-muted → --t-muted · --drac-fg → --t-text · --drac-purple → --t-accent · --drac-cyan → --t-info ·
  *   --drac-green → --t-success · --drac-orange → --t-warning · --drac-red → --t-danger · hues → --t-hue-* ·
  *   rgba(hue, a) → color-mix(in srgb, var(--t-tone) a%, transparent).
  * Bootstrap itself is not vendored: its metrics (padding .375rem .75rem, 1.5 line-height, 6px radius, the
- * system font stack) are re-declared on the house selectors. Palette tokens are never SET here (contract
+ * system font stack) are re-declared on the tailor selectors. Palette tokens are never SET here (contract
  * rule 4); defaults use :where() so [data-tone] always wins. Loaded after core/base.css + core/layout.css,
  * before palettes/<id>.css.
  */

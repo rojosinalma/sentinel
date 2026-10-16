@@ -1,11 +1,11 @@
-/* managed by tailor v0.1.0 — skin govuk — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin govuk — do not edit, run `tailor sync` */
 /*
  * tailor skin — govuk — GOV.UK Frontend 6.5.1 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in GOV.UK Frontend's look: square corners, 2px
  * borders on controls, bold labels above fields, the 5px error bar, solid buttons with a bottom
  * shadow line, the fat focus block, inset-text alerts, uppercase tinted tags, summary-list rows and
  * plain 1px tables. GOV.UK styles per govuk-* class with hard-coded hex and sets no body font, so the
- * vendored CSS cannot be aliased onto house markup (SKIN-CONTRACT rule 5); its declarations are
+ * vendored CSS cannot be aliased onto tailor markup (SKIN-CONTRACT rule 5); its declarations are
  * re-expressed here on t-* selectors. Colours: --t-* tokens only; palette tokens never set.
  *
  * Licence notes: GDS Transport (the font) and the crown / GOV.UK wordmark are for gov.uk services
@@ -133,7 +133,7 @@ a:focus-visible,
 .t-btn:focus-visible:not(:active) { outline: 3px solid transparent; background: var(--g-focus); border-color: var(--g-focus); color: var(--g-focus-text); box-shadow: 0 2px 0 var(--g-focus-text); text-decoration: none; }
 .t-btn[aria-busy="true"]::before { border-color: currentColor; border-right-color: transparent; }
 
-/* button-group: GOV.UK spaces buttons rather than fusing them; the house group stays one unit with 2px seams */
+/* button-group: GOV.UK spaces buttons rather than fusing them; the tailor group stays one unit with 2px seams */
 .t-btn-group { gap: 2px; }
 .t-btn-group > .t-btn { margin-left: 0; border-radius: 0; }
 .t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"], .t-btn-group[data-role="filter"] > .t-btn[aria-pressed="true"]:hover {
