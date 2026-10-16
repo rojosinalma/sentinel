@@ -55,7 +55,9 @@ them.
 Images are `ghcr.io/rojosinalma/sentinel:<version>` (amd64 + arm64). Bump `SENTINEL_TAG` in
 `.env` (or the compose file), `docker compose pull && docker compose up -d`, one node at a time
 with `hold on` (no failback) and `AUTO_PROMOTE=off` (no promote) if you want no transition during
-the rollout. SQLite migrations are additive and run
+the rollout. A release that changes only the dashboard or the docs can stop at the nodes whose
+dashboard you browse (the members); the witnesses' `/status`, gossip and votes are unaffected and
+they may stay on the earlier image. SQLite migrations are additive and run
 on boot; state files are plain text and never change format. `APP_VERSION` in `/health` tells you
 what runs.
 
