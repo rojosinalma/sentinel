@@ -136,7 +136,7 @@
       const configured = h === svc.primary ? 'configured primary' : 'configured standby';
       const hu = (svc.host_urls || {})[h];
       const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} <i class="bi bi-box-arrow-up-right t-muted" aria-hidden="true"></i></a>` : esc(h);
-      return `<tr data-role="${role.role}"><th>${dot(role.dot)} ${hostCell}</th>` +
+      return `<tr data-role="${role.role}"><th class="t-nowrap">${dot(role.dot)} ${hostCell}</th>` +
         `<td>${badge(role.tone, esc(role.label), configured)}</td>` +
         `<td>${serviceCell(((hd || {}).services || {})[name])}</td>` +
         `<td>${tone(classTone[cls] || 'neutral', esc(cls || (hd ? '—' : 'no view')))}</td></tr>`;
@@ -285,7 +285,7 @@
       const roles = svcNames.filter((s) => d.services[s].primary === h || d.services[s].standby === h)
         .map((s) => `${s}: ${d.services[s].primary === h ? 'primary' : 'standby'}`);
       const role = hd.role === 'witness' ? badge('accent', 'witness') : sub(esc(roles.join(', ') || hd.role || '—'));
-      return `<tr><th>${esc(h)}</th><td>${role}</td><td>${probes || NONE}</td><td>${peer}</td></tr>`;
+      return `<tr><th class="t-nowrap">${esc(h)}</th><td>${role}</td><td>${probes || NONE}</td><td>${peer}</td></tr>`;
     });
     $('hosts-body').innerHTML = body.join('');
     $('hosts-empty').hidden = body.length > 0;
@@ -304,8 +304,8 @@
 
   function renderEvents(events) {
     const rows = (events || []).filter((e) => e.kind !== 'heartbeat').slice(0, 15).map((e) =>
-      `<tr><td class="t-stat-sub" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
-      `<td>${badge(kindTone[e.kind] || 'neutral', esc(e.kind))}</td>` +
+      `<tr><td class="t-stat-sub t-nowrap" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
+      `<td class="t-nowrap">${badge(kindTone[e.kind] || 'neutral', esc(e.kind))}</td>` +
       `<td>${e.service ? sub(`${esc(e.service)} · `) : ''}${esc(e.message)}</td></tr>`);
     $('events').innerHTML = rows.join('');
     $('events-empty').hidden = rows.length > 0;

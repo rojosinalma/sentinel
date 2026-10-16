@@ -1,14 +1,13 @@
 /* sentinel dashboard — page-specific rules on tailor tokens (loaded after the tailor head snippet).
    tailor covers the shell, cards, tables, badges, dots, tone text, stat text, buttons, facts, switch,
-   progress, dialogs, toasts and [hidden]. What is left here is layout only sentinel has: navbar/header
+   progress, dialogs, toasts, [hidden] and the t-nowrap / t-hide / t-card-tools utilities. What is left here is layout only sentinel has: navbar/header
    meta, the service-host rows, the decider timers, the dry-run output, the footer link. No hex: --t-* only. */
 
 /* spacing helpers used by the views */
 .mt-2 { margin-top: var(--t-space-2); } .mb-2 { margin-bottom: var(--t-space-2); }
 
 /* navbar / page-header meta */
-.nav-meta { color: var(--t-muted); font-size: var(--t-text-xs); font-family: var(--t-font-mono); white-space: nowrap; }
-@media (max-width: 767.98px) { .t-navbar #generated { display: none; } }
+.nav-meta { color: var(--t-muted); font-size: var(--t-text-xs); font-family: var(--t-font-mono); }
 .t-page-header > .t-badge { margin-top: .2em; }
 
 /* facts + service state cell */
@@ -23,9 +22,7 @@
 
 /* tables: hosts coloured by their role in that service (primary / standby / down) */
 .hosts-table { width: 100%; }
-.hosts-table th { white-space: nowrap; }
 .hosts-table tbody th { text-align: left; font-weight: 500; }
-.events-table td:first-child, .events-table td:nth-child(2) { white-space: nowrap; }
 .service-hosts tr[data-role="primary"] th { color: var(--t-success); }
 .service-hosts tr[data-role="standby"] th { color: var(--t-hue-yellow); }
 .service-hosts tr[data-role="down"]    th { color: var(--t-danger); }
