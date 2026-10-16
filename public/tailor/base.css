@@ -1,4 +1,4 @@
-/* managed by tailor v0.5.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.5.1 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/base.css — the unskinned baseline.
  * Reset + readable typography + the minimum that makes every component FUNCTION (hidden panels, dialog
@@ -324,7 +324,7 @@ button.t-badge { cursor: pointer; }
 details.t-card > .t-card-header { cursor: pointer; user-select: none; }
 .t-facts { font-size: 0.82rem; } .t-facts dt { color: var(--t-muted); font-weight: 400; }
 .t-empty { text-align: center; color: var(--t-muted); padding: var(--t-space-6) var(--t-space-4); }
-.t-empty-icon { font-size: 2.5rem; display: block; margin: 0 auto var(--t-space-2); width: auto; height: auto; } .t-empty-title { color: var(--t-text); margin: 0.25rem 0 0.35rem; }
+.t-empty-icon { font-size: 2.5rem; display: block; margin: 0 auto var(--t-space-2); width: auto; height: auto; } .t-empty-icon.t-icon { width: 1em; height: 1em; } .t-empty-title { color: var(--t-text); margin: 0.25rem 0 0.35rem; }
 .t-empty-actions { display: flex; gap: var(--t-space-2); justify-content: center; margin-top: var(--t-space-4); }
 .t-empty[data-size="sm"] { padding: var(--t-space-4); } .t-empty[data-size="sm"] .t-empty-icon { font-size: 1.6rem; }
 
