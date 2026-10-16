@@ -15,3 +15,4 @@ AGENTS.md
 compose.yaml
 compose.override.yaml
 .tunnel
+data/
