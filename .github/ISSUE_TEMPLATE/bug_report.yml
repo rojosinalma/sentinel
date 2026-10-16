@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work as documented
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. Redact webhook URLs, tokens and private host names from logs before pasting.
+  - type: input
+    id: version
+    attributes:
+      label: sentinel version
+      description: From `GET /health` (`version`) or the image tag.
+      placeholder: 0.5.1 / ghcr.io/rojosinalma/sentinel:latest
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How do you run it?
+      options:
+        - Docker image (ghcr.io)
+        - Docker, built from source
+        - bin/sentinel serve (bare Ruby)
+    validations:
+      required: true
+  - type: input
+    id: cluster
+    attributes:
+      label: Cluster shape
+      description: Number of members and witnesses, and which node was acting.
+      placeholder: 2 members + 1 witness, node-b acting
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Stop the primary's service
+        2. Wait for the promote delay
+        3. …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and events
+      description: Relevant `docker logs sentinel` lines, `/api/events` output or the transition log. Secrets redacted.
+      render: text

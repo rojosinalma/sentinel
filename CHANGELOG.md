@@ -13,8 +13,12 @@ All notable changes to this project are documented here. The format is
   need (docker socket, ssh, service directories, CA file) as placeholders.
 - `run-tests` workflow; OCI labels on the image; `CONTRIBUTING.md`, `docs/SDD.md`,
   `docs/configuration.md`, `docs/api.md`, `docs/security.md`, `docs/operations.md`.
+- `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull request templates, Dependabot for gems,
+  actions and the base image; run names on both workflows.
+- Vendored bootstrap-icons 1.11.3 — the dashboard loads no CDN assets.
 
 ### Changed
+- Licence to AGPL-3.0 (was MIT).
 - The image workflow is `publish-image`; `bin/release` only tags and pushes (the workflow builds
   and publishes).
 - `compose.yaml` no longer joins an external docker network; add one in your own override if

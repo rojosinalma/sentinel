@@ -42,6 +42,8 @@ behaviour change in `lib/`; tests never touch ssh, docker or real hosts.
 
 - Plain, descriptive commit messages in the imperative ("Add per-service probe timeout"); no
   attribution trailers.
+- Every commit and tag is GPG-signed (`git config commit.gpgsign true`); unsigned commits are not
+  merged.
 - A PR describes the behaviour change and how you verified it. Update the docs and the
   `[Unreleased]` section of `CHANGELOG.md` in the same PR.
 - `run-tests` must be green.
@@ -50,7 +52,10 @@ behaviour change in `lib/`; tests never touch ssh, docker or real hosts.
 
 | File | What goes there |
 |---|---|
-| `README.md` | what it is, requirements, setup, licence — nothing else |
+| `README.md` | what it is, requirements, installation, usage, development, licence — nothing else |
+| `CONTRIBUTING.md` | this file: running locally, tests, style, commits, docs map, releasing |
+| `SECURITY.md` | how to report a vulnerability, supported versions |
+| `CODE_OF_CONDUCT.md` | Contributor Covenant 2.1 |
 | `docs/SDD.md` | design: architecture, data model, flows, decisions, scope, operations summary |
 | `docs/configuration.md` | every `.env` key and `cluster.yml` field |
 | `docs/hooks.md` | the hook contract, environment, exit codes, adding a service |
@@ -65,7 +70,7 @@ A new topic gets a new `docs/<topic>.md`, not a README section.
 
 1. Move the `[Unreleased]` notes in `CHANGELOG.md` under `## [X.Y.Z] - YYYY-MM-DD`.
 2. `bin/release X.Y.Z` — writes `VERSION`, bumps `SENTINEL_TAG` in the compose files and
-   `.env.example`, commits, tags `vX.Y.Z` and pushes (`RELEASE_GH=1` also creates the GitHub
+   `.env.example`, commits, signs and tags `vX.Y.Z` and pushes (`RELEASE_GH=1` also creates the GitHub
    release from the changelog section).
 3. The `publish-image` workflow builds the multi-arch image for the tag and pushes
    `ghcr.io/rojosinalma/sentinel:X.Y.Z`, `:X.Y` and `:sha-<short>`; pushes to `main` refresh

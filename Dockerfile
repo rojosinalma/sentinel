@@ -42,7 +42,7 @@ RUN mkdir -p data && chown -R app:app data
 
 LABEL org.opencontainers.image.source="https://github.com/rojosinalma/sentinel" \
       org.opencontainers.image.description="Majority-vote failover for self-hosted services: probes, quorum, majority lease, promote/demote hooks" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 
 ARG APP_VERSION=dev
 ARG BUILD_TIME=""
