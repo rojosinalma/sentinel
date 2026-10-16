@@ -57,7 +57,19 @@ Images are `ghcr.io/rojosinalma/sentinel:<version>` (amd64 + arm64). Bump `SENTI
 with `hold on` (no failback) and `AUTO_PROMOTE=off` (no promote) if you want no transition during
 the rollout. A release that changes only the dashboard or the docs can stop at the nodes whose
 dashboard you browse (the members); the witnesses' `/status`, gossip and votes are unaffected and
-they may stay on the earlier image. SQLite migrations are additive and run
+they may stay on the earlier image. The check, with `<old>` the tag the witnesses run:
+
+```
+git diff v<old>..v<new> --stat -- lib/ config/ hooks/ Gemfile.lock
+```
+
+Empty output means members only. Otherwise read the listed hunks: a changed `/status` or
+`/api/v1/status` field, the gossip documents (`/peer/view`, `/peer/lease`), the probes,
+classifier or decider, or a dependency with a behaviour change means every voter moves, one node
+at a time under hold, since the voters must agree on the same rules and wire format. Comment-only
+hunks and new settings that default to the old behaviour do not (0.5.0 → 0.5.5 was such a case).
+`config/cluster.yml` and `hooks/` are bind-mounted from the host on every node, so edits there
+reach a witness with a file copy plus restart and need no image change. SQLite migrations are additive and run
 on boot; state files are plain text and never change format. `APP_VERSION` in `/health` tells you
 what runs.
 
