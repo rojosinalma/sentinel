@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.5.6] - unreleased
+## [0.5.6] - 2026-10-16
 
 ### Fixed
 - `/status` (and the per-service entries of `/api/v1/status`) on a node that does **not** act for
