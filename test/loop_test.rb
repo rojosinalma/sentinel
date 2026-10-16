@@ -51,7 +51,8 @@ class LoopTest < Minitest::Test
     def poll! = nil
     def quorum? = true
     def agreed_class(_service, _host, local) = local
-    def primary(_service) = nil
+    def primary(service) = primary_state(service)&.fetch(:host)
+    def primary_state(_service) = nil
     def reachable_peers = []
     def local_view(**) = {}
   end

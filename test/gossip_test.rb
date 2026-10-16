@@ -139,6 +139,34 @@ class GossipTest < Minitest::Test
     assert_equal "node-b", g.primary("opencode"), "newer local value wins"
   end
 
+  # primary_state carries the winning view's per-service transition; the local store has none,
+  # and a pre-0.5.6 view without "transitions" reads as nil.
+  def test_primary_state_carries_the_acting_nodes_transition
+    at = iso(@clock.now - 60)
+    body = JSON.parse(view_body("node-a", at: iso(@clock.now), primary: { "opencode" => "node-b", "other" => "node-a" },
+                                primary_at: { "opencode" => at, "other" => at }))
+    body["transitions"] = { "opencode" => "promote 20260101T115900Z", "other" => nil }
+    apps = { "http://node-a:4197" => ->(*) { [200, JSON.generate(body)] }, "http://witness-1:4197" => ->(*) { raise "down" } }
+    g = gossip(apps)
+    assert_nil g.primary_state("opencode")
+    g.poll!
+    ps = g.primary_state("opencode")
+    assert_equal "node-b", ps[:host]
+    assert_equal Time.iso8601(at), ps[:at]
+    assert_equal "promote 20260101T115900Z", ps[:transition]
+    assert_nil g.primary_state("other")[:transition]
+
+    @store.set("primary.opencode", "node-a")
+    @store.set("primary_at.opencode", iso(@clock.now - 10))
+    assert_equal({ host: "node-a", at: @clock.now - 10, transition: nil }, g.primary_state("opencode"),
+                 "newer local row wins and carries no transition")
+
+    body.delete("transitions")
+    g.poll!
+    @store.set("primary_at.opencode", iso(@clock.now - 3600))
+    assert_nil g.primary_state("opencode")[:transition], "old view schema: no per-service transition"
+  end
+
   def test_local_view_shape_and_seq
     g = gossip({ "http://node-a:4197" => ->(*) { raise "x" }, "http://witness-1:4197" => ->(*) { raise "x" } })
     hosts = { "node-a" => Sentinel::HostView.new(name: "node-a", services: { "opencode" => "down", "other" => "up 1" },
@@ -149,8 +177,11 @@ class GossipTest < Minitest::Test
       body = g.local_view(hosts: hosts, classes: classes,
                           primary: { "opencode" => "node-a" },
                           primary_at: { "opencode" => iso(@clock.now) },
-                          hold: false, transition: nil, quorum: "up")
+                          hold: false, transition: "promote 20260101T120000Z", quorum: "up",
+                          transitions: { "opencode" => "promote 20260101T120000Z", "other" => nil })
       assert_equal "node-b", body["node"]
+      assert_equal "promote 20260101T120000Z", body["transition"], "node-wide key kept for older readers"
+      assert_equal({ "opencode" => "promote 20260101T120000Z", "other" => nil }, body["transitions"])
       assert_equal i + 1, body["seq"]
       assert_equal({ "opencode" => "degraded", "other" => "ok" }, body.dig("hosts", "node-a", "classes"))
       assert_equal({ "opencode" => "ok" }, body.dig("hosts", "witness-1", "classes"), "no entry for a service without a vote")

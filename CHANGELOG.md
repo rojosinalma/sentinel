@@ -4,7 +4,23 @@ All notable changes to this project are documented here. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.6] - unreleased
+
+### Fixed
+- `/status` (and the per-service entries of `/api/v1/status`) on a node that does **not** act for
+  the service — the primary host itself and every witness — reported `mode`/`since`/`transition`/
+  `promoting` from its own state files, which only the acting node's hooks ever write: silver's
+  `/status` said `mode=silver` throughout tiny's promote and its opencode-guard started the unit
+  mid-demote (2026-10-16 drill). Non-acting nodes now report the acting node's gossip view —
+  newest `primary_at` wins, `since` is that `primary_at`, `transition`/`promoting` are the acting
+  node's per-service transition — falling back to the store's last agreed primary, then the
+  configured primary. The acting node keeps the live state-file read from 0.4.5. The legacy
+  document's keys, order and types are unchanged (`test/fixtures/status_legacy.json`).
+
+### Added
+- `/peer/view` carries `transitions` ({service => transition or null}) next to the node-wide
+  `transition`, so a peer can see which service the acting node is moving; `Gossip#primary_state`
+  returns the winning host with its `primary_at` and that transition.
 
 ### Changed
 - Tests use `hangar` as the second-service fixture (was `fleet`); nothing in the core knows a
