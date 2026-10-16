@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ruby:3.4-slim
+FROM ruby:4.0-slim
 
 # Hook dependencies on top of the app: hooks are typically bash and drive ssh, docker (via the
 # mounted socket), sqlite3 and curl/jq; flock comes from util-linux, ping from iputils
