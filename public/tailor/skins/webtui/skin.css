@@ -1,10 +1,10 @@
-/* managed by tailor v0.1.0 — skin webtui — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin webtui — do not edit, run `tailor sync` */
 /*
  * tailor skin — webtui — WebTUI (@webtui/css 0.1.10, MIT) translated
  * Styles the t-* vocabulary (core/components.json) in WebTUI's terminal look: monospace character grid,
  * ch/lh rhythm, square corners, 2px frames, inverse-video selection, bracket checkboxes, braille spinner.
  * Nothing is imported: WebTUI's attribute selectors (is-="badge", box-="square", variant-=…) cannot be
- * required of house markup, so the relevant rules are re-declared on t-* selectors. Colours: --t-* tokens
+ * required of tailor markup, so the relevant rules are re-declared on t-* selectors. Colours: --t-* tokens
  * only (read core/tokens.css); palette tokens are never SET here (skins/SKIN-CONTRACT.md rule 4).
  * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
  *

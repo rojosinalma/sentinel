@@ -1,10 +1,10 @@
-/* managed by tailor v0.1.0 — skin pico — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin pico — do not edit, run `tailor sync` */
 /*
  * tailor skin — pico — Pico CSS 2.1.1 (MIT, https://picocss.com)
  * Styles the t-* vocabulary (core/components.json) in Pico's look: one small radius everywhere, generous
  * form-element spacing, solid primary buttons, surface cards with a shadow and sectioned header/footer,
  * box-shadow focus rings, 0.2 s ease-in-out transitions. Pico itself is NOT vendored: its classless
- * build styles bare elements and cannot be aliased onto read-only house markup (SKIN-CONTRACT rule 5),
+ * build styles bare elements and cannot be aliased onto read-only tailor markup (SKIN-CONTRACT rule 5),
  * so its metrics and rules are re-declared here against t-* selectors.
  * Colours: --t-* tokens only (palette tokens are never SET here, rule 4). Pico's own --pico-* variables
  * are bridged onto the tokens in §2 and used throughout, so every palette flows through.

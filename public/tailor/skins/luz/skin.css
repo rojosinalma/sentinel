@@ -1,9 +1,9 @@
-/* managed by tailor v0.1.0 — skin luz — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin luz — do not edit, run `tailor sync` */
 /*
  * tailor skin — luz — @d00m-gui/luz 0.5.0 translated onto the t-* vocabulary (0.1.0)
  *
  * luz is CSS-only, so this is a translation, not a vendoring: each component look from
- * dist/luz-components.css is re-expressed on house selectors with --t-* tokens.
+ * dist/luz-components.css is re-expressed on tailor selectors with --t-* tokens.
  *   --scheme             → var(--t-tone)
  *   scheme ink (mix 55%) → color-mix(in srgb, var(--t-tone) 55%, var(--t-text))
  *   soft fill (16-18%)   → color-mix(in srgb, var(--t-tone) 16%, transparent)

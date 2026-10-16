@@ -10,7 +10,6 @@
 .nav-meta { color: var(--t-muted); font-size: var(--t-text-xs); font-family: var(--t-font-mono); white-space: nowrap; }
 @media (max-width: 767.98px) { .t-navbar #generated { display: none; } }
 .t-page-header > .t-badge { margin-top: .2em; }
-[data-mode="dark"] .theme-icon-light { display: none; } [data-mode="light"] .theme-icon-dark { display: none; }
 
 /* facts + service state cell */
 .facts-grid dd { white-space: normal; overflow-wrap: anywhere; }

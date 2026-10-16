@@ -1,4 +1,4 @@
-/* managed by tailor v0.1.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -55,15 +55,41 @@
       const cur = theme.get();
       $$("[data-tailor-picker]").forEach((el) => {
         const what = el.dataset.tailorPicker;
+        if (el.tagName === "SELECT" && !el.options.length) theme.fillPicker(el, what);
         const val = what === "mode" ? cur.choice : cur[what];
         if (el.tagName === "SELECT" || el.tagName === "INPUT") el.value = val;
         else $$("[data-value]", el).forEach((b) => { const onIt = b.dataset.value === val; b.setAttribute(b.hasAttribute("aria-selected") ? "aria-selected" : "aria-pressed", onIt); });
         if (what === "mode") { const modes = theme.modes[cur.palette] || ["dark"]; $$("option, [data-value]", el).forEach((o) => { const v = o.value ?? o.dataset.value; o.disabled = v !== "auto" && !modes.includes(v); }); }
       });
     },
+    // Options for a picker: every id the config offers, sorted alphabetically by label; the "none" skin last.
+    options(what) {
+      const labels = (theme.labels || {})[what === "skin" ? "skins" : "palettes"] || {};
+      if (what === "mode") return [["dark", "Dark"], ["light", "Light"], ["auto", "Auto"]];
+      const ids = (what === "skin" ? theme.skins : theme.palettes).filter((id) => id !== "none");
+      const rows = ids.map((id) => [id, labels[id] || id]).sort((a, b) => a[1].localeCompare(b[1], undefined, { sensitivity: "base" }));
+      if (what === "skin" && theme.skins.includes("none")) rows.push(["none", "No skin"]);
+      return rows;
+    },
+    fillPicker(sel, what) {
+      sel.innerHTML = theme.options(what).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+    },
+    // <div data-tailor-pickers> → skin + palette + mode selects (skin/palette only when there is a choice).
+    renderPickers(root = document) {
+      $$("[data-tailor-pickers]", root).forEach((box) => {
+        if (!mark(box, "Pickers")) return;
+        const parts = [];
+        if (theme.skins.filter((s) => s !== "none").length > 1) parts.push(["skin", "Skin"]);
+        if (theme.palettes.length > 1) parts.push(["palette", "Palette"]);
+        parts.push(["mode", "Mode"]);
+        box.classList.add("t-pickers");
+        box.innerHTML = parts.map(([w, l]) => `<select class="t-select" data-size="sm" data-tailor-picker="${w}" aria-label="${l}" title="${l}"></select>`).join("");
+      });
+    },
     init(opts = {}) {
       Object.assign(theme, opts);
       if (opts.defaults) theme.defaults = { ...theme.defaults, ...opts.defaults };
+      theme.renderPickers();
       const q = new URLSearchParams(location.search);
       const pick = (k) => q.get(k) || theme.read(k) || theme.defaults[k];
       theme.set({ skin: pick("skin"), palette: pick("palette"), mode: pick("mode") }, { persist: false });
@@ -296,7 +322,7 @@
   /* ── upgrade: wire everything in root ─────────────────────────────────────── */
   T.upgrade = (root = document) => { ["tabs", "listbox", "menus", "dialogs", "times", "tooltips", "help", "copy", "truncate", "dismiss", "filters", "sortable"].forEach((k) => T[k](root)); return T; };
   T.esc = esc;
-  T.version = "0.1.0";
+  T.version = "0.4.0";
   window.Tailor = T;
   const me = document.currentScript;
   if (!me || me.dataset.tailor !== "manual") on(document, "DOMContentLoaded", () => T.upgrade(document));

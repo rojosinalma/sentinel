@@ -1,4 +1,4 @@
-/* managed by tailor v0.1.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tokens.css — THE token contract.
  *
@@ -6,11 +6,11 @@
  * these `--t-*` custom properties and nothing else. No hex in skins or projects.
  *
  * Three groups:
- *   1. Palette tokens  — filled from a canonical palette JSON (web-ui-design/assets/palettes/<id>.json,
+ *   1. Palette tokens  — filled from a canonical palette JSON (palettes/src/<id>.json,
  *      schema palette.schema.json). The mapping is 1:1 and mechanical: `bin/gen-palette <palette>`
  *      emits palettes/<id>.css with a `[data-palette="<id>"]` block (and a `[data-mode="light"]`
  *      block when the palette has a `light` counterpart). The `:root` values below ARE the Dracula
- *      palette, so a page with no palette file still renders the house default.
+ *      palette, so a page with no palette file still renders the default palette.
  *   2. Derived tokens  — computed from palette tokens with color-mix(); never set per palette.
  *   3. Scale tokens    — spacing, radius, type, shadow, layout metrics. Skins MAY override these
  *      (a skin is allowed to be rounder or denser); palettes never do.

@@ -1,4 +1,4 @@
-/* managed by tailor v0.1.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/layout.css — layout primitives. System-agnostic: CSS grid/flex + --t-* tokens only.
  * Owns geometry (app shell, page, section, toolbar, grid, stack/cluster, split). Skins colour these
@@ -49,6 +49,8 @@
   height: var(--t-footer-h); padding: 0 var(--t-space-5); position: relative;
 }
 .t-footer-end { position: absolute; right: var(--t-space-5); display: flex; align-items: center; gap: var(--t-space-3); }
+/* skin/palette/mode pickers ([data-tailor-pickers], rendered by Tailor.theme): footer when the layout has one, else navbar end */
+.t-pickers { display: inline-flex; align-items: center; gap: var(--t-space-2); }
 
 /* ── page ──────────────────────────────────────────────────────────────────── */
 .t-page { padding: var(--t-space-6) var(--t-gutter) var(--t-space-6); max-width: var(--t-content-max); }

@@ -17,14 +17,7 @@
     <span class="t-badge" data-tone="info" data-variant="tint" title="Which instance of this page answered"><i class="bi bi-hdd-network" aria-hidden="true"></i> served by <%= @host %></span>
     <span id="stale" class="t-badge" data-tone="warning" data-variant="solid" hidden title="Last refresh failed; showing the previous result"><i class="bi bi-wifi-off" aria-hidden="true"></i> stale</span>
     <div class="t-navbar-end">
-      <select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin" title="Skin">
-        <% %w[webtui bootstrap daisyui govuk luz pico simple tufte].each do |s| %><option value="<%= s %>"><%= s %></option><% end %>
-      </select>
-      <select class="t-select" data-size="sm" data-tailor-picker="palette" aria-label="Palette" title="Palette">
-        <% %w[dracula ayu catppuccin everforest flexoki gruvbox kanagawa modusvivendi nightfox nightowl nord onedark oxocarbon poimandres rosepine selenized solarized synthwave84 tokyonight vitesse zenburn].each do |p| %><option value="<%= p %>"><%= p %></option><% end %>
-      </select>
       <span class="nav-meta" id="generated" title="When the data was collected">—</span>
-      <button class="t-btn" data-variant="ghost" data-size="sm" data-tailor-mode-toggle type="button" aria-label="Toggle light/dark" title="Toggle light/dark mode"><i class="bi bi-sun-fill theme-icon-light"></i><i class="bi bi-moon-fill theme-icon-dark"></i></button>
     </div>
   </header>
 
@@ -38,6 +31,7 @@
     <% end %>
     <div class="t-footer-end">
       <span class="t-footer-version">sentinel <%= @version %><% unless @built_at.empty? %> · built <%= @built_at %><% end %> · <%= @host %></span>
+      <div data-tailor-pickers></div>
     </div>
   </footer>
 </div>

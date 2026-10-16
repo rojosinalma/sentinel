@@ -1,11 +1,11 @@
-/* managed by tailor v0.1.0 — skin daisyui — do not edit, run `tailor sync` */
+/* managed by tailor v0.3.0 — skin daisyui — do not edit, run `tailor sync` */
 /*
  * tailor skin — daisyui — daisyUI 5.7.50 (MIT, https://daisyui.com)
  * Styles the t-* vocabulary (core/components.json) in daisyUI 5's look: pill buttons (600 weight,
  * press-down translate), soft rounded-box cards and modals, chunky toggles with a squircle thumb,
  * tabs-box segmented controls, soft-tint badges/alerts, the SVG-mask loading ring. daisyUI itself is
  * NOT vendored: it is a Tailwind 4 plugin whose classes (btn, badge, card…) cannot be demanded from
- * read-only house markup (SKIN-CONTRACT rule 5), so the relevant declarations from its built CSS are
+ * read-only tailor markup (SKIN-CONTRACT rule 5), so the relevant declarations from its built CSS are
  * re-expressed here against t-* selectors, with every colour read from --t-* tokens
  * (base-100→canvas, base-200→inset/selection, base-300→border, base-content→text, primary→accent).
  * Loaded after core/base.css + core/layout.css, before palettes/<id>.css.
