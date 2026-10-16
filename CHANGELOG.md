@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+### Changed
+- Tests use `beacon` as the second-service fixture (was `beacon`); nothing in the core knows a
+  service name, so the rename of the homelab's beacon service is a `cluster.yml` change only.
+
 ## [0.5.5] - 2026-10-16
 
 ### Changed
