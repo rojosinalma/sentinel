@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-16
+
 ### Added
 - `LEGACY_SERVICE` selects the service that `GET /status`, the CLI and the MCP tools describe
   when no `service` is given (default `opencode`, the name the frozen document was written for).
