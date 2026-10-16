@@ -4,7 +4,7 @@
 # acting node (the one running hooks) starts from examples/acting-node/compose.yaml instead.
 services:
   sentinel:
-    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.5.2}
+    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.5.3}
     container_name: sentinel
     restart: unless-stopped
     environment:
