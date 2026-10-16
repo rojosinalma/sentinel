@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin daisyui — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin daisyui — do not edit, run `tailor sync` */
 /*
  * tailor skin — daisyui — daisyUI 5.7.50 (MIT, https://daisyui.com)
  * Styles the t-* vocabulary (core/components.json) in daisyUI 5's look: pill buttons (600 weight,
@@ -102,6 +102,7 @@ h1, h2, h3 { font-weight: 700; }
 .t-btn[data-variant="link"]:hover { background: transparent; border-color: transparent; color: color-mix(in srgb, var(--t-link) 80%, var(--t-text)); }
 .t-btn[data-variant] { background: var(--dy-btn-bg); color: var(--dy-btn-fg); }
 .t-btn:is([data-variant="primary"], [data-variant="danger"], [data-variant="warning"]) { border-color: var(--dy-btn-bg); }
+.t-btn[data-size="xs"] { font-size: 0.7rem; padding: 0 0.5rem; }
 .t-btn[data-size="sm"] { font-size: 0.75rem; padding: 0 0.75rem; }
 .t-btn[data-size="lg"] { font-size: 1.125rem; padding: 0 1.25rem; }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 1; background: color-mix(in srgb, var(--t-text) 10%, transparent); border-color: transparent; color: color-mix(in srgb, var(--t-text) 35%, transparent); box-shadow: none; }

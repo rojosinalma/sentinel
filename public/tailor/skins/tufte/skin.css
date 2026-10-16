@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin tufte — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin tufte — do not edit, run `tailor sync` */
 /*
  * tailor skin — tufte — Tufte CSS 1.9.0 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in Tufte CSS's long-form book look: et-book /
@@ -92,7 +92,7 @@ hr { width: 55%; border-top-color: var(--tu-rule); }
 .t-btn[data-variant="ghost"][data-tone]:hover { background: transparent; color: var(--t-tone); }
 .t-btn[data-variant="link"] { border-color: transparent; color: var(--tu-ink); text-decoration: underline; text-decoration-thickness: 0.05em; text-underline-offset: 0.12em; }
 .t-btn[data-variant="link"]:hover { background: transparent; color: var(--t-link); }
-.t-btn[data-size="sm"] { font-size: var(--t-text-sm); } .t-btn[data-size="lg"] { font-size: var(--t-text-base); }
+.t-btn[data-size="xs"] { font-size: var(--t-text-xs); } .t-btn[data-size="sm"] { font-size: var(--t-text-sm); } .t-btn[data-size="lg"] { font-size: var(--t-text-base); }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.45; }
 .t-btn[aria-pressed="true"] { background: var(--tu-faint); border-color: var(--tu-ink); color: var(--tu-ink); font-style: italic; }
 .t-btn[aria-busy="true"]::before { border-width: 1px; }

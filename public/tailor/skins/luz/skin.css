@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin luz — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin luz — do not edit, run `tailor sync` */
 /*
  * tailor skin — luz — @d00m-gui/luz 0.5.0 translated onto the t-* vocabulary (0.1.0)
  *
@@ -131,6 +131,7 @@ kbd { background: var(--luz-d2); border: var(--t-border-w) solid var(--luz-borde
 .t-btn[data-variant="ghost"][data-tone]:hover { background: color-mix(in srgb, var(--t-tone) 14%, transparent); color: color-mix(in srgb, var(--t-tone) 55%, var(--t-text)); }
 .t-btn[data-variant="link"] { background: transparent; color: var(--t-link); padding: 0 0.3em; }
 .t-btn[data-variant="link"]:hover { background: transparent; color: color-mix(in srgb, var(--t-link) 70%, var(--t-text)); text-decoration: underline; }
+.t-btn[data-size="xs"] { padding: 0 0.55em; font-size: 0.7rem; }
 .t-btn[data-size="sm"] { padding: 0 0.75em; font-size: 0.76rem; }
 .t-btn[data-size="lg"] { padding: 0 1.3em; font-size: 1rem; }
 .t-btn[data-icon="only"] { padding: 0; }

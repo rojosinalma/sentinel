@@ -1,4 +1,4 @@
-/* managed by tailor v0.3.0 — skin govuk — do not edit, run `tailor sync` */
+/* managed by tailor v0.4.0 — skin govuk — do not edit, run `tailor sync` */
 /*
  * tailor skin — govuk — GOV.UK Frontend 6.5.1 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in GOV.UK Frontend's look: square corners, 2px
@@ -125,6 +125,7 @@ a:focus-visible,
 .t-btn[data-variant="ghost"][data-tone]:hover { background: transparent; color: var(--t-tone); }
 .t-btn[data-variant="link"] { background: transparent; border-color: transparent; color: var(--t-link); box-shadow: none; text-decoration: underline; min-height: 0; padding: 0 0.1em; }
 .t-btn[data-variant="link"]:hover { background: transparent; text-decoration-thickness: 3px; }
+.t-btn[data-size="xs"] { font-size: var(--t-text-sm); }
 .t-btn[data-size="sm"] { font-size: var(--t-text-md); }
 .t-btn[data-size="lg"] { font-size: var(--t-text-lg); }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
