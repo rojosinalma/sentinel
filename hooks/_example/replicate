@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Example hook: replicate fence|stack|warm (docs/hooks.md). In a real service fence re-asserts
-# the fence and the routes, stack repairs the standby's own stack and writes $STATE_DIR/stack,
-# warm keeps a warm follower current.
+# Example replicate hook (docs/hooks.md): replicate fence|stack|warm. In a real service `fence`
+# re-asserts the fence on the primary while promoted, `stack` repairs the standby's own stack and
+# writes $STATE_DIR/stack (healthy | degraded: <what>), `warm` keeps a follower of the primary's
+# data current while watching so the next promote is fast.
 set -euo pipefail
 task="${1:-fence}"
 echo "$(date -u +%FT%TZ) [example-replicate] task=$task SERVICE=${SERVICE:-} STATE_DIR=${STATE_DIR:-} DRY_RUN=${DRY_RUN:-}"

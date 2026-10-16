@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 FROM ruby:3.4-slim
 
-# Hook dependencies on top of the app: the opencode hooks are bash and drive ssh, docker (via
-# the mounted socket), litestream (docker run), sqlite3 and curl/jq; flock comes from util-linux,
-# ping from iputils (quorum/icmp probes). The docker CLI + compose plugin are the static builds,
-# arch-selected so the same Dockerfile serves witness-1 (arm64).
+# Hook dependencies on top of the app: hooks are typically bash and drive ssh, docker (via the
+# mounted socket), sqlite3 and curl/jq; flock comes from util-linux, ping from iputils
+# (quorum/icmp probes). The docker CLI + compose plugin are the static builds, arch-selected so
+# the same Dockerfile builds for amd64 and arm64.
 ARG TARGETARCH
 ARG DOCKER_VERSION=27.3.1
 ARG COMPOSE_VERSION=2.29.7
@@ -39,6 +39,10 @@ COPY . .
 # data/ (state, logs, sqlite) must be writable by the unprivileged user even without a volume;
 # with a bind mount, create the host dir yourself first so it is not root-owned (README).
 RUN mkdir -p data && chown -R app:app data
+
+LABEL org.opencontainers.image.source="https://github.com/rojosinalma/sentinel" \
+      org.opencontainers.image.description="Majority-vote failover for self-hosted services: probes, quorum, majority lease, promote/demote hooks" \
+      org.opencontainers.image.licenses="MIT"
 
 ARG APP_VERSION=dev
 ARG BUILD_TIME=""

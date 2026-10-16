@@ -4,7 +4,7 @@ require_relative "test_helper"
 
 class HostViewTest < Minitest::Test
   def view(**over)
-    defaults = { name: "silver", services: { "opencode" => "up 2.0.25" }, ssh: "up", icmp: "up",
+    defaults = { name: "node-a", services: { "opencode" => "up 2.0.25" }, ssh: "up", icmp: "up",
                  https: "up", probed_at: Time.utc(2026, 1, 1, 12, 0, 0) }
     Sentinel::HostView.new(**defaults.merge(over)).freeze
   end
@@ -44,7 +44,7 @@ class HostViewTest < Minitest::Test
   def test_to_h_from_h_roundtrip
     original = view
     hash = original.to_h
-    assert_equal "silver", hash["name"]
+    assert_equal "node-a", hash["name"]
     assert_equal({ "opencode" => "up 2.0.25" }, hash["services"])
     assert_equal "2026-01-01T12:00:00Z", hash["probed_at"]
     restored = Sentinel::HostView.from_h(hash)

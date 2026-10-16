@@ -6,7 +6,7 @@ require "json"
 class LeaseTest < Minitest::Test
   include ClusterHarness
 
-  NODES = %w[silver tiny witness-1].freeze
+  NODES = %w[node-a node-b witness-1].freeze
 
   def setup
     @clock = FakeClock.new
@@ -33,41 +33,41 @@ class LeaseTest < Minitest::Test
   def pack((status, body)) = [status, JSON.generate(body)]
 
   def test_happy_acquire
-    grant = @leases["tiny"].acquire!(service: "opencode", action: "promote")
-    assert_equal %w[silver witness-1], grant.granted_by.sort
-    refute_nil @stores["tiny"].lease_current("opencode", now: @clock.now)
-    refute_nil @stores["silver"].lease_current("opencode", now: @clock.now)
-    assert(@stores["silver"].events.any? { |e| e[:kind] == "lease.grant" })
+    grant = @leases["node-b"].acquire!(service: "opencode", action: "promote")
+    assert_equal %w[node-a witness-1], grant.granted_by.sort
+    refute_nil @stores["node-b"].lease_current("opencode", now: @clock.now)
+    refute_nil @stores["node-a"].lease_current("opencode", now: @clock.now)
+    assert(@stores["node-a"].events.any? { |e| e[:kind] == "lease.grant" })
   end
 
   def test_majority_with_one_peer_down
-    @down << "silver"
-    grant = @leases["tiny"].acquire!(service: "opencode", action: "promote")
+    @down << "node-a"
+    grant = @leases["node-b"].acquire!(service: "opencode", action: "promote")
     assert_equal %w[witness-1], grant.granted_by
   end
 
   def test_denied_without_majority
-    @down.concat(%w[silver witness-1])
+    @down.concat(%w[node-a witness-1])
     err = assert_raises(Sentinel::Lease::Denied) do
-      @leases["tiny"].acquire!(service: "opencode", action: "promote")
+      @leases["node-b"].acquire!(service: "opencode", action: "promote")
     end
     assert_equal 2, err.reasons.size
   end
 
   def test_denied_when_peers_hold_conflicting_lease
-    %w[silver witness-1].each do |n|
+    %w[node-a witness-1].each do |n|
       @stores[n].lease_grant!(service: "opencode", holder: "someone-else", action: "promote",
                               token: "other", ttl_s: 30, now: @clock.now)
     end
     err = assert_raises(Sentinel::Lease::Denied) do
-      @leases["tiny"].acquire!(service: "opencode", action: "promote")
+      @leases["node-b"].acquire!(service: "opencode", action: "promote")
     end
     assert(err.reasons.all? { |r| r.include?("held by someone-else") })
   end
 
   def test_holder_must_be_standby
-    status, body = @leases["silver"].handle_request(
-      "service" => "opencode", "holder" => "silver", "action" => "promote", "ttl_s" => 30, "token" => "t"
+    status, body = @leases["node-a"].handle_request(
+      "service" => "opencode", "holder" => "node-a", "action" => "promote", "ttl_s" => 30, "token" => "t"
     )
     assert_equal 409, status
     refute body[:ok]
@@ -75,36 +75,36 @@ class LeaseTest < Minitest::Test
   end
 
   def test_unknown_service
-    status, body = @leases["silver"].handle_request(
-      "service" => "nope", "holder" => "tiny", "action" => "promote", "ttl_s" => 30, "token" => "t"
+    status, body = @leases["node-a"].handle_request(
+      "service" => "nope", "holder" => "node-b", "action" => "promote", "ttl_s" => 30, "token" => "t"
     )
     assert_equal 400, status
     refute body[:ok]
   end
 
   def test_renew_extends_and_expired_without_majority
-    grant = @leases["tiny"].acquire!(service: "opencode", action: "promote")
+    grant = @leases["node-b"].acquire!(service: "opencode", action: "promote")
     @clock.advance(10)
-    renewed = @leases["tiny"].renew!(grant)
+    renewed = @leases["node-b"].renew!(grant)
     assert_operator renewed.expires_at, :>, grant.expires_at
 
-    @down.concat(%w[silver witness-1])
-    assert_raises(Sentinel::Lease::Expired) { @leases["tiny"].renew!(renewed) }
+    @down.concat(%w[node-a witness-1])
+    assert_raises(Sentinel::Lease::Expired) { @leases["node-b"].renew!(renewed) }
   end
 
   def test_release
-    grant = @leases["tiny"].acquire!(service: "opencode", action: "promote")
-    @leases["tiny"].release!(grant)
-    assert_nil @stores["tiny"].lease_current("opencode", now: @clock.now)
-    assert_nil @stores["silver"].lease_current("opencode", now: @clock.now)
+    grant = @leases["node-b"].acquire!(service: "opencode", action: "promote")
+    @leases["node-b"].release!(grant)
+    assert_nil @stores["node-b"].lease_current("opencode", now: @clock.now)
+    assert_nil @stores["node-a"].lease_current("opencode", now: @clock.now)
     assert_nil @stores["witness-1"].lease_current("opencode", now: @clock.now)
   end
 
   def test_expired_leases_do_not_block
-    @stores["silver"].lease_grant!(service: "opencode", holder: "someone-else", action: "promote",
+    @stores["node-a"].lease_grant!(service: "opencode", holder: "someone-else", action: "promote",
                                    token: "old", ttl_s: 30, now: @clock.now)
     @clock.advance(31)
-    grant = @leases["tiny"].acquire!(service: "opencode", action: "promote")
-    assert_includes grant.granted_by, "silver"
+    grant = @leases["node-b"].acquire!(service: "opencode", action: "promote")
+    assert_includes grant.granted_by, "node-a"
   end
 end

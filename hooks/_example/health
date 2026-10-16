@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Example hook: proves the wiring end to end without touching real infrastructure. The loop
-# reads the LAST line: `up` or `down <reason>` (docs/hooks.md).
+# Example health hook (docs/hooks.md): runs every HOST_HEALTH_INTERVAL_S while promoted. A real
+# one probes the primary host deeper than the sentinel can (ssh login, units, containers). The
+# loop reads the LAST line of stdout: `up` or `down <reason>`.
 set -euo pipefail
 echo "$(date -u +%FT%TZ) [example-health] args=$* SERVICE=${SERVICE:-} PRIMARY=${PRIMARY:-} ACTING_NODE=${ACTING_NODE:-}"
 echo "up"

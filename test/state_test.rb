@@ -8,27 +8,27 @@ class StateTest < Minitest::Test
   end
 
   def test_mode_default_when_absent
-    assert_equal "silver", @state.mode(default: "silver")
+    assert_equal "node-a", @state.mode(default: "node-a")
     assert_nil @state.mode_since
   end
 
   def test_set_mode_and_history
     clock = FakeClock.new
-    @state.set_mode!("tiny", now: clock.now)
-    assert_equal "tiny", @state.mode(default: "silver")
-    assert_equal "tiny\n", File.read(@state.path("mode"))
-    assert_equal "2026-01-01T12:00:00Z tiny", File.read(@state.path("mode.history")).strip
+    @state.set_mode!("node-b", now: clock.now)
+    assert_equal "node-b", @state.mode(default: "node-a")
+    assert_equal "node-b\n", File.read(@state.path("mode"))
+    assert_equal "2026-01-01T12:00:00Z node-b", File.read(@state.path("mode.history")).strip
     refute_nil @state.mode_since
   end
 
   def test_legacy_primary_form
-    File.write(@state.path("mode"), "primary=tiny since whenever\n")
-    assert_equal "tiny", @state.mode(default: "silver")
+    File.write(@state.path("mode"), "primary=node-b since whenever\n")
+    assert_equal "node-b", @state.mode(default: "node-a")
   end
 
   def test_corrupt_mode_raises
     File.write(@state.path("mode"), "???\n")
-    assert_raises(Sentinel::State::Corrupt) { @state.mode(default: "silver") }
+    assert_raises(Sentinel::State::Corrupt) { @state.mode(default: "node-a") }
   end
 
   def test_invalid_set_mode
@@ -77,9 +77,9 @@ class StateTest < Minitest::Test
   def test_flips_in_window
     clock = FakeClock.new
     assert_equal 0, @state.flips_in_window(3600, now: clock.now)
-    @state.set_mode!("tiny", now: clock.now - 7000)
-    @state.set_mode!("silver", now: clock.now - 1800)
-    @state.set_mode!("tiny", now: clock.now - 60)
+    @state.set_mode!("node-b", now: clock.now - 7000)
+    @state.set_mode!("node-a", now: clock.now - 1800)
+    @state.set_mode!("node-b", now: clock.now - 60)
     assert_equal 2, @state.flips_in_window(3600, now: clock.now)
     assert_equal 3, @state.flips_in_window(8000, now: clock.now)
   end
@@ -101,14 +101,14 @@ class StateTest < Minitest::Test
     clock = FakeClock.new
     oc = @state.for("opencode")
     fleet = @state.for("fleet")
-    fleet.set_mode!("tiny", now: clock.now)
+    fleet.set_mode!("node-b", now: clock.now)
     fleet.set_transition!("promote", "20260101T120000Z")
     fleet.touch!("promote-failed")
     File.write(fleet.path("stack"), "degraded: hangar\n")
 
-    assert_equal "tiny", fleet.mode(default: "silver")
-    assert_equal "silver", oc.mode(default: "silver"), "the other service's mode is untouched"
-    assert_equal "silver", @state.mode(default: "silver"), "and so is the node root"
+    assert_equal "node-b", fleet.mode(default: "node-a")
+    assert_equal "node-a", oc.mode(default: "node-a"), "the other service's mode is untouched"
+    assert_equal "node-a", @state.mode(default: "node-a"), "and so is the node root"
     assert_equal 1, fleet.flips_in_window(3600, now: clock.now)
     assert_equal 0, oc.flips_in_window(3600, now: clock.now)
     assert_equal "promote 20260101T120000Z", fleet.transition
@@ -157,7 +157,7 @@ class StateTest < Minitest::Test
 
   def test_migrate_legacy_moves_the_opencode_files_and_leaves_a_mode_symlink
     clock = FakeClock.new
-    @state.set_mode!("tiny", now: clock.now)
+    @state.set_mode!("node-b", now: clock.now)
     %w[transition promote-failed tiny-stack last-demote last-stack-repair warm.json known_hosts].each do |n|
       File.write(@state.path(n), "#{n}\n")
     end
@@ -167,28 +167,28 @@ class StateTest < Minitest::Test
     oc = @state.for("opencode")
     assert_equal %w[mode mode.history transition promote-failed tiny-stack warm.json known_hosts
                     last-demote last-stack-repair].sort, moved.sort
-    assert_equal "tiny", oc.mode(default: "silver")
-    assert_equal "2026-01-01T12:00:00Z tiny", File.read(oc.path("mode.history")).strip
+    assert_equal "node-b", oc.mode(default: "node-a")
+    assert_equal "2026-01-01T12:00:00Z node-b", File.read(oc.path("mode.history")).strip
     assert_equal "tiny-stack", oc.stack
     assert File.file?(oc.path("last-demote"))
     assert File.symlink?(@state.path("mode"))
     assert_equal "opencode/mode", File.readlink(@state.path("mode"))
-    assert_equal "tiny", @state.mode(default: "silver"), "external readers of state/mode still see it"
+    assert_equal "node-b", @state.mode(default: "node-a"), "external readers of state/mode still see it"
     assert @state.hold?, "the node-wide hold stays at the root"
     refute File.exist?(@state.path("transition"))
 
     # the hook moves the per-service file; the symlink follows
-    oc.set_mode!("silver", now: clock.now)
-    assert_equal "silver\n", File.read(@state.path("mode"))
+    oc.set_mode!("node-a", now: clock.now)
+    assert_equal "node-a\n", File.read(@state.path("mode"))
     assert_equal [], @state.migrate_legacy!("opencode"), "a second run is a no-op"
   end
 
   def test_migrate_legacy_is_a_noop_without_legacy_files
     assert_equal [], @state.migrate_legacy!("opencode")
     refute File.exist?(@state.path("mode"))
-    @state.for("opencode").set_mode!("tiny")
-    File.write(@state.path("mode"), "silver\n")
+    @state.for("opencode").set_mode!("node-b")
+    File.write(@state.path("mode"), "node-a\n")
     assert_equal [], @state.migrate_legacy!("opencode"), "never overwrites an existing per-service mode"
-    assert_equal "tiny", @state.for("opencode").mode(default: "silver")
+    assert_equal "node-b", @state.for("opencode").mode(default: "node-a")
   end
 end

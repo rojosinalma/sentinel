@@ -7,14 +7,14 @@ require "json"
 module ClusterHarness
   CLUSTER_YML = <<~YAML
     hosts:
-      silver:   {address: 127.0.0.1, sentinel_url: http://silver:4197, role: member, probes: {ssh: 22}}
-      tiny:     {address: 127.0.0.2, sentinel_url: http://tiny:4197, role: member, probes: {ssh: 22}}
+      node-a:   {address: 127.0.0.1, sentinel_url: http://node-a:4197, role: member, probes: {ssh: 22}}
+      node-b:     {address: 127.0.0.2, sentinel_url: http://node-b:4197, role: member, probes: {ssh: 22}}
       witness-1: {address: 127.0.0.3, sentinel_url: http://witness-1:4197, role: witness, probes: {ssh: 22}}
     quorum_tcp: []
     services:
       opencode:
-        primary: silver
-        standby: tiny
+        primary: node-a
+        standby: node-b
         health: {}
         hooks_dir: hooks/opencode
   YAML
@@ -42,27 +42,27 @@ class GossipTest < Minitest::Test
     @store = memory_store
   end
 
-  def gossip(apps, node: "tiny", stale_s: 10)
+  def gossip(apps, node: "node-b", stale_s: 10)
     Sentinel::Gossip.new(cluster: cluster_for(node), transport: Sentinel::Transport::InProcess.new(apps),
                          store: @store, stale_s: stale_s, now: @clock.to_proc)
   end
 
   def test_poll_stores_fresh_views_and_reachability
-    silver_body = view_body("silver", at: iso(@clock.now))
+    peer_body = view_body("node-a", at: iso(@clock.now))
     apps = {
-      "http://silver:4197" => ->(_m, _p, _b) { [200, silver_body] },
+      "http://node-a:4197" => ->(_m, _p, _b) { [200, peer_body] },
       "http://witness-1:4197" => ->(_m, _p, _b) { raise "down" }
     }
     g = gossip(apps)
     g.poll!
-    assert_equal %w[silver], g.views.keys
-    assert_equal %w[silver], g.reachable_peers
+    assert_equal %w[node-a], g.views.keys
+    assert_equal %w[node-a], g.reachable_peers
     assert g.quorum?, "1 reachable peer + self = 2 >= majority 2"
   end
 
   def test_no_quorum_when_alone
     apps = {
-      "http://silver:4197" => ->(*) { raise "down" },
+      "http://node-a:4197" => ->(*) { raise "down" },
       "http://witness-1:4197" => ->(*) { raise "down" }
     }
     g = gossip(apps)
@@ -72,7 +72,7 @@ class GossipTest < Minitest::Test
   end
 
   def test_mismatched_node_dropped
-    apps = { "http://silver:4197" => ->(*) { [200, view_body("impostor", at: iso(@clock.now))] },
+    apps = { "http://node-a:4197" => ->(*) { [200, view_body("impostor", at: iso(@clock.now))] },
              "http://witness-1:4197" => ->(*) { raise "down" } }
     g = gossip(apps)
     g.poll!
@@ -81,7 +81,7 @@ class GossipTest < Minitest::Test
   end
 
   def test_stale_views_lose_their_vote
-    apps = { "http://silver:4197" => ->(*) { [200, view_body("silver", at: iso(@clock.now))] },
+    apps = { "http://node-a:4197" => ->(*) { [200, view_body("node-a", at: iso(@clock.now))] },
              "http://witness-1:4197" => ->(*) { raise "down" } }
     g = gossip(apps)
     g.poll!
@@ -92,72 +92,72 @@ class GossipTest < Minitest::Test
   end
 
   def test_agreement
-    hosts = { "silver" => { "classes" => { "opencode" => "dead" } } }
-    apps = { "http://silver:4197" => ->(*) { raise "down" },
+    hosts = { "node-a" => { "classes" => { "opencode" => "dead" } } }
+    apps = { "http://node-a:4197" => ->(*) { raise "down" },
              "http://witness-1:4197" => ->(*) { [200, view_body("witness-1", at: iso(@clock.now), hosts: hosts)] } }
     g = gossip(apps)
     g.poll!
-    assert_equal({ "tiny" => :dead, "witness-1" => :dead }, g.classes_for("opencode", "silver", :dead))
-    assert_equal :dead, g.agreed_class("opencode", "silver", :dead)
-    assert_equal :ok, g.agreed_class("opencode", "silver", :ok), "1 dead vote of 2 present is no dead majority"
+    assert_equal({ "node-b" => :dead, "witness-1" => :dead }, g.classes_for("opencode", "node-a", :dead))
+    assert_equal :dead, g.agreed_class("opencode", "node-a", :dead)
+    assert_equal :ok, g.agreed_class("opencode", "node-a", :ok), "1 dead vote of 2 present is no dead majority"
   end
 
   def test_agreement_is_per_service
-    hosts = { "silver" => { "classes" => { "opencode" => "dead", "other" => "ok" } } }
-    apps = { "http://silver:4197" => ->(*) { raise "down" },
+    hosts = { "node-a" => { "classes" => { "opencode" => "dead", "other" => "ok" } } }
+    apps = { "http://node-a:4197" => ->(*) { raise "down" },
              "http://witness-1:4197" => ->(*) { [200, view_body("witness-1", at: iso(@clock.now), hosts: hosts)] } }
     g = gossip(apps)
     g.poll!
-    assert_equal :dead, g.agreed_class("opencode", "silver", :dead)
-    assert_equal :ok, g.agreed_class("other", "silver", :dead), "the peer's vote on 'other' is ok"
-    assert_equal({ "tiny" => :dead }, g.classes_for("unknown", "silver", :dead), "no peer vote on an unknown service")
+    assert_equal :dead, g.agreed_class("opencode", "node-a", :dead)
+    assert_equal :ok, g.agreed_class("other", "node-a", :dead), "the peer's vote on 'other' is ok"
+    assert_equal({ "node-b" => :dead }, g.classes_for("unknown", "node-a", :dead), "no peer vote on an unknown service")
   end
 
   def test_agreement_disagreeing_peer
-    hosts = { "silver" => { "classes" => { "opencode" => "ok" } } }
-    apps = { "http://silver:4197" => ->(*) { raise "down" },
+    hosts = { "node-a" => { "classes" => { "opencode" => "ok" } } }
+    apps = { "http://node-a:4197" => ->(*) { raise "down" },
              "http://witness-1:4197" => ->(*) { [200, view_body("witness-1", at: iso(@clock.now), hosts: hosts)] } }
     g = gossip(apps)
     g.poll!
-    assert_equal :ok, g.agreed_class("opencode", "silver", :dead), "1 dead vote of 2 present is no majority"
+    assert_equal :ok, g.agreed_class("opencode", "node-a", :dead), "1 dead vote of 2 present is no majority"
   end
 
   def test_primary_newest_wins
     old = iso(@clock.now - 3600)
     new = iso(@clock.now - 60)
-    apps = { "http://silver:4197" => lambda { |*|
-               [200, view_body("silver", at: iso(@clock.now),
-                               primary: { "opencode" => "silver" }, primary_at: { "opencode" => old })]
+    apps = { "http://node-a:4197" => lambda { |*|
+               [200, view_body("node-a", at: iso(@clock.now),
+                               primary: { "opencode" => "node-a" }, primary_at: { "opencode" => old })]
              },
              "http://witness-1:4197" => ->(*) { raise "down" } }
     g = gossip(apps)
     assert_nil g.primary("opencode")
     g.poll!
-    assert_equal "silver", g.primary("opencode")
-    @store.set("primary.opencode", "tiny")
+    assert_equal "node-a", g.primary("opencode")
+    @store.set("primary.opencode", "node-b")
     @store.set("primary_at.opencode", new)
-    assert_equal "tiny", g.primary("opencode"), "newer local value wins"
+    assert_equal "node-b", g.primary("opencode"), "newer local value wins"
   end
 
   def test_local_view_shape_and_seq
-    g = gossip({ "http://silver:4197" => ->(*) { raise "x" }, "http://witness-1:4197" => ->(*) { raise "x" } })
-    hosts = { "silver" => Sentinel::HostView.new(name: "silver", services: { "opencode" => "down", "other" => "up 1" },
+    g = gossip({ "http://node-a:4197" => ->(*) { raise "x" }, "http://witness-1:4197" => ->(*) { raise "x" } })
+    hosts = { "node-a" => Sentinel::HostView.new(name: "node-a", services: { "opencode" => "down", "other" => "up 1" },
                                                  ssh: "up", icmp: "up", https: "up", probed_at: @clock.now),
               "witness-1" => Sentinel::HostView.new(name: "witness-1", ssh: "up", probed_at: @clock.now) }
-    classes = { "opencode" => { "silver" => :degraded, "witness-1" => :ok }, "other" => { "silver" => :ok } }
+    classes = { "opencode" => { "node-a" => :degraded, "witness-1" => :ok }, "other" => { "node-a" => :ok } }
     2.times do |i|
       body = g.local_view(hosts: hosts, classes: classes,
-                          primary: { "opencode" => "silver" },
+                          primary: { "opencode" => "node-a" },
                           primary_at: { "opencode" => iso(@clock.now) },
                           hold: false, transition: nil, quorum: "up")
-      assert_equal "tiny", body["node"]
+      assert_equal "node-b", body["node"]
       assert_equal i + 1, body["seq"]
-      assert_equal({ "opencode" => "degraded", "other" => "ok" }, body.dig("hosts", "silver", "classes"))
+      assert_equal({ "opencode" => "degraded", "other" => "ok" }, body.dig("hosts", "node-a", "classes"))
       assert_equal({ "opencode" => "ok" }, body.dig("hosts", "witness-1", "classes"), "no entry for a service without a vote")
-      assert_equal({ "opencode" => "down", "other" => "up 1" }, body.dig("hosts", "silver", "services"))
-      assert_equal "up", body.dig("hosts", "silver", "ssh")
-      refute body.dig("hosts", "silver").key?("name")
-      refute body.dig("hosts", "silver").key?("class"), "schema v2 has no single class"
+      assert_equal({ "opencode" => "down", "other" => "up 1" }, body.dig("hosts", "node-a", "services"))
+      assert_equal "up", body.dig("hosts", "node-a", "ssh")
+      refute body.dig("hosts", "node-a").key?("name")
+      refute body.dig("hosts", "node-a").key?("class"), "schema v2 has no single class"
       assert body.key?("lease")
       assert_equal "2026-01-01T12:00:00Z", body["at"]
     end

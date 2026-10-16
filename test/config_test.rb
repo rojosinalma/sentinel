@@ -42,22 +42,22 @@ class ConfigTest < Minitest::Test
 
   def test_cluster
     with_cluster_file do
-      ENV["NODE_NAME"] = "tiny"
+      ENV["NODE_NAME"] = "node-b"
       Sentinel::Config.reset!
       cluster = Sentinel::Config.cluster
 
-      assert_equal %w[silver tiny witness-1], cluster.hosts.keys
+      assert_equal %w[node-a node-b witness-1], cluster.hosts.keys
       assert_equal 2, cluster.majority
-      assert_equal %w[silver witness-1], cluster.peers.map(&:name)
+      assert_equal %w[node-a witness-1], cluster.peers.map(&:name)
       assert_equal :witness, cluster.host("witness-1").role
       assert cluster.host("witness-1").witness?
-      assert_equal 22, cluster.host("silver").probes[:ssh]
+      assert_equal 22, cluster.host("node-a").probes[:ssh]
       assert_nil cluster.host("witness-1").probes[:https]
 
       svc = cluster.service("opencode")
-      assert_equal "silver", svc.primary
-      assert_equal "tiny", svc.standby
-      assert_equal "http://10.0.0.1:4096/api/info", svc.health["silver"]
+      assert_equal "node-a", svc.primary
+      assert_equal "node-b", svc.standby
+      assert_equal "http://10.0.0.1:4096/api/info", svc.health["node-a"]
       assert Sentinel::Config.acting_node?("opencode")
 
       assert_equal ["10.0.0.3:53"], cluster.quorum_tcp
@@ -67,7 +67,7 @@ class ConfigTest < Minitest::Test
 
   def test_service_probe_auto_promote_and_tunables
     with_cluster_file(CLUSTER_YML + SECOND_SERVICE_YML) do
-      ENV["NODE_NAME"] = "tiny"
+      ENV["NODE_NAME"] = "node-b"
       ENV["FLEET_USER"] = "fleet"
       ENV["FLEET_PASS"] = "s3cret"
       Sentinel::Config.reset!
@@ -76,15 +76,15 @@ class ConfigTest < Minitest::Test
       plain = cluster.service("opencode")
       assert_nil plain.probe.basic
       assert_equal({}, plain.probe.headers)
-      assert_nil plain.probe.resolve_ip("silver")
+      assert_nil plain.probe.resolve_ip("node-a")
       assert_nil plain.auto_promote
       assert_equal({}, plain.tunables)
 
       fleet = cluster.service("fleet")
       assert_equal %w[fleet s3cret], fleet.probe.basic
       assert_equal({ "X-Probe" => "sentinel" }, fleet.probe.headers)
-      assert_equal "10.0.0.1", fleet.probe.resolve_ip("silver")
-      assert_equal "10.0.0.2", fleet.probe.resolve_ip("tiny")
+      assert_equal "10.0.0.1", fleet.probe.resolve_ip("node-a")
+      assert_equal "10.0.0.2", fleet.probe.resolve_ip("node-b")
       assert_equal false, fleet.auto_promote
       assert_equal({ promote_after_s: 90, dead_confirm_polls: 3 }, fleet.tunables)
       assert_equal "hooks/fleet", fleet.hooks_dir
@@ -96,7 +96,7 @@ class ConfigTest < Minitest::Test
 
   def test_decider_config_applies_service_overrides
     with_cluster_file(CLUSTER_YML + SECOND_SERVICE_YML) do
-      ENV["NODE_NAME"] = "tiny"
+      ENV["NODE_NAME"] = "node-b"
       Sentinel::Config.reset!
       cluster = Sentinel::Config.cluster
       node = { auto_promote: "on", promote_after_s: 60, dead_confirm_polls: 5, failback_after_s: 30 }.freeze
@@ -110,14 +110,14 @@ class ConfigTest < Minitest::Test
       assert_equal 90, fleet[:promote_after_s]
       assert_equal 3, fleet[:dead_confirm_polls]
       assert_equal 30, fleet[:failback_after_s], "untouched tunables stay node-wide"
-      assert_equal "fleet-tiny", fleet[:label]
+      assert_equal "fleet-node-b", fleet[:label]
     end
   end
 
   def test_probe_username_literal_fallback_and_empty_password
     yml = CLUSTER_YML.sub("hooks_dir: hooks/opencode", "probe: {username: opencode, username_env: NOPE_USER, password_env: NOPE_PASS}")
     with_cluster_file(yml) do
-      ENV["NODE_NAME"] = "tiny"
+      ENV["NODE_NAME"] = "node-b"
       Sentinel::Config.reset!
       assert_nil Sentinel::Config.cluster.service("opencode").probe.basic, "no password -> no credential"
       ENV["NOPE_PASS"] = "pw"
@@ -131,7 +131,7 @@ class ConfigTest < Minitest::Test
   def test_unknown_tunable_rejected
     yml = CLUSTER_YML.sub("hooks_dir: hooks/opencode", "tunables: {poll_interval_s: 1}")
     with_cluster_file(yml) do
-      ENV["NODE_NAME"] = "tiny"
+      ENV["NODE_NAME"] = "node-b"
       Sentinel::Config.reset!
       err = assert_raises(Sentinel::Config::Error) { Sentinel::Config.cluster }
       assert_match(/unknown tunable/, err.message)
@@ -142,7 +142,7 @@ class ConfigTest < Minitest::Test
     with_cluster_file do
       ENV.delete("NODE_NAME")
       err = assert_raises(Sentinel::Config::Error) { Sentinel::Config.node_name }
-      assert_match(/silver \| tiny \| witness-1/, err.message)
+      assert_match(/node-a \| node-b \| witness-1/, err.message)
     end
   end
 
@@ -155,7 +155,7 @@ class ConfigTest < Minitest::Test
   end
 
   def test_service_routes_default_to_off_group_named_after_the_service
-    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(CLUSTER_YML), node_name: "tiny")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(CLUSTER_YML), node_name: "node-b")
     routes = cluster.service("opencode").routes
     assert_equal "off", routes.mode
     assert_equal "opencode", routes.group
@@ -174,26 +174,26 @@ class ConfigTest < Minitest::Test
 
   def test_probe_tls_verify_defaults_true_and_parses_false
     doc = YAML.safe_load(CLUSTER_YML)
-    assert_equal true, Sentinel::Config::Cluster.new(doc, node_name: "tiny").service("opencode").probe.tls_verify
+    assert_equal true, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
     doc["services"]["opencode"]["probe"] = { "tls_verify" => false }
-    assert_equal false, Sentinel::Config::Cluster.new(doc, node_name: "tiny").service("opencode").probe.tls_verify
+    assert_equal false, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
     doc["services"]["opencode"]["probe"] = { "tls_verify" => "no" }
-    assert_equal false, Sentinel::Config::Cluster.new(doc, node_name: "tiny").service("opencode").probe.tls_verify
+    assert_equal false, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
     doc["services"]["opencode"]["probe"] = { "tls_verify" => true }
-    assert_equal true, Sentinel::Config::Cluster.new(doc, node_name: "tiny").service("opencode").probe.tls_verify
+    assert_equal true, Sentinel::Config::Cluster.new(doc, node_name: "node-b").service("opencode").probe.tls_verify
   end
 
   def test_service_routes_parsed
     doc = YAML.safe_load(CLUSTER_YML)
     doc["services"]["fleet"] = {
-      "primary" => "silver", "standby" => "tiny", "health" => {},
+      "primary" => "node-a", "standby" => "node-b", "health" => {},
       "routes" => { "mode" => "pihole", "pihole_names" => ["fleet.example.com", "mqtt.example.com"] }
     }
     doc["services"]["grouped"] = {
-      "primary" => "silver", "standby" => "tiny", "health" => {},
+      "primary" => "node-a", "standby" => "node-b", "health" => {},
       "routes" => { "mode" => "ha-routes", "group" => "ha-foo" }
     }
-    cluster = Sentinel::Config::Cluster.new(doc, node_name: "tiny")
+    cluster = Sentinel::Config::Cluster.new(doc, node_name: "node-b")
     fleet = cluster.service("fleet").routes
     assert_equal "pihole", fleet.mode
     assert_equal "fleet", fleet.group
@@ -205,54 +205,54 @@ class ConfigTest < Minitest::Test
   def test_service_routes_bad_mode_rejected
     doc = YAML.safe_load(CLUSTER_YML)
     doc["services"]["opencode"]["routes"] = { "mode" => "dns" }
-    err = assert_raises(Sentinel::Config::Error) { Sentinel::Config::Cluster.new(doc, node_name: "tiny") }
+    err = assert_raises(Sentinel::Config::Error) { Sentinel::Config::Cluster.new(doc, node_name: "node-b") }
     assert_match(/routes.mode "dns"/, err.message)
   end
 
   def test_service_urls
     yml = <<~YAML
       hosts:
-        silver: {address: 10.0.0.1, sentinel_url: http://silver:4197, role: member, probes: {}}
-        tiny:   {address: 10.0.0.2, sentinel_url: http://tiny:4197, role: member, probes: {}}
+        node-a: {address: 10.0.0.1, sentinel_url: http://node-a:4197, role: member, probes: {}}
+        node-b:   {address: 10.0.0.2, sentinel_url: http://node-b:4197, role: member, probes: {}}
       services:
         app:
-          primary: silver
-          standby: tiny
-          health: {silver: "http://10.0.0.1:4096/api/info", tiny: "https://app-b.example.com/health"}
+          primary: node-a
+          standby: node-b
+          health: {node-a: "http://10.0.0.1:4096/api/info", node-b: "https://app-b.example.com/health"}
           url: https://app.example.com
-          host_urls: {silver: https://app-a.example.com}
+          host_urls: {node-a: https://app-a.example.com}
     YAML
-    svc = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "silver").services["app"]
+    svc = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "node-a").services["app"]
     assert_equal "https://app.example.com", svc.url
-    assert_equal({ "silver" => "https://app-a.example.com", "tiny" => "https://app-b.example.com" }, svc.host_urls)
+    assert_equal({ "node-a" => "https://app-a.example.com", "node-b" => "https://app-b.example.com" }, svc.host_urls)
   end
 
   private
 
   CLUSTER_YML = <<~YAML
     hosts:
-      silver:   {address: 10.0.0.1, sentinel_url: http://10.0.0.1:4197, role: member, probes: {ssh: 22, https: 443, icmp: true}}
-      tiny:     {address: 10.0.0.2, sentinel_url: http://10.0.0.2:4197, role: member, probes: {ssh: 22, https: 443, icmp: true}}
+      node-a:   {address: 10.0.0.1, sentinel_url: http://10.0.0.1:4197, role: member, probes: {ssh: 22, https: 443, icmp: true}}
+      node-b:     {address: 10.0.0.2, sentinel_url: http://10.0.0.2:4197, role: member, probes: {ssh: 22, https: 443, icmp: true}}
       witness-1: {address: 10.0.0.5, sentinel_url: http://10.0.0.5:4197, role: witness, probes: {ssh: 22, icmp: true}}
     quorum_tcp: [10.0.0.3:53]
     services:
       opencode:
-        primary: silver
-        standby: tiny
-        health: {silver: "http://10.0.0.1:4096/api/info", tiny: "http://10.0.0.2:4096/api/info"}
+        primary: node-a
+        standby: node-b
+        health: {node-a: "http://10.0.0.1:4096/api/info", node-b: "http://10.0.0.2:4096/api/info"}
         hooks_dir: hooks/opencode
   YAML
 
   SECOND_SERVICE_YML = <<~YAML.gsub(/^/, "  ")
     fleet:
-      primary: silver
-      standby: tiny
-      health: {silver: "https://fleet.example/health", tiny: "https://fleet.example/health"}
+      primary: node-a
+      standby: node-b
+      health: {node-a: "https://fleet.example/health", node-b: "https://fleet.example/health"}
       probe:
         username_env: FLEET_USER
         password_env: FLEET_PASS
         headers: {X-Probe: sentinel}
-        resolve: {silver: 10.0.0.1, tiny: 10.0.0.2}
+        resolve: {node-a: 10.0.0.1, node-b: 10.0.0.2}
       auto_promote: false
       tunables: {promote_after_s: 90, dead_confirm_polls: 3}
   YAML

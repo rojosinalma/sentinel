@@ -39,7 +39,7 @@ class ProbesTest < Minitest::Test
     closed.close
 
     with_http_server(200, '{"version":"9.9.9"}') do |svc_port|
-      host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "",
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
                           role: :member, probes: { ssh: ssh_port, https: closed_port })
       view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" },
                                          timeout: 1)
@@ -58,7 +58,7 @@ class ProbesTest < Minitest::Test
 
   def test_service_401_is_up
     with_http_server(401, "unauthorized") do |port|
-      host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
       view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{port}/api/info" }, timeout: 1)
       assert_equal "up auth?", view.service_state("opencode")
       assert view.service_up?("opencode")
@@ -70,7 +70,7 @@ class ProbesTest < Minitest::Test
     server = TCPServer.new("127.0.0.1", 0)
     port = server.addr[1]
     server.close
-    host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
+    host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
     view = Sentinel::Probes.host(host, service_urls: { "opencode" => "http://127.0.0.1:#{port}/api/info" }, timeout: 1)
     assert_equal "down", view.service_state("opencode")
     refute view.service_up?("opencode")
@@ -82,7 +82,7 @@ class ProbesTest < Minitest::Test
     closed_port = closed.addr[1]
     closed.close
     with_http_server(200, '{"version":"1.2.3"}') do |up_port|
-      host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
       view = Sentinel::Probes.host(host, service_urls: { "a" => "http://127.0.0.1:#{up_port}/api/info",
                                                          "b" => "http://127.0.0.1:#{closed_port}/api/info" },
                                          timeout: 1)
@@ -112,13 +112,13 @@ class ProbesTest < Minitest::Test
 
   def test_per_service_credentials_and_headers
     with_echo_server do |port|
-      host = FakeHost.new(name: "tiny", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
+      host = FakeHost.new(name: "node-b", address: "127.0.0.1", sentinel_url: "", role: :member, probes: {})
       a = Sentinel::Config::Probe.new(basic: %w[alice pw-a], headers: { "X-Probe" => "a" }, resolve: {})
-      b = Sentinel::Config::Probe.new(basic: nil, headers: {}, resolve: { "tiny" => "127.0.0.1" })
+      b = Sentinel::Config::Probe.new(basic: nil, headers: {}, resolve: { "node-b" => "127.0.0.1" })
       urls = { "a" => "http://127.0.0.1:#{port}/a", "b" => "http://sentinel-test.invalid:#{port}/b" }
       view = Sentinel::Probes.host(host, service_urls: urls, service_probes: { "a" => a, "b" => b }, timeout: 2)
       assert_equal "up ?", view.service_state("a")
-      assert_equal "up ?", view.service_state("b"), "resolve ip for tiny made the bogus hostname reachable"
+      assert_equal "up ?", view.service_state("b"), "resolve ip for node-b made the bogus hostname reachable"
 
       heads = @requests.join
       assert_includes heads, "Authorization: Basic #{['alice:pw-a'].pack('m0')}"
@@ -174,7 +174,7 @@ class ProbesTest < Minitest::Test
   # when its own budget allows it (2026-10-13: a loaded opencode at >3 s read as degraded).
   def test_per_service_timeout_lets_a_slow_service_pass
     with_slow_http_server(200, '{"version":"9.9.9"}', delay: 1.5) do |svc_port|
-      host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "",
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
                           role: :member, probes: {})
       urls = { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" }
 
@@ -182,7 +182,7 @@ class ProbesTest < Minitest::Test
       assert_equal "down", slow.service_state("opencode"), "node-wide 1 s budget: killed"
     end
     with_slow_http_server(200, '{"version":"9.9.9"}', delay: 1.5) do |svc_port|
-      host = FakeHost.new(name: "silver", address: "127.0.0.1", sentinel_url: "",
+      host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",
                           role: :member, probes: {})
       urls = { "opencode" => "http://127.0.0.1:#{svc_port}/api/info" }
       view = Sentinel::Probes.host(host, service_urls: urls, timeout: 1,

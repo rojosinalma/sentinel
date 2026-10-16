@@ -12,31 +12,26 @@ SentinelTestHelpers::TMP_DIRS << APP_TEST_ROOT
 
 APP_CLUSTER = <<~YAML
   hosts:
-    silver:   {address: 127.0.0.1, sentinel_url: http://127.0.0.1:1, role: member, probes: {ssh: 1}}
-    tiny:     {address: 127.0.0.1, sentinel_url: http://127.0.0.1:2, role: member, probes: {ssh: 1}}
+    node-a:   {address: 127.0.0.1, sentinel_url: http://127.0.0.1:1, role: member, probes: {ssh: 1}}
+    node-b:     {address: 127.0.0.1, sentinel_url: http://127.0.0.1:2, role: member, probes: {ssh: 1}}
     witness-1: {address: 127.0.0.1, sentinel_url: http://127.0.0.1:3, role: witness, probes: {ssh: 1}}
   quorum_tcp: []
   services:
     opencode:
-      primary: silver
-      standby: tiny
-      health: {silver: "http://127.0.0.1:1/api/info", tiny: "http://127.0.0.1:2/api/info"}
-      hooks_dir: hooks/opencode
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:1/api/info", node-b: "http://127.0.0.1:2/api/info"}
+      hooks_dir: hooks/_example
 YAML
 
 File.write(File.join(APP_TEST_ROOT, "cluster.yml"), APP_CLUSTER)
 {
-  "NODE_NAME" => "tiny",
+  "NODE_NAME" => "node-b",
   "CLUSTER_FILE" => File.join(APP_TEST_ROOT, "cluster.yml"),
   "STATE_DIR" => File.join(APP_TEST_ROOT, "state"),
   "LOG_DIR" => File.join(APP_TEST_ROOT, "logs"),
   "DB_PATH" => File.join(APP_TEST_ROOT, "sentinel.db"),
   "SENTINEL_MCP_TOKEN" => "test-token",
-  "TINY_ROOT" => APP_TEST_ROOT, # read by hooks/opencode (dry-run test)
-  "OPENCODE_DATA_DIR" => File.join(APP_TEST_ROOT, "data"),
-  "OPENCODE_CONFIG_DIR" => File.join(APP_TEST_ROOT, "config"),
-  "SILVER_HOST" => "127.0.0.1",
-  "TINY_HOST" => "127.0.0.1",
   "SN_ENV" => "/nonexistent-env",
   "TCP_TIMEOUT_S" => "1",
   "HTTP_TIMEOUT_S" => "1",
@@ -63,8 +58,8 @@ class AppTest < Minitest::Test
     assert_equal "application/json", res.headers["content-type"]
     assert_equal "no-store", res.headers["cache-control"]
     body = JSON.parse(res.body)
-    assert_equal "silver", body["mode"]
-    assert_includes res.body, '"mode":"silver"', "compact for litestream-guard"
+    assert_equal "node-a", body["mode"]
+    assert_includes res.body, '"mode":"node-a"', "compact for litestream-guard"
   end
 
   def test_peer_view_route
@@ -72,14 +67,14 @@ class AppTest < Minitest::Test
     res = @mock.get("/peer/view")
     assert_equal 200, res.status
     body = JSON.parse(res.body)
-    assert_equal "tiny", body["node"]
+    assert_equal "node-b", body["node"]
     assert body.key?("hosts")
     assert body.key?("seq")
   end
 
   def test_peer_lease_grant_and_deny
     res = @mock.post("/peer/lease", input: JSON.generate(
-      service: "opencode", holder: "silver", action: "promote", ttl_s: 30, token: "x"
+      service: "opencode", holder: "node-a", action: "promote", ttl_s: 30, token: "x"
     ), "CONTENT_TYPE" => "application/json")
     assert_equal 409, res.status
     assert_match(/not the standby/, JSON.parse(res.body)["message"])
@@ -93,7 +88,7 @@ class AppTest < Minitest::Test
     assert_equal 200, res.status
     body = JSON.parse(res.body)
     assert body["ok"]
-    assert_equal "tiny", body["node"]
+    assert_equal "node-b", body["node"]
     assert body["acting"]
     assert_equal "opencode", body["service"]
     assert_equal "witness", body["roles"]["witness-1"]
@@ -102,12 +97,12 @@ class AppTest < Minitest::Test
   end
 
   def test_api_sentinel_and_mcp_cluster_hide_the_lease_token
-    @rt[:store].lease_grant!(service: "opencode", holder: "tiny", action: "promote", token: "secret-token", ttl_s: 30)
+    @rt[:store].lease_grant!(service: "opencode", holder: "node-b", action: "promote", token: "secret-token", ttl_s: 30)
     body = JSON.parse(@mock.get("/api/sentinel").body)
-    assert_equal "tiny", body.dig("lease", "holder")
+    assert_equal "node-b", body.dig("lease", "holder")
     refute body["lease"].key?("token")
     text = mcp_rpc("tools/call", { name: "cluster", arguments: {} }).dig("result", "content", 0, "text")
-    assert_includes text, '"holder": "tiny"'
+    assert_includes text, '"holder": "node-b"'
     refute_includes text, "secret-token"
   ensure
     @rt[:store].lease_release!("secret-token")
@@ -141,16 +136,16 @@ class AppTest < Minitest::Test
     assert_equal "no-store", res.headers["cache-control"]
     body = JSON.parse(res.body)
     assert body["ok"]
-    assert_equal "tiny", body["node"]
-    assert_equal %w[silver tiny witness-1], body["hosts"].keys
-    assert body["hosts"]["silver"]["probes"].key?("ssh")
+    assert_equal "node-b", body["node"]
+    assert_equal %w[node-a node-b witness-1], body["hosts"].keys
+    assert body["hosts"]["node-a"]["probes"].key?("ssh")
     svc = body["services"]["opencode"]
-    assert_equal "silver", svc["primary"]
-    assert_equal "tiny", svc["standby"]
+    assert_equal "node-a", svc["primary"]
+    assert_equal "node-b", svc["standby"]
     assert svc["acting"]
-    assert_equal "silver", svc["mode"]
+    assert_equal "node-a", svc["mode"]
     assert svc.key?("gates")
-    refute_match(/silver_|tiny_/, res.body.gsub(/"(silver|tiny|witness-1)"/, ""), "neutral key names")
+    refute_match(/silver_|tiny_/, res.body.gsub(/"(node-a|node-b|witness-1)"/, ""), "neutral key names")
   end
 
   def test_api_promote_unknown_service
@@ -335,9 +330,9 @@ class AppTest < Minitest::Test
     assert_includes res.body, 'id="t-confirm"'
     assert_includes res.body, 'id="services-row"'
     page = res.body.sub(/served by.*?<\/span>/m, "").sub(/<footer.*<\/footer>/m, "")
-    refute_match(/\b(silver|tiny|opencode|openchamber)\b/, page, "no hard-coded host or service names in the view")
+    refute_match(/\b(node-a|node-b|opencode)\b/, page, "no hard-coded host or service names in the view")
     js = File.read(File.expand_path("../public/js/app.js", __dir__))
-    refute_match(/\b(silver|tiny|openchamber)\b|'opencode'|"opencode"/, js, "no hard-coded host or service names in the dashboard script")
+    refute_match(/\b(node-a|node-b)\b|'opencode'|"opencode"/, js, "no hard-coded host or service names in the dashboard script")
     refute_match(%r{/api/status\b}, js, "the page no longer polls the removed /api/status endpoint")
     assert_equal 404, @mock.get("/api/status").status, "the old probe page endpoint is gone"
     refute_match(/window\.(confirm|alert|prompt)\(/, js, "no native dialogs")

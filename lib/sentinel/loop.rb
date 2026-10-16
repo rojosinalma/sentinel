@@ -357,7 +357,7 @@ module Sentinel
       else
         # rc=2 "transitioned but degraded" no longer routes: a promote whose health wait failed
         # (standby service never up) must not point the public hostnames at a dead stack
-        # (2026-10-13: openchamber up + opencode down = UI with no brain). The marker stays so
+        # (a UI container up while its backend never started is not a takeover). The marker stays so
         # the gates keep throttling; reassert_routes moves the routes once the mode host's
         # service actually answers.
         state.touch!(play[:marker])

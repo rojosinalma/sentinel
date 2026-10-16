@@ -4,7 +4,7 @@ require_relative "test_helper"
 
 class StoreTest < Minitest::Test
   def setup
-    @store = Sentinel::Store.memory(node: "tiny")
+    @store = Sentinel::Store.memory(node: "node-b")
   end
 
   def test_migrations_idempotent_on_file
@@ -15,13 +15,13 @@ class StoreTest < Minitest::Test
   end
 
   def test_event_roundtrip
-    id = @store.event!("decision", "promoting", host: "silver", service: "opencode", down_for: 61)
+    id = @store.event!("decision", "promoting", host: "node-a", service: "opencode", down_for: 61)
     assert_kind_of Integer, id
     ev = @store.events.first
     assert_equal "decision", ev[:kind]
     assert_equal "promoting", ev[:message]
-    assert_equal "tiny", ev[:node]
-    assert_equal "silver", ev[:host]
+    assert_equal "node-b", ev[:node]
+    assert_equal "node-a", ev[:host]
     assert_equal({ "down_for" => 61 }, ev[:data])
   end
 
@@ -54,45 +54,45 @@ class StoreTest < Minitest::Test
 
   def test_get_set
     assert_nil @store.get("primary.opencode")
-    @store.set("primary.opencode", "silver")
-    assert_equal "silver", @store.get("primary.opencode")
-    @store.set("primary.opencode", "tiny")
-    assert_equal "tiny", @store.get("primary.opencode")
+    @store.set("primary.opencode", "node-a")
+    assert_equal "node-a", @store.get("primary.opencode")
+    @store.set("primary.opencode", "node-b")
+    assert_equal "node-b", @store.get("primary.opencode")
   end
 
   def test_lease_grant_conflict_and_extend
     clock = FakeClock.new
-    row = @store.lease_grant!(service: "opencode", holder: "tiny", action: "promote",
-                              token: "t1", ttl_s: 30, granted_by: %w[silver witness-1], now: clock.now)
-    assert_equal "tiny", row[:holder]
+    row = @store.lease_grant!(service: "opencode", holder: "node-b", action: "promote",
+                              token: "t1", ttl_s: 30, granted_by: %w[node-a witness-1], now: clock.now)
+    assert_equal "node-b", row[:holder]
 
     err = assert_raises(Sentinel::Store::LeaseHeld) do
-      @store.lease_grant!(service: "opencode", holder: "silver", action: "demote",
+      @store.lease_grant!(service: "opencode", holder: "node-a", action: "demote",
                           token: "t2", ttl_s: 30, now: clock.now)
     end
-    assert_match(/held by tiny/, err.message)
+    assert_match(/held by node-b/, err.message)
 
-    extended = @store.lease_grant!(service: "opencode", holder: "tiny", action: "promote",
+    extended = @store.lease_grant!(service: "opencode", holder: "node-b", action: "promote",
                                    token: "t1", ttl_s: 30, now: clock.now + 10)
     assert_operator extended[:expires_at], :>, row[:expires_at]
 
     clock.advance(100)
     assert_nil @store.lease_current("opencode", now: clock.now)
-    row2 = @store.lease_grant!(service: "opencode", holder: "silver", action: "demote",
+    row2 = @store.lease_grant!(service: "opencode", holder: "node-a", action: "demote",
                                token: "t3", ttl_s: 30, now: clock.now)
-    assert_equal "silver", row2[:holder]
+    assert_equal "node-a", row2[:holder]
   end
 
   def test_lease_release
-    @store.lease_grant!(service: "opencode", holder: "tiny", action: "promote", token: "tok", ttl_s: 30)
+    @store.lease_grant!(service: "opencode", holder: "node-b", action: "promote", token: "tok", ttl_s: 30)
     refute_nil @store.lease_current("opencode")
     @store.lease_release!("tok")
     assert_nil @store.lease_current("opencode")
   end
 
   def test_peer_views_upsert
-    @store.peer_view_put!("silver", at: "2026-01-01T00:00:00Z", body: '{"node":"silver"}')
-    @store.peer_view_put!("silver", at: "2026-01-01T00:00:05Z", body: '{"node":"silver","x":1}')
+    @store.peer_view_put!("node-a", at: "2026-01-01T00:00:00Z", body: '{"node":"node-a"}')
+    @store.peer_view_put!("node-a", at: "2026-01-01T00:00:05Z", body: '{"node":"node-a","x":1}')
     views = @store.peer_views
     assert_equal 1, views.size
     assert_equal "2026-01-01T00:00:05Z", views.first[:at]

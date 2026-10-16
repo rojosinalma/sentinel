@@ -4,7 +4,7 @@ require_relative "test_helper"
 
 class DeciderTest < Minitest::Test
   CONFIG = {
-    primary: "silver", standby: "tiny", service: "opencode", label: "opencode-tiny",
+    primary: "node-a", standby: "node-b", service: "opencode", label: "opencode-node-b",
     quorum_targets: ["10.0.0.3:53"],
     promote_after_s: 60, failback_after_s: 30, promote_cooldown_s: 120, promote_retry_s: 120,
     failback_retry_s: 300, flap_flips: 3, flap_window_s: 3600, flap_failback_after_s: 600,
@@ -25,7 +25,7 @@ class DeciderTest < Minitest::Test
     assert_includes NO_TRANSITION, result.action
   end
 
-  def step(mode: "silver", agreed_class: :ok, quorum: "up", auto_promote: "on",
+  def step(mode: "node-a", agreed_class: :ok, quorum: "up", auto_promote: "on",
            auto_failback: "on", host_health: nil, **extra)
     @decider.step(now: @clock.now, mode: mode, agreed_class: agreed_class, quorum: quorum,
                   auto_promote: auto_promote, auto_failback: auto_failback,
@@ -83,12 +83,12 @@ class DeciderTest < Minitest::Test
     step(agreed_class: :degraded)
     @clock.advance(61)
     r = step(agreed_class: :degraded, quorum: "down") # quorum down also gates the promote
-    assert(r.notify.any? { |(t, _b, y)| t == "silver opencode down" && y == "warning" })
+    assert(r.notify.any? { |(t, _b, y)| t == "node-a opencode down" && y == "warning" })
 
     @clock.advance(10)
     r = step(agreed_class: :ok, version: "2.0.25")
     assert_equal :none, r.action
-    assert(r.notify.any? { |(t, b, y)| t == "silver opencode back" && b.include?("2.0.25") && y == "success" })
+    assert(r.notify.any? { |(t, b, y)| t == "node-a opencode back" && b.include?("2.0.25") && y == "success" })
   end
 
   def test_no_back_notify_without_down_notify
@@ -142,71 +142,71 @@ class DeciderTest < Minitest::Test
   end
 
   def test_failback_after_stable
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     assert_equal :fence_and_route, r.action, "first standby cycle fences"
-    assert(r.log.any? { |l| l.include?("silver host healthy") })
+    assert(r.log.any? { |l| l.include?("node-a host healthy") })
 
     @clock.advance(10)
-    assert_equal :stack_check, step(mode: "tiny", host_health: "up").action
+    assert_equal :stack_check, step(mode: "node-b", host_health: "up").action
 
     @clock.advance(21) # stable 31s >= 30
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     assert_equal :failback, r.action
   end
 
   def test_failback_stable_reset_on_unhealthy
-    step(mode: "tiny", host_health: "up")
+    step(mode: "node-b", host_health: "up")
     @clock.advance(20)
-    r = step(mode: "tiny", host_health: "down docker")
+    r = step(mode: "node-b", host_health: "down docker")
     assert(r.log.any? { |l| l.include?("counter reset") })
     @clock.advance(20)
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     refute_equal :failback, r.action, "stable timer restarted"
   end
 
   def test_failback_blocked_by_hold_notifies_once
     @state.hold_on!("operator")
-    step(mode: "tiny", host_health: "up")
+    step(mode: "node-b", host_health: "up")
     @clock.advance(31)
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     refute_equal :failback, r.action
     assert(r.notify.any? { |(t, _b, _y)| t.include?("failback on hold") })
 
     @clock.advance(10)
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     assert(r.notify.none? { |(t, _b, _y)| t.include?("hold") }, "hold notify is once")
 
     @state.hold_off!
     @clock.advance(10)
-    assert_equal :failback, step(mode: "tiny", host_health: "up").action
+    assert_equal :failback, step(mode: "node-b", host_health: "up").action
   end
 
   def test_failback_blocked_by_auto_off_and_retry
-    step(mode: "tiny", host_health: "up")
+    step(mode: "node-b", host_health: "up")
     @clock.advance(31)
-    r = step(mode: "tiny", host_health: "up", auto_failback: "off")
+    r = step(mode: "node-b", host_health: "up", auto_failback: "off")
     refute_equal :failback, r.action
     assert(r.log.any? { |l| l.include?("AUTO_FAILBACK=off") })
 
     @state.touch!("failback-failed")
     @clock.advance(10)
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     refute_equal :failback, r.action
     assert_operator r.gates[:failback_retry_left_s], :>, 0
   end
 
   def test_flap_damping
     3.times do |i|
-      @state.set_mode!(i.even? ? "tiny" : "silver", now: @clock.now - 600 + (i * 60))
+      @state.set_mode!(i.even? ? "node-b" : "node-a", now: @clock.now - 600 + (i * 60))
     end
-    all_notifies = step(mode: "tiny", host_health: "up").notify
+    all_notifies = step(mode: "node-b", host_health: "up").notify
     @clock.advance(100) # past 30s but below 600s
-    r = step(mode: "tiny", host_health: "up")
+    r = step(mode: "node-b", host_health: "up")
     all_notifies += r.notify
     refute_equal :failback, r.action
     assert_equal 600, r.gates[:failback_after_s]
     @clock.advance(10)
-    all_notifies += step(mode: "tiny", host_health: "up").notify
+    all_notifies += step(mode: "node-b", host_health: "up").notify
     assert_equal 1, all_notifies.count { |(t, _b, _y)| t.include?("flapping") }, "flap notify once"
   end
 
@@ -216,7 +216,7 @@ class DeciderTest < Minitest::Test
   def test_degraded_needs_confirmation_when_configured
     decider = Sentinel::Decider.new(config: CONFIG.merge(degraded_confirm_polls: 3), state: @state)
     stepper = lambda do |cls|
-      decider.step(now: @clock.now, mode: "silver", agreed_class: cls, quorum: "up",
+      decider.step(now: @clock.now, mode: "node-a", agreed_class: cls, quorum: "up",
                    auto_promote: "on", auto_failback: "on", host_health: nil)
     end
 
@@ -274,18 +274,18 @@ class DeciderTest < Minitest::Test
   def test_watch_maintenance_not_in_standby_mode_and_resets_on_return
     step
     @clock.advance(30)
-    assert_equal :fence_and_route, step(mode: "tiny", host_health: "up").action
+    assert_equal :fence_and_route, step(mode: "node-b", host_health: "up").action
     @clock.advance(2)
-    assert_equal :stack_check, step(mode: "tiny", host_health: "up").action
+    assert_equal :stack_check, step(mode: "node-b", host_health: "up").action
     @clock.advance(2)
-    assert_equal :none, step(mode: "tiny", host_health: "up").action
+    assert_equal :none, step(mode: "node-b", host_health: "up").action
     @clock.advance(2)
     assert_equal :watch_maintenance, step.action, "back in primary mode: the timer restarted"
   end
 
   def test_mode_switch_resets
     step(agreed_class: :dead)
-    @decider.reset_for_mode!("tiny")
+    @decider.reset_for_mode!("node-b")
     snap = @decider.snapshot(now: @clock.now)
     assert_equal "ok", snap[:classification]
     assert_equal 0, snap[:dead_polls]

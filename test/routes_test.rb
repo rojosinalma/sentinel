@@ -4,7 +4,7 @@ require_relative "test_helper"
 require "fileutils"
 
 class RoutesTest < Minitest::Test
-  HOSTS = %w[silver tiny witness-1].freeze
+  HOSTS = %w[node-a node-b witness-1].freeze
 
   def setup = Sentinel::Routes.reset!
 
@@ -34,7 +34,7 @@ class RoutesTest < Minitest::Test
         g="${group:-opencode}"
         for kv in $ROUTES_FAKE; do [[ "${kv%%=*}" == "$g" ]] && { echo "${kv#*=}"; exit 0; }; done
         exit 1 ;;
-      set) [[ "$target" == silver || "$target" == tiny ]] ;;
+      set) [[ "$target" == node-a || "$target" == node-b ]] ;;
     esac
   BASH
 
@@ -42,8 +42,8 @@ class RoutesTest < Minitest::Test
   LEGACY = <<~'BASH'
     case "$1" in
       --help) echo "ha-routes set <primary> [--dry-run] | get | show"; exit 0 ;;
-      get) [[ $# -eq 1 ]] || exit 1; echo silver ;;
-      set) [[ $# -eq 2 && "$2" == tiny ]] || exit 1; [[ -n "${ROUTES_FAKE_LOG:-}" ]] && echo "$*" >> "$ROUTES_FAKE_LOG" ;;
+      get) [[ $# -eq 1 ]] || exit 1; echo node-a ;;
+      set) [[ $# -eq 2 && "$2" == node-b ]] || exit 1; [[ -n "${ROUTES_FAKE_LOG:-}" ]] && echo "$*" >> "$ROUTES_FAKE_LOG" ;;
     esac
   BASH
 
@@ -56,8 +56,8 @@ class RoutesTest < Minitest::Test
   end
 
   def test_primary_current
-    bin = stub_bin('[[ "$1" == get ]] && echo tiny')
-    assert_equal "tiny", Sentinel::Routes.primary_current(bin: bin, timeout: 5)
+    bin = stub_bin('[[ "$1" == get ]] && echo node-b')
+    assert_equal "node-b", Sentinel::Routes.primary_current(bin: bin, timeout: 5)
   end
 
   def test_primary_current_mixed_truncated
@@ -91,34 +91,34 @@ class RoutesTest < Minitest::Test
   end
 
   def test_set_primary
-    bin = stub_bin('[[ "$1 $2" == "set tiny" ]] || exit 1')
-    assert_equal "ok", Sentinel::Routes.set_primary("tiny", bin: bin, timeout: 5)
-    assert_equal "failed", Sentinel::Routes.set_primary("silver", bin: bin, timeout: 5)
-    assert_equal "skipped", Sentinel::Routes.set_primary("tiny", bin: bin, timeout: 5, route_mode: "off")
+    bin = stub_bin('[[ "$1 $2" == "set node-b" ]] || exit 1')
+    assert_equal "ok", Sentinel::Routes.set_primary("node-b", bin: bin, timeout: 5)
+    assert_equal "failed", Sentinel::Routes.set_primary("node-a", bin: bin, timeout: 5)
+    assert_equal "skipped", Sentinel::Routes.set_primary("node-b", bin: bin, timeout: 5, route_mode: "off")
   end
 
   def test_groups_get_and_set
     bin = stub_bin(GROUPED)
     log = File.join(tmp_state_dir, "calls.log")
-    with_env("ROUTES_FAKE" => "opencode=silver fleet=tiny", "ROUTES_FAKE_LOG" => log) do
+    with_env("ROUTES_FAKE" => "opencode=node-a fleet=node-b", "ROUTES_FAKE_LOG" => log) do
       assert Sentinel::Routes.supports_groups?(bin, timeout: 5)
-      assert_equal "silver", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "opencode", hosts: HOSTS)
-      assert_equal "tiny", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "fleet", hosts: HOSTS)
+      assert_equal "node-a", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "opencode", hosts: HOSTS)
+      assert_equal "node-b", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "fleet", hosts: HOSTS)
       assert_equal "unknown", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "ghost", hosts: HOSTS)
-      assert_equal "ok", Sentinel::Routes.set_primary("tiny", bin: bin, timeout: 5, group: "fleet")
+      assert_equal "ok", Sentinel::Routes.set_primary("node-b", bin: bin, timeout: 5, group: "fleet")
       assert_equal "failed", Sentinel::Routes.set_primary("mars", bin: bin, timeout: 5, group: "fleet")
     end
     calls = File.readlines(log, chomp: true)
     assert_includes calls, "get  --group opencode"
     assert_includes calls, "get  --group fleet"
-    assert_includes calls, "set tiny --group fleet"
+    assert_includes calls, "set node-b --group fleet"
   end
 
   def test_get_all_lists_every_group
     bin = stub_bin(GROUPED)
-    with_env("ROUTES_FAKE" => "opencode=silver fleet=tiny") do
+    with_env("ROUTES_FAKE" => "opencode=node-a fleet=node-b") do
       out = Sentinel::Routes.capture(bin, "get", "--all", timeout: 5)
-      assert_equal %w[opencode=silver fleet=tiny], out.lines(chomp: true)
+      assert_equal %w[opencode=node-a fleet=node-b], out.lines(chomp: true)
     end
   end
 
@@ -127,10 +127,10 @@ class RoutesTest < Minitest::Test
     log = File.join(tmp_state_dir, "calls.log")
     with_env("ROUTES_FAKE_LOG" => log) do
       refute Sentinel::Routes.supports_groups?(bin, timeout: 5)
-      assert_equal "silver", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "opencode", hosts: HOSTS)
-      assert_equal "ok", Sentinel::Routes.set_primary("tiny", bin: bin, timeout: 5, group: "opencode")
+      assert_equal "node-a", Sentinel::Routes.primary_current(bin: bin, timeout: 5, group: "opencode", hosts: HOSTS)
+      assert_equal "ok", Sentinel::Routes.set_primary("node-b", bin: bin, timeout: 5, group: "opencode")
     end
-    assert_equal ["set tiny"], File.readlines(log, chomp: true)
+    assert_equal ["set node-b"], File.readlines(log, chomp: true)
   end
 
   def test_group_support_is_cached_per_binary_mtime

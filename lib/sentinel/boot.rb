@@ -18,7 +18,7 @@ module Sentinel
       tunables = loop_config(cluster)
       store = Store.open(Config.fetch(:DB_PATH), node: cluster.node_name)
       state = State.new(Config.fetch(:STATE_DIR))
-      state.migrate_legacy!(Status::LEGACY_SERVICE)
+      state.migrate_legacy!(Status.legacy_service)
       gossip = Gossip.new(cluster: cluster, transport: Transport::Http.new(timeout: Config.fetch(:PEER_TIMEOUT_S)),
                           store: store, stale_s: Config.fetch(:PEER_STALE_S))
       lease = Lease.new(cluster: cluster, transport: Transport::Http.new(timeout: Config.fetch(:PEER_TIMEOUT_S)),

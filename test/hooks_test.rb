@@ -10,7 +10,7 @@ class HooksTest < Minitest::Test
     @store = memory_store
     @hooks = Sentinel::Hooks.new(
       dir: File.expand_path("../hooks", __dir__), log_dir: @log_dir,
-      env: { "ACTING_NODE" => "tiny", "PRIMARY" => "silver", "STANDBY" => "tiny",
+      env: { "ACTING_NODE" => "node-b", "PRIMARY" => "node-a", "STANDBY" => "node-b",
              "STATE_DIR" => @state_dir },
       timeout_s: 5, store: @store
     )
@@ -28,7 +28,7 @@ class HooksTest < Minitest::Test
     assert File.file?(result.log_file)
     assert(result.output_tail.any? { |l| l.include?("args=--auto") })
     assert(result.output_tail.any? { |l| l.include?("SERVICE=_example") })
-    assert_equal "tiny\n", File.read(File.join(@state_dir, "_example", "mode"))
+    assert_equal "node-b\n", File.read(File.join(@state_dir, "_example", "mode"))
 
     row = @store.transitions(service: "_example").first
     assert_equal "promote", row[:action]
@@ -40,7 +40,7 @@ class HooksTest < Minitest::Test
   def test_services_meta_supplies_primary_standby_per_service
     hooks = Sentinel::Hooks.new(
       dir: File.expand_path("../hooks", __dir__), log_dir: @log_dir,
-      env: { "ACTING_NODE" => "tiny", "STATE_DIR" => @state_dir },
+      env: { "ACTING_NODE" => "node-b", "STATE_DIR" => @state_dir },
       services_meta: { "_example" => { primary: "alpha", standby: "beta" } },
       timeout_s: 5, store: @store
     )
@@ -52,7 +52,7 @@ class HooksTest < Minitest::Test
   def test_demote_writes_primary_back
     @hooks.run("_example", "promote")
     @hooks.run("_example", "demote", "--yes")
-    assert_equal "silver\n", File.read(File.join(@state_dir, "_example", "mode"))
+    assert_equal "node-a\n", File.read(File.join(@state_dir, "_example", "mode"))
   end
 
   def test_dry_run_touches_nothing

@@ -5,19 +5,19 @@ require_relative "loop_test"
 require "yaml"
 
 class ActionsTest < Minitest::Test
-  # tiny acts for both services, so one node can hold two transition slots.
-  TWO_ON_TINY_YML = LoopTest::CLUSTER_YML + <<~YAML.gsub(/^/, "  ")
+  # node-b acts for both services, so one node can hold two transition slots.
+  TWO_ON_NODE_B_YML = LoopTest::CLUSTER_YML + <<~YAML.gsub(/^/, "  ")
     _second:
-      primary: silver
-      standby: tiny
-      health: {silver: "http://127.0.0.1:3/api/info", tiny: "http://127.0.0.2:3/api/info"}
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:3/api/info", node-b: "http://127.0.0.2:3/api/info"}
   YAML
 
   def setup
     @root = tmp_state_dir
     @state = Sentinel::State.new(File.join(@root, "state"))
-    @store = Sentinel::Store.memory(node: "tiny")
-    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(TWO_ON_TINY_YML), node_name: "tiny")
+    @store = Sentinel::Store.memory(node: "node-b")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(TWO_ON_NODE_B_YML), node_name: "node-b")
     hooks_dir = File.join(@root, "hooks")
     cluster.services.each_key do |name|
       FileUtils.mkdir_p(File.join(hooks_dir, name))
@@ -60,8 +60,8 @@ class ActionsTest < Minitest::Test
     assert_equal %w[_example _second], Sentinel::Actions.running.keys.sort
 
     wait_idle
-    assert_equal "tiny", @state.for("_example").mode(default: "silver")
-    assert_equal "tiny", @state.for("_second").mode(default: "silver")
+    assert_equal "node-b", @state.for("_example").mode(default: "node-a")
+    assert_equal "node-b", @state.for("_second").mode(default: "node-a")
     assert_equal %w[_example _second], @store.transitions.map { |r| r[:service] }.sort
   end
 
@@ -75,8 +75,8 @@ class ActionsTest < Minitest::Test
     ok, = Sentinel::Actions.transition!(@rt, "_second", "promote")
     assert ok
     wait_idle
-    assert_equal "silver", @state.for("_example").mode(default: "silver"), "untouched"
-    assert_equal "tiny", @state.for("_second").mode(default: "silver")
+    assert_equal "node-a", @state.for("_example").mode(default: "node-a"), "untouched"
+    assert_equal "node-b", @state.for("_second").mode(default: "node-a")
   ensure
     lock&.flock(File::LOCK_UN)
     lock&.close
@@ -97,7 +97,7 @@ class ActionsTest < Minitest::Test
     refute @state.hold?
     assert_equal "_second", @store.events(kind: "hold").first[:service]
   end
-  # silver is not the acting node of _example: its promote/hold go to tiny's /api/<action>.
+  # node-a is not the acting node of _example: its promote/hold go to node-b's /api/<action>.
   def test_non_acting_node_forwards_to_the_acting_node
     seen = []
     server = TCPServer.new("127.0.0.1", 0)
@@ -120,8 +120,8 @@ class ActionsTest < Minitest::Test
     rescue IOError
       nil
     end
-    yml = TWO_ON_TINY_YML.sub("http://tiny:4197", "http://127.0.0.1:#{server.addr[1]}")
-    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "silver")
+    yml = TWO_ON_NODE_B_YML.sub("http://node-b:4197", "http://127.0.0.1:#{server.addr[1]}")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(yml), node_name: "node-a")
     loop_obj = Sentinel::Loop.new(config: LoopTest::CONFIG, cluster: cluster, store: @store, state: @state,
                                   probes: LoopTest::ProbesStub.new, gossip: LoopTest::GossipStub.new,
                                   lease: LoopTest::LeaseStub.new, hooks: @rt[:hooks],
@@ -130,7 +130,7 @@ class ActionsTest < Minitest::Test
 
     ok, msg = Sentinel::Actions.transition!(rt, "_example", "promote", ["--fast"], dry_run: true, who: "dashboard")
     assert ok, msg
-    assert_match(/promote accepted \(via tiny\)/, msg)
+    assert_match(/promote accepted \(via node-b\)/, msg)
     ok, msg = Sentinel::Actions.hold!(rt, on: true, service: "_example", who: "dashboard")
     assert ok, msg
     refute @state.for("_example").hold?, "the local hold file stays untouched"
@@ -139,7 +139,7 @@ class ActionsTest < Minitest::Test
     assert_equal %w[promote hold], actions
     promote = seen[0][1]
     assert_equal({ "dry_run" => "true", "confirm" => "promote", "fast" => "true", "force" => "false",
-                   "service" => "_example", "who" => "dashboard@silver" }, promote)
+                   "service" => "_example", "who" => "dashboard@node-a" }, promote)
     assert_equal "true", seen[1][1]["on"]
   ensure
     server&.close

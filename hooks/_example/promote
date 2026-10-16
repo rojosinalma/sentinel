@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Example hook: the real promote (hooks/opencode) fences the primary, restores the
-# DBs and starts the standby pair. This one only moves the mode file, like the real one does
-# before starting anything.
+# Example promote hook (docs/hooks.md). A real promote fences the primary (stop its units, block
+# its port), brings the standby's copy up from the replica, waits for its health URL and writes
+# STANDBY to $STATE_DIR/mode. This one only moves the mode file.
+# Called as: promote --auto [--fast] [--force] [--dry-run]. Exit 0 done, 1 refused, 2 degraded.
 set -euo pipefail
 echo "$(date -u +%FT%TZ) [example-promote] args=$* SERVICE=${SERVICE:-} PRIMARY=${PRIMARY:-} STANDBY=${STANDBY:-} DRY_RUN=${DRY_RUN:-}"
 [[ "${DRY_RUN:-false}" == true ]] && exit 0

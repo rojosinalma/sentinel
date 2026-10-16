@@ -6,25 +6,25 @@ require "yaml"
 class LoopTest < Minitest::Test
   CLUSTER_YML = <<~YAML
     hosts:
-      silver:   {address: 127.0.0.1, sentinel_url: http://silver:4197, role: member, probes: {ssh: 22}}
-      tiny:     {address: 127.0.0.2, sentinel_url: http://tiny:4197, role: member, probes: {ssh: 22}}
+      node-a:   {address: 127.0.0.1, sentinel_url: http://node-a:4197, role: member, probes: {ssh: 22}}
+      node-b:     {address: 127.0.0.2, sentinel_url: http://node-b:4197, role: member, probes: {ssh: 22}}
       witness-1: {address: 127.0.0.3, sentinel_url: http://witness-1:4197, role: witness, probes: {ssh: 22}}
     quorum_tcp: []
     services:
       _example:
-        primary: silver
-        standby: tiny
-        health: {silver: "http://127.0.0.1:1/api/info", tiny: "http://127.0.0.2:1/api/info"}
+        primary: node-a
+        standby: node-b
+        health: {node-a: "http://127.0.0.1:1/api/info", node-b: "http://127.0.0.2:1/api/info"}
         hooks_dir: hooks/_example
         routes: {mode: ha-routes}
   YAML
 
-  # Two services with opposite roles: tiny acts for _example, silver acts for _example2.
+  # Two services with opposite roles: node-b acts for _example, node-a acts for _example2.
   TWO_SERVICES_YML = CLUSTER_YML + <<~YAML.gsub(/^/, "  ")
     _example2:
-      primary: tiny
-      standby: silver
-      health: {silver: "http://127.0.0.1:2/api/info", tiny: "http://127.0.0.2:2/api/info"}
+      primary: node-b
+      standby: node-a
+      health: {node-a: "http://127.0.0.1:2/api/info", node-b: "http://127.0.0.2:2/api/info"}
       hooks_dir: hooks/_example2
   YAML
 
@@ -76,7 +76,7 @@ class LoopTest < Minitest::Test
 
   class DenyingLease
     def acquire!(service:, action:)
-      raise Sentinel::Lease::Denied, ["silver: held by someone", "witness-1: no answer"]
+      raise Sentinel::Lease::Denied, ["node-a: held by someone", "witness-1: no answer"]
     end
   end
 
@@ -114,7 +114,7 @@ class LoopTest < Minitest::Test
 
     def primary_current(group: nil, hosts: nil, route_mode: "ha-routes", **)
       @calls << [:get, group, route_mode]
-      route_mode == "ha-routes" ? "silver" : "n/a"
+      route_mode == "ha-routes" ? "node-a" : "n/a"
     end
 
     def set_primary(target, group: nil, route_mode: "ha-routes", **)
@@ -127,7 +127,7 @@ class LoopTest < Minitest::Test
     def sets = @calls.select { |c| c.first == :set }
   end
 
-  def build_loop(node: "tiny", lease: LeaseStub.new, cluster_yml: CLUSTER_YML, routes: Sentinel::Routes, config: CONFIG)
+  def build_loop(node: "node-b", lease: LeaseStub.new, cluster_yml: CLUSTER_YML, routes: Sentinel::Routes, config: CONFIG)
     clock = FakeClock.new
     state = Sentinel::State.new(tmp_state_dir)
     store = Sentinel::Store.memory(node: node)
@@ -159,32 +159,32 @@ class LoopTest < Minitest::Test
     h = build_loop
     h[:loop].cycle!
     last = h[:loop].last
-    assert_equal "tiny", last[:node]
+    assert_equal "node-b", last[:node]
     assert_equal "up", last[:quorum]
     assert_equal %w[_example], last[:services].keys
     e = svc(h)
-    assert_equal "silver", e[:mode]
+    assert_equal "node-a", e[:mode]
     assert_equal :ok, e[:agreed_class]
     assert e[:acting]
     refute e[:busy]
-    assert_equal({ "silver" => :ok, "tiny" => :ok, "witness-1" => :ok }, last[:classes]["_example"])
-    assert_equal "up 1.0", last[:views]["silver"].service_state("_example")
+    assert_equal({ "node-a" => :ok, "node-b" => :ok, "witness-1" => :ok }, last[:classes]["_example"])
+    assert_equal "up 1.0", last[:views]["node-a"].service_state("_example")
   end
 
   def test_full_promote_path
     h = build_loop
     h[:loop].cycle!
-    h[:probes].take_down("silver", "_example")
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle! # degraded, down_since starts
     assert_equal :degraded, svc(h)[:agreed_class]
-    assert_equal "silver", svc(h)[:mode]
+    assert_equal "node-a", svc(h)[:mode]
 
     h[:clock].advance(61)
     h[:loop].cycle! # past PROMOTE_AFTER_S -> promote hook runs
 
-    assert_equal "tiny", h[:state].for("_example").mode(default: "silver"), "promote hook wrote mode"
-    assert_equal "tiny", svc(h)[:mode]
-    assert_equal "tiny", h[:store].get("primary._example")
+    assert_equal "node-b", h[:state].for("_example").mode(default: "node-a"), "promote hook wrote mode"
+    assert_equal "node-b", svc(h)[:mode]
+    assert_equal "node-b", h[:store].get("primary._example")
     assert_equal [["_example", "promote"]], h[:lease].acquired
     assert_equal ["tok"], h[:lease].released
 
@@ -192,21 +192,21 @@ class LoopTest < Minitest::Test
     assert_equal "promote", row[:action]
     assert_equal "ok", row[:result]
 
-    assert(h[:notifications].any? { |(t, _b, _y)| t == "silver _example down" })
+    assert(h[:notifications].any? { |(t, _b, _y)| t == "node-a _example down" })
     assert(h[:store].events(kind: "class.change").any?)
   end
 
   def test_failback_path
     h = build_loop
-    h[:state].for("_example").set_mode!("tiny", now: h[:clock].now)
+    h[:state].for("_example").set_mode!("node-b", now: h[:clock].now)
 
     h[:loop].cycle! # standby cycle; health hook -> host_health up; stable timer starts
-    assert_equal "tiny", svc(h)[:mode]
+    assert_equal "node-b", svc(h)[:mode]
 
     h[:clock].advance(31)
     h[:loop].cycle! # stable past FAILBACK_AFTER_S -> demote hook
 
-    assert_equal "silver", h[:state].for("_example").mode(default: "silver"), "demote hook wrote mode back"
+    assert_equal "node-a", h[:state].for("_example").mode(default: "node-a"), "demote hook wrote mode back"
     assert_includes h[:lease].acquired, ["_example", "demote"]
     row = h[:store].transitions(service: "_example").first
     assert_equal "demote", row[:action]
@@ -217,7 +217,7 @@ class LoopTest < Minitest::Test
     lock = File.open(h[:state].for("_example").path("promote.lock"), File::CREAT | File::RDWR)
     lock.flock(File::LOCK_EX)
 
-    h[:probes].take_down("silver", "_example")
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle!
     h[:clock].advance(120)
     h[:loop].cycle!
@@ -231,29 +231,29 @@ class LoopTest < Minitest::Test
   end
 
   def test_non_acting_node_never_acts
-    h = build_loop(node: "silver")
+    h = build_loop(node: "node-a")
     refute h[:loop].acting?("_example")
     assert_empty h[:loop].acting_services
-    h[:probes].take_down("silver", "_example")
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle!
     h[:clock].advance(120)
     h[:loop].cycle!
 
     assert_empty h[:lease].acquired
     assert_empty h[:store].transitions
-    assert_equal "silver", svc(h)[:mode], "non-acting falls back to service.primary"
+    assert_equal "node-a", svc(h)[:mode], "non-acting falls back to service.primary"
     refute svc(h)[:acting]
   end
 
   def test_lease_denied_blocks_and_notifies
     h = build_loop(lease: DenyingLease.new)
     h[:loop].cycle!
-    h[:probes].take_down("silver", "_example")
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle!
     h[:clock].advance(61)
     h[:loop].cycle!
 
-    assert_equal "silver", h[:state].for("_example").mode(default: "silver"), "no promote without a lease"
+    assert_equal "node-a", h[:state].for("_example").mode(default: "node-a"), "no promote without a lease"
     assert_empty h[:store].transitions
     assert(h[:store].events(kind: "lease.deny").any?)
     assert(h[:notifications].any? { |(t, _b, _y)| t.include?("blocked") })
@@ -300,12 +300,12 @@ class LoopTest < Minitest::Test
     h[:loop].cycle!
     last = h[:loop].last
     assert_equal %w[_example _example2], last[:services].keys
-    assert_equal "silver", svc(h, "_example")[:mode]
-    assert_equal "tiny", svc(h, "_example2")[:mode], "the other service's primary is tiny"
+    assert_equal "node-a", svc(h, "_example")[:mode]
+    assert_equal "node-b", svc(h, "_example2")[:mode], "the other service's primary is node-b"
     assert svc(h, "_example")[:acting]
     refute svc(h, "_example2")[:acting]
-    assert_equal({ "silver" => :ok, "tiny" => :ok, "witness-1" => :ok }, last[:classes]["_example2"])
-    assert_equal({ "_example" => "up 1.0", "_example2" => "up 1.0" }, last[:views]["tiny"].services)
+    assert_equal({ "node-a" => :ok, "node-b" => :ok, "witness-1" => :ok }, last[:classes]["_example2"])
+    assert_equal({ "_example" => "up 1.0", "_example2" => "up 1.0" }, last[:views]["node-b"].services)
     assert_equal({}, last[:views]["witness-1"].services)
 
     # the warm upkeep only runs for the service this node acts for
@@ -315,80 +315,80 @@ class LoopTest < Minitest::Test
 
   def test_standby_with_service_stopped_is_standby_not_degraded
     h = build_loop
-    h[:probes].take_down("tiny", "_example")
+    h[:probes].take_down("node-b", "_example")
     h[:loop].cycle!
-    assert_equal :standby, h[:loop].last[:classes]["_example"]["tiny"]
+    assert_equal :standby, h[:loop].last[:classes]["_example"]["node-b"]
     assert_equal :ok, svc(h)[:agreed_class], "the primary is what gets judged"
 
-    # once promoted, tiny is the one in charge: its stopped service is a real degradation
-    h[:probes].take_down("silver", "_example")
+    # once promoted, node-b is the one in charge: its stopped service is a real degradation
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle!
     h[:clock].advance(61)
     h[:loop].cycle!
-    assert_equal "tiny", svc(h)[:mode]
+    assert_equal "node-b", svc(h)[:mode]
     h[:loop].cycle!
-    assert_equal :degraded, h[:loop].last[:classes]["_example"]["tiny"]
-    assert_equal :degraded, h[:loop].last[:classes]["_example"]["silver"], "the primary host is never relabelled"
+    assert_equal :degraded, h[:loop].last[:classes]["_example"]["node-b"]
+    assert_equal :degraded, h[:loop].last[:classes]["_example"]["node-a"], "the primary host is never relabelled"
   end
 
   def test_two_services_outage_of_one_leaves_the_other_alone
     h = build_loop(cluster_yml: TWO_SERVICES_YML)
     h[:loop].cycle!
-    h[:probes].take_down("silver", "_example")
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle!
     assert_equal :degraded, svc(h, "_example")[:agreed_class]
-    assert_equal :ok, svc(h, "_example2")[:agreed_class], "silver carries _example2 too, but it still answers"
-    assert_equal :degraded, h[:loop].last[:classes]["_example"]["silver"]
-    assert_equal :ok, h[:loop].last[:classes]["_example2"]["silver"]
+    assert_equal :ok, svc(h, "_example2")[:agreed_class], "node-a carries _example2 too, but it still answers"
+    assert_equal :degraded, h[:loop].last[:classes]["_example"]["node-a"]
+    assert_equal :ok, h[:loop].last[:classes]["_example2"]["node-a"]
 
     h[:clock].advance(61)
     h[:loop].cycle!
     assert_equal [["_example", "promote"]], h[:lease].acquired
-    assert_equal "tiny", svc(h, "_example")[:mode]
-    assert_equal "tiny", h[:store].get("primary._example")
+    assert_equal "node-b", svc(h, "_example")[:mode]
+    assert_equal "node-b", h[:store].get("primary._example")
     assert_nil h[:store].get("primary._example2"), "nothing happened to the other service"
-    assert_equal "tiny", svc(h, "_example2")[:mode]
+    assert_equal "node-b", svc(h, "_example2")[:mode]
     assert_equal %w[_example], h[:store].transitions.map { |r| r[:service] }.uniq
     degraded = h[:store].events(kind: "class.change").select { |e| e[:message].include?("-> degraded") }
     assert_equal ["_example"], degraded.map { |e| e[:service] }.uniq
   end
 
   def test_two_services_the_other_node_acts_for_the_other_service
-    h = build_loop(node: "silver", cluster_yml: TWO_SERVICES_YML)
+    h = build_loop(node: "node-a", cluster_yml: TWO_SERVICES_YML)
     refute h[:loop].acting?("_example")
     assert h[:loop].acting?("_example2")
     h[:loop].cycle!
-    assert_equal "tiny", svc(h, "_example2")[:mode]
-    assert_equal "silver", svc(h, "_example")[:mode]
+    assert_equal "node-b", svc(h, "_example2")[:mode]
+    assert_equal "node-a", svc(h, "_example")[:mode]
 
-    # _example goes down on silver: silver is not the acting node for it -> observe only
-    h[:probes].take_down("silver", "_example")
+    # _example goes down on node-a: node-a is not the acting node for it -> observe only
+    h[:probes].take_down("node-a", "_example")
     h[:loop].cycle!
     h[:clock].advance(61)
     h[:loop].cycle!
     assert_empty h[:lease].acquired
     assert_equal :degraded, svc(h, "_example")[:agreed_class]
 
-    # _example2 goes down on tiny: silver acts
-    h[:probes].take_down("tiny", "_example2")
+    # _example2 goes down on node-b: node-a acts
+    h[:probes].take_down("node-b", "_example2")
     h[:loop].cycle!
     h[:clock].advance(61)
     h[:loop].cycle!
     assert_equal [["_example2", "promote"]], h[:lease].acquired
-    assert_equal "silver", h[:state].for("_example2").mode(default: "tiny"), "the hook wrote STANDBY=silver"
-    assert_equal "silver", h[:state].for("_example").mode(default: "silver"), "_example's own mode file untouched"
-    assert_equal "silver", svc(h, "_example2")[:mode]
-    assert_equal "silver", h[:store].get("primary._example2")
-    assert_equal "silver", svc(h, "_example")[:mode], "non-acting service unaffected"
-    assert(h[:notifications].any? { |(t, _b, _y)| t == "tiny _example2 down" })
+    assert_equal "node-a", h[:state].for("_example2").mode(default: "node-b"), "the hook wrote STANDBY=node-a"
+    assert_equal "node-a", h[:state].for("_example").mode(default: "node-a"), "_example's own mode file untouched"
+    assert_equal "node-a", svc(h, "_example2")[:mode]
+    assert_equal "node-a", h[:store].get("primary._example2")
+    assert_equal "node-a", svc(h, "_example")[:mode], "non-acting service unaffected"
+    assert(h[:notifications].any? { |(t, _b, _y)| t == "node-b _example2 down" })
   end
 
   def test_busy_lock_of_one_service_leaves_the_other_deciding
-    h = build_loop(node: "silver", cluster_yml: TWO_SERVICES_YML)
+    h = build_loop(node: "node-a", cluster_yml: TWO_SERVICES_YML)
     lock = File.open(h[:state].for("_example").path("promote.lock"), File::CREAT | File::RDWR)
     lock.flock(File::LOCK_EX)
 
-    h[:probes].take_down("tiny", "_example2")
+    h[:probes].take_down("node-b", "_example2")
     h[:loop].cycle!
     h[:clock].advance(61)
     h[:loop].cycle!
@@ -396,8 +396,8 @@ class LoopTest < Minitest::Test
     assert svc(h, "_example")[:busy]
     refute svc(h, "_example2")[:busy]
     assert_equal [["_example2", "promote"]], h[:lease].acquired, "the locked service does not freeze the node"
-    assert_equal "silver", svc(h, "_example2")[:mode]
-    assert_equal "silver", svc(h, "_example")[:mode], "the locked service keeps its own mode"
+    assert_equal "node-a", svc(h, "_example2")[:mode]
+    assert_equal "node-a", svc(h, "_example")[:mode], "the locked service keeps its own mode"
   ensure
     lock&.flock(File::LOCK_UN)
     lock&.close
@@ -408,7 +408,7 @@ class LoopTest < Minitest::Test
     result = h[:loop].execute_transition!("_example", "promote", ["--auto"])
     assert_equal 0, result.exit_code
     assert_equal [["_example", "promote"]], h[:lease].acquired
-    assert_equal "tiny", h[:store].get("primary._example")
+    assert_equal "node-b", h[:store].get("primary._example")
     assert_raises(KeyError) { h[:loop].execute_transition!("ghost", "promote") }
   end
 
@@ -418,21 +418,21 @@ class LoopTest < Minitest::Test
 
   ROUTED_SERVICES_YML = CLUSTER_YML + <<~YAML.gsub(/^/, "  ")
     _pihole:
-      primary: silver
-      standby: tiny
-      health: {silver: "http://127.0.0.1:3/api/info", tiny: "http://127.0.0.2:3/api/info"}
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:3/api/info", node-b: "http://127.0.0.2:3/api/info"}
       hooks_dir: hooks/_pihole
       routes: {mode: pihole, pihole_names: [a.example, b.example]}
     _off:
-      primary: silver
-      standby: tiny
-      health: {silver: "http://127.0.0.1:4/api/info", tiny: "http://127.0.0.2:4/api/info"}
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:4/api/info", node-b: "http://127.0.0.2:4/api/info"}
       hooks_dir: hooks/_off
       routes: {mode: off}
     _grouped:
-      primary: silver
-      standby: tiny
-      health: {silver: "http://127.0.0.1:5/api/info", tiny: "http://127.0.0.2:5/api/info"}
+      primary: node-a
+      standby: node-b
+      health: {node-a: "http://127.0.0.1:5/api/info", node-b: "http://127.0.0.2:5/api/info"}
       hooks_dir: hooks/_grouped
       routes: {mode: ha-routes, group: custom}
   YAML
@@ -441,10 +441,10 @@ class LoopTest < Minitest::Test
     routes = RoutesStub.new
     h = build_loop(cluster_yml: ROUTED_SERVICES_YML, routes: routes, config: ROUTE_CONFIG)
     h[:loop].execute_transition!("_example", "promote", ["--auto"])
-    assert_equal [[:set, "tiny", "_example", "ha-routes"]], routes.sets, "one set, group = service name"
+    assert_equal [[:set, "node-b", "_example", "ha-routes"]], routes.sets, "one set, group = service name"
 
     h[:loop].execute_transition!("_grouped", "promote", ["--auto"])
-    assert_equal [:set, "tiny", "custom", "ha-routes"], routes.sets.last, "cluster.yml routes.group wins"
+    assert_equal [:set, "node-b", "custom", "ha-routes"], routes.sets.last, "cluster.yml routes.group wins"
 
     h[:loop].execute_transition!("_pihole", "promote", ["--auto"])
     h[:loop].execute_transition!("_off", "promote", ["--auto"])
@@ -455,9 +455,9 @@ class LoopTest < Minitest::Test
   def test_demote_switches_the_routes_back_to_the_primary
     routes = RoutesStub.new
     h = build_loop(routes: routes, config: ROUTE_CONFIG)
-    h[:state].for("_example").set_mode!("tiny", now: h[:clock].now)
+    h[:state].for("_example").set_mode!("node-b", now: h[:clock].now)
     h[:loop].execute_transition!("_example", "demote", ["--yes", "--auto"])
-    assert_equal [[:set, "silver", "_example", "ha-routes"]], routes.sets
+    assert_equal [[:set, "node-a", "_example", "ha-routes"]], routes.sets
   end
 
   def test_failed_hook_does_not_switch_the_routes
@@ -480,7 +480,7 @@ class LoopTest < Minitest::Test
     h = build_loop(cluster_yml: ROUTED_SERVICES_YML, routes: routes, config: ROUTE_CONFIG)
     h[:loop].cycle!
     rp = h[:loop].last[:route_primary]
-    assert_equal({ "_example" => "silver", "_pihole" => "n/a", "_off" => "n/a", "_grouped" => "silver" }, rp)
+    assert_equal({ "_example" => "node-a", "_pihole" => "n/a", "_off" => "n/a", "_grouped" => "node-a" }, rp)
     gets = routes.calls.select { |c| c.first == :get }
     assert_includes gets, [:get, "_example", "ha-routes"]
     assert_includes gets, [:get, "custom", "ha-routes"]
@@ -489,8 +489,8 @@ class LoopTest < Minitest::Test
   end
 
   # A hook that moves the mode but exits 2 (transitioned, health wait failed): the routes stay
-  # put, the failure marker stays, and the user hears about the degraded takeover (2026-10-13:
-  # rc=2 still routed the public hostnames to a tiny whose opencode never started).
+  # put, the failure marker stays, and the operator hears about the degraded takeover (2026-10-13:
+  # rc=2 still routed the public hostnames to a node-b whose opencode never started).
   def test_rc2_transition_keeps_routes_and_marker_and_notifies
     routes = RoutesStub.new
     h = build_loop(routes: routes, config: ROUTE_CONFIG)
@@ -498,12 +498,12 @@ class LoopTest < Minitest::Test
     File.unlink(dir)
     FileUtils.mkdir_p(dir)
     File.write(File.join(dir, "promote"),
-               "#!/usr/bin/env bash\nprintf 'tiny\\n' > \"$STATE_DIR/mode\"\nexit 2\n")
+               "#!/usr/bin/env bash\nprintf 'node-b\\n' > \"$STATE_DIR/mode\"\nexit 2\n")
     FileUtils.chmod(0o755, File.join(dir, "promote"))
 
     result = h[:loop].execute_transition!("_example", "promote", ["--auto"])
     assert_equal 2, result.exit_code
-    assert_equal "tiny", h[:state].for("_example").mode(default: "silver"), "the hook owns the mode"
+    assert_equal "node-b", h[:state].for("_example").mode(default: "node-a"), "the hook owns the mode"
     assert_empty routes.sets, "rc=2 must not move the public routes"
     assert h[:state].for("_example").file_age_s("promote-failed"), "marker stays for the gates"
     assert(h[:notifications].any? { |(t, _b, y)| t.include?("DEGRADED") && y == "failure" })
@@ -515,16 +515,16 @@ class LoopTest < Minitest::Test
   def test_reassert_routes_follows_the_mode_once_the_service_answers
     routes = RoutesStub.new
     h = build_loop(routes: routes, config: ROUTE_CONFIG)
-    h[:state].for("_example").set_mode!("tiny", now: h[:clock].now)
+    h[:state].for("_example").set_mode!("node-b", now: h[:clock].now)
 
-    h[:probes].take_down("tiny", "_example")
-    h[:loop].cycle! # RoutesStub reports silver; tiny's service down -> no re-assert
+    h[:probes].take_down("node-b", "_example")
+    h[:loop].cycle! # RoutesStub reports node-a; node-b's service down -> no re-assert
     assert_empty routes.sets, "no re-assert while the mode host's service is down"
 
-    h[:probes].restore("tiny", "_example")
+    h[:probes].restore("node-b", "_example")
     h[:clock].advance(16) # past host_health_interval_s so refresh_routes re-reads
     h[:loop].cycle!
-    assert_equal [:set, "tiny", "_example", "ha-routes"], routes.sets.last,
+    assert_equal [:set, "node-b", "_example", "ha-routes"], routes.sets.last,
                  "routes follow the mode once the service answers there"
   end
 end

@@ -22,13 +22,13 @@ class StatusTest < Minitest::Test
   def build_harness
     clock = FakeClock.new
     state = Sentinel::State.new(tmp_state_dir)
-    store = Sentinel::Store.memory(node: "tiny")
-    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "tiny")
+    store = Sentinel::Store.memory(node: "node-b")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "node-b")
     config = LoopTest::CONFIG.merge(route_mode: "ha-routes")
     hooks = Sentinel::Hooks.new(dir: LoopTest.hooks_dir_for(cluster, tmp_state_dir),
                                 log_dir: File.join(tmp_state_dir, "logs"),
                                 env: { "STATE_DIR" => state.dir },
-                                services_meta: { "_example" => { primary: "silver", standby: "tiny" } },
+                                services_meta: { "_example" => { primary: "node-a", standby: "node-b" } },
                                 timeout_s: 10, store: store)
     deciders = cluster.services.to_h do |name, service|
       [name, Sentinel::Decider.new(config: LoopTest.decider_config(service).merge(route_mode: "ha-routes"), state: state.for(name))]
@@ -56,14 +56,14 @@ class StatusTest < Minitest::Test
   def test_compact_json_for_litestream_guard
     @h[:loop].cycle!
     json = Sentinel::Status.to_json(build_status)
-    assert_includes json, '"mode":"silver"', "compact JSON, no space after the colon"
+    assert_includes json, '"mode":"node-a"', "compact JSON, no space after the colon"
     refute_includes json, ": "
   end
 
   def test_values_and_types
     @h[:loop].cycle!
     s = build_status
-    assert_equal "silver", s["mode"]
+    assert_equal "node-a", s["mode"]
     assert_equal "up 1.0", s["silver_opencode"]
     assert_equal "1.0", s["silver_opencode_version"]
     assert_equal "up", s["silver_host"]
@@ -91,7 +91,7 @@ class StatusTest < Minitest::Test
   end
 
   def test_mode_since_and_hold_overlay
-    @h[:state].for("_example").set_mode!("tiny", now: @h[:clock].now)
+    @h[:state].for("_example").set_mode!("node-b", now: @h[:clock].now)
     @h[:state].hold_on!("test")
     @h[:loop].cycle!
     s = build_status
@@ -104,7 +104,7 @@ class StatusTest < Minitest::Test
   def test_legacy_document_is_byte_identical_to_the_fixture
     @h[:loop].cycle!
     st = @h[:state].for("_example")
-    st.set_mode!("tiny", now: @h[:clock].now)
+    st.set_mode!("node-b", now: @h[:clock].now)
     t = Time.utc(2026, 1, 1, 11, 0, 0)
     File.utime(t, t, st.path("mode"))
     @h[:state].hold_on!("test", now: @h[:clock].now)
@@ -136,7 +136,7 @@ class StatusTest < Minitest::Test
 
   def test_no_cycle_yet_fallback
     s = build_status
-    assert_equal "silver", s["mode"]
+    assert_equal "node-a", s["mode"]
     assert_equal "unknown", s["silver_opencode"]
     assert_equal false, s["promoting"]
     assert_equal "no cycle yet", s["note"]
@@ -152,25 +152,25 @@ class StatusTest < Minitest::Test
     @h[:loop].cycle!
     v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now)
     assert v1[:ok]
-    assert_equal "tiny", v1[:node]
+    assert_equal "node-b", v1[:node]
     assert_equal "up", v1[:quorum]
     assert_equal 0, v1[:status_age_s]
-    assert_equal %w[silver tiny witness-1], v1[:hosts].keys
-    assert_equal({ ssh: "up", icmp: nil, https: nil }, v1[:hosts]["silver"][:probes])
-    assert_equal({ "_example" => "up 1.0" }, v1[:hosts]["silver"][:services])
+    assert_equal %w[node-a node-b witness-1], v1[:hosts].keys
+    assert_equal({ ssh: "up", icmp: nil, https: nil }, v1[:hosts]["node-a"][:probes])
+    assert_equal({ "_example" => "up 1.0" }, v1[:hosts]["node-a"][:services])
     assert_equal({ "_example" => "ok" }, v1[:hosts]["witness-1"][:classes])
     e = v1[:services]["_example"]
-    assert_equal "silver", e[:primary]
-    assert_equal "tiny", e[:standby]
+    assert_equal "node-a", e[:primary]
+    assert_equal "node-b", e[:standby]
     assert e[:acting]
-    assert_equal "silver", e[:mode]
+    assert_equal "node-a", e[:mode]
     assert_equal "ok", e[:agreed_class]
     assert_equal "ok", e[:classification]
     assert_equal 0, e[:gates][:dead_polls]
     assert_equal false, e[:hold]
     refute v1.key?(:note)
     json = JSON.generate(v1)
-    refute_match(/silver_|tiny_/, json.gsub(/"(silver|tiny|witness-1)"/, ""), "neutral key names only")
+    refute_match(/silver_|tiny_/, json.gsub(/"(node-a|node-b|witness-1)"/, ""), "neutral key names only")
   end
 
   def test_v1_before_first_cycle
@@ -178,17 +178,17 @@ class StatusTest < Minitest::Test
     assert v1[:ok]
     assert_equal "no cycle yet", v1[:note]
     assert_equal({}, v1[:hosts])
-    assert_equal "silver", v1[:services]["_example"][:mode]
+    assert_equal "node-a", v1[:services]["_example"][:mode]
     assert_nil v1[:at]
   end
 
   # The dashboard extras: lease (without its token), last transition, host roles, majority,
   # cluster-wide hold; all resolved from an explicit store/cluster when given.
   def test_v1_dashboard_fields
-    store = Sentinel::Store.memory(node: "tiny")
-    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "tiny")
+    store = Sentinel::Store.memory(node: "node-b")
+    cluster = Sentinel::Config::Cluster.new(YAML.safe_load(LoopTest::CLUSTER_YML), node_name: "node-b")
     now = @h[:clock].now
-    store.lease_grant!(service: "_example", holder: "tiny", action: "promote", token: "secret", ttl_s: 30, now: now)
+    store.lease_grant!(service: "_example", holder: "node-b", action: "promote", token: "secret", ttl_s: 30, now: now)
     id = store.transition_start!(service: "_example", action: "promote")
     store.transition_end!(id, result: "ok", exit_code: 0, duration_s: 7)
     store.set("primary_at._example", "2026-01-01T11:00:00Z")
@@ -199,10 +199,10 @@ class StatusTest < Minitest::Test
     assert_equal true, v1[:hold]
     assert_equal cluster.majority, v1[:majority]
     assert_equal "witness", v1[:hosts]["witness-1"][:role]
-    assert_equal "member", v1[:hosts]["silver"][:role]
+    assert_equal "member", v1[:hosts]["node-a"][:role]
     e = v1[:services]["_example"]
     assert_equal "2026-01-01T11:00:00Z", e[:since]
-    assert_equal "tiny", e[:lease][:holder]
+    assert_equal "node-b", e[:lease][:holder]
     assert_equal "promote", e[:lease][:action]
     refute e[:lease].key?(:token), "the lease token never leaves the node"
     assert_equal "promote", e[:last_transition][:action]
@@ -219,16 +219,16 @@ class StatusTest < Minitest::Test
     @h[:loop].cycle!
     doc = Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config],
                                  now: @h[:clock].now, service: "_example")
-    assert_equal "silver", doc["mode"]
+    assert_equal "node-a", doc["mode"]
 
-    @h[:state].for("_example").set_mode!("tiny", now: @h[:clock].now) # what a running hook does
+    @h[:state].for("_example").set_mode!("node-b", now: @h[:clock].now) # what a running hook does
     doc = Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config],
                                  now: @h[:clock].now, service: "_example")
-    assert_equal "tiny", doc["mode"], "no new cycle ran, the mode must still be the live file"
+    assert_equal "node-b", doc["mode"], "no new cycle ran, the mode must still be the live file"
 
     v1 = Sentinel::Status.v1(loop: @h[:loop], state: @h[:state], now: @h[:clock].now,
                              config: @h[:config])
-    assert_equal "tiny", v1[:services]["_example"][:mode]
+    assert_equal "node-b", v1[:services]["_example"][:mode]
   end
 
 end

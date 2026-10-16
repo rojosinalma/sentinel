@@ -50,7 +50,7 @@ class App < Roda
   end
 
   # The optional ?service= / {service} argument, validated against cluster.yml; nil when absent.
-  # "dashboard" for a browser, or the forwarding node's tag (e.g. dashboard@silver) so the
+  # "dashboard" for a browser, or the forwarding node's tag (e.g. dashboard@node-a) so the
   # audit trail names the page that asked.
   def who_param(r)
     who = r.params["who"].to_s.strip
@@ -173,7 +173,7 @@ class App < Roda
       r.get "sentinel" do
         rt = sentinel!(r)
         response["cache-control"] = "no-store"
-        name = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
+        name = r.params["service"] || ::Sentinel::Status.legacy_service
         service = rt[:cluster].services[name] or halt_json(r, 404, "unknown service #{name.inspect}")
         doc = rt[:loop].last || {}
         entry = doc.dig(:services, name) || {}
@@ -218,7 +218,7 @@ class App < Roda
 
       r.post "promote" do
         rt = sentinel!(r)
-        service = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
+        service = r.params["service"] || ::Sentinel::Status.legacy_service
         args = []
         args << "--fast" if r.params["fast"] == "true"
         args << "--force" if r.params["force"] == "true"
@@ -235,7 +235,7 @@ class App < Roda
 
       r.post "demote" do
         rt = sentinel!(r)
-        service = r.params["service"] || ::Sentinel::Status::LEGACY_SERVICE
+        service = r.params["service"] || ::Sentinel::Status.legacy_service
         if r.params["dry_run"] == "true"
           ok, message = ::Sentinel::Actions.transition!(rt, service, "demote", [], dry_run: true, who: who_param(r))
         elsif r.params["confirm"] != "demote"

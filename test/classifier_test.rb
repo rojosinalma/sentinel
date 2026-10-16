@@ -4,7 +4,7 @@ require_relative "test_helper"
 
 class ClassifierTest < Minitest::Test
   def view(ssh: "down", icmp: "down", https: "down")
-    Sentinel::HostView.new(name: "silver", ssh: ssh, icmp: icmp, https: https, probed_at: Time.now).freeze
+    Sentinel::HostView.new(name: "node-a", ssh: ssh, icmp: icmp, https: https, probed_at: Time.now).freeze
   end
 
   def classify(state, quorum:, **probes) = Sentinel::Classifier.classify(state, view(**probes), quorum: quorum)

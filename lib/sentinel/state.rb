@@ -57,7 +57,7 @@ module Sentinel
       moved
     end
 
-    # "silver" | "tiny" (any lowercase word); the legacy "primary=<mode>" form is accepted.
+    # the host name of the current primary (any lowercase word); the legacy "primary=<mode>" form is accepted.
     # Absent file -> default. Unparseable -> Corrupt, like the bash `die`.
     def mode(default:)
       f = path("mode")
@@ -115,7 +115,7 @@ module Sentinel
     def clear_transition! = remove!("transition")
 
     # The standby stack marker the replicate hook writes ("healthy" | "degraded: …"); the
-    # opencode hooks call it tiny-stack, the generic name is stack.
+    # the legacy marker name is tiny-stack, the generic name is stack; both are read.
     def stack = read("tiny-stack") || read("stack")
 
     # A bash hook holds promote.lock via flock for its lifetime. flock locks conflict across
@@ -149,7 +149,7 @@ module Sentinel
       nil
     end
 
-    # Content of a state file, stripped, or nil when absent (e.g. tiny-stack from the hooks).
+    # Content of a state file, stripped, or nil when absent (e.g. the stack marker from the hooks).
     def read(name)
       content = File.read(path(name)).strip
       content.empty? ? nil : content
