@@ -48,23 +48,13 @@ class LoopTest < Minitest::Test
   end
 
   class GossipStub
-    attr_accessor :node
-
-    def initialize(node: "node-b") = @node = node
     def poll! = nil
     def quorum? = true
     def agreed_class(_service, _host, local) = local
     def primary(service) = primary_state(service)&.fetch(:host)
     def primary_state(_service) = nil
     def reachable_peers = []
-
-    # The real schema with the arguments echoed back, so the served /peer/view can be inspected.
-    def local_view(hosts:, classes:, primary:, primary_at:, hold:, transition:, quorum:, transitions: {})
-      { "node" => @node, "at" => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ"), "seq" => 1,
-        "primary" => primary, "primary_at" => primary_at, "hosts" => hosts.keys.to_h { |h| [h, {}] },
-        "quorum" => quorum, "reachable_peers" => [], "hold" => hold, "transition" => transition,
-        "transitions" => transitions, "lease" => nil }
-    end
+    def local_view(**) = {}
   end
 
   class LeaseStub
@@ -537,96 +527,5 @@ class LoopTest < Minitest::Test
     h[:loop].cycle!
     assert_equal [:set, "node-b", "_example", "ha-routes"], routes.sets.last,
                  "routes follow the mode once the service answers there"
-  end
-
-  # ---------------------------------------------------------------- live /peer/view
-
-  def iso(time) = time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-  # No mode file yet (acting node fresh after boot): the served view is the cycle's view.
-  def test_peer_view_without_state_file_keeps_cycle_values
-    h = build_loop
-    assert_nil h[:loop].peer_view, "nothing served before the first cycle"
-    h[:loop].cycle!
-    view = h[:loop].peer_view
-    assert_equal "node-b", view["node"]
-    assert_equal({ "_example" => "node-a" }, view["primary"])
-    assert_equal({ "_example" => nil }, view["primary_at"])
-    assert_equal({ "_example" => nil }, view["transitions"])
-    assert_nil view["transition"]
-    refute view["hold"]
-  end
-
-  # A hook flips the mode and sets the transition while the cycle that dispatched it is still
-  # blocked on it: the served view shows the new primary dated by the mode file, no cycle needed.
-  def test_peer_view_shows_a_hooks_mid_run_mode_write_without_a_cycle
-    h = build_loop
-    h[:loop].cycle!
-    h[:store].set("primary_at._example", "2020-01-01T00:00:00Z") # last agreed, long ago
-    state = h[:state].for("_example")
-    state.set_transition!("promote", "20260101T120000Z")
-    state.set_mode!("node-b", now: h[:clock].now)
-
-    view = h[:loop].peer_view
-    assert_equal "node-a", svc(h)[:mode], "cycle snapshot untouched: no cycle ran"
-    assert_equal "node-b", view["primary"]["_example"]
-    assert_equal iso(state.mode_since), view["primary_at"]["_example"], "mode file mtime beats the old store row"
-    assert_equal "promote 20260101T120000Z", view["transitions"]["_example"]
-    assert_equal "promote 20260101T120000Z", view["transition"]
-    assert_equal h[:loop].instance_variable_get(:@peer_view).keys.sort, view.keys.sort,
-                 "same keys as the cycle view"
-
-    state.clear_transition!
-    h[:store].set("primary_at._example", "2099-01-01T00:00:00Z")
-    view = h[:loop].peer_view
-    assert_nil view["transition"]
-    assert_equal "2099-01-01T00:00:00Z", view["primary_at"]["_example"], "a newer store row wins over the file"
-
-    h[:state].hold_on!("test", now: h[:clock].now)
-    assert h[:loop].peer_view["hold"], "node-wide hold read live"
-  end
-
-  # node-b does not act for _example2: its state files there are not the acting node's and
-  # the view keeps what the cycle published for it.
-  def test_peer_view_leaves_non_acting_services_to_the_cycle
-    h = build_loop(cluster_yml: TWO_SERVICES_YML)
-    h[:loop].cycle!
-    before = h[:loop].peer_view
-    h[:state].for("_example2").set_mode!("node-a", now: h[:clock].now)
-    h[:state].for("_example2").set_transition!("promote", "20260101T120000Z")
-    after = h[:loop].peer_view
-    assert_equal before["primary"]["_example2"], after["primary"]["_example2"]
-    assert_equal "node-b", after["primary"]["_example2"], "cycle value, not the local file's node-a"
-    assert_nil after["primary_at"]["_example2"]
-    assert_nil after["transitions"]["_example2"]
-    assert_nil after["transition"]
-  end
-
-  # A peer's Gossip polling the acting node's /peer/view picks the hook's mode write up within
-  # one poll: the mode file's mtime is the newest primary_at, so primary_state selects it.
-  def test_peer_gossip_sees_the_hooks_mode_write_within_one_poll
-    h = build_loop
-    h[:loop].cycle!
-    h[:store].set("primary_at._example", "2020-01-01T00:00:00Z")
-    apps = { "http://node-b:4197" => ->(*) { [200, JSON.generate(h[:loop].peer_view)] },
-             "http://witness-1:4197" => ->(*) { raise "down" } }
-    peer_store = Sentinel::Store.memory(node: "node-a")
-    peer_store.set("primary._example", "node-a")
-    peer_store.set("primary_at._example", "2025-01-01T00:00:00Z")
-    peer = Sentinel::Gossip.new(
-      cluster: Sentinel::Config::Cluster.new(YAML.safe_load(CLUSTER_YML), node_name: "node-a"),
-      transport: Sentinel::Transport::InProcess.new(apps), store: peer_store, stale_s: 10
-    )
-    peer.poll!
-    assert_equal "node-a", peer.primary_state("_example")[:host], "before the hook: the peer's own store wins"
-
-    state = h[:state].for("_example")
-    state.set_transition!("promote", "20260101T120000Z")
-    state.set_mode!("node-b", now: h[:clock].now)
-    peer.poll!
-    ps = peer.primary_state("_example")
-    assert_equal "node-b", ps[:host]
-    assert_equal Time.iso8601(iso(state.mode_since)), ps[:at]
-    assert_equal "promote 20260101T120000Z", ps[:transition]
   end
 end

@@ -74,20 +74,7 @@ module Sentinel
     end
 
     def last = @mutex.synchronize { @last }
-
-    # The document /peer/view serves: the last cycle's view with the live state of every
-    # service this node acts for laid over it, read at request time. A transition hook runs
-    # inside the cycle and may take minutes, so the cycle snapshot alone is frozen at the
-    # pre-hook primary for that long (2026-10-16 23:09 failback: node-b kept publishing
-    # primary=node-b after the demote hook had written mode=node-a, node-a's /status followed
-    # the gossip, its guard refused the start, the hook timed out and rolled back).
-    # primary_at is the newer of the store's agreed value and the mode file's mtime, so the
-    # hook's write wins the newest-at rule in Gossip#primary_state at once. Same keys as the
-    # cycle view; a service without a mode file keeps the cycle values.
-    def peer_view
-      doc = @mutex.synchronize { @peer_view }
-      doc && live_view(doc)
-    end
+    def peer_view = @mutex.synchronize { @peer_view }
 
     def start!
       @stop = false
@@ -459,30 +446,6 @@ module Sentinel
         @last = doc
         @peer_view = view_doc
       end
-    end
-
-    def live_view(doc)
-      primary = (doc["primary"] || {}).dup
-      primary_at = (doc["primary_at"] || {}).dup
-      transitions = (doc["transitions"] || {}).dup
-      acting_services.each do |name|
-        state = @state.for(name)
-        transitions[name] = state.transition
-        since = state.mode_since
-        next unless since
-
-        begin
-          primary[name] = state.mode(default: @services[name].primary)
-        rescue State::Corrupt => e
-          $log.warn "[loop] #{name}: #{e.message}; peer view keeps the cycle primary"
-          next
-        end
-        stored = @store.get("primary_at.#{name}")
-        stored_t = stored && Time.iso8601(stored)
-        primary_at[name] = iso(stored_t && stored_t > since ? stored_t : since)
-      end
-      doc.merge("primary" => primary, "primary_at" => primary_at, "transitions" => transitions,
-                "transition" => transitions.values.compact.first, "hold" => @state.hold?)
     end
 
     def record_class_change(service, agreed, mode)
