@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.7.1 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/base.css — the unskinned baseline.
  * Reset + readable typography + the minimum that makes every component FUNCTION (hidden panels, dialog
@@ -352,7 +352,7 @@ details.t-card > .t-card-header { cursor: pointer; user-select: none; }
 .t-timeline-break { position: relative; z-index: 1; height: 4px; margin: var(--t-space-2) 0; background: var(--t-disabled); border-radius: 2px; }
 
 /* tooltip / help / code */
-.t-tooltip { position: fixed; z-index: var(--t-z-toast); max-width: 18rem; padding: 0.3rem 0.55rem; border-radius: var(--t-radius-md); background: var(--t-overlay-bg); color: var(--t-text); border: var(--t-border-w) solid var(--t-disabled); font-size: 0.78rem; line-height: 1.3; pointer-events: none; box-shadow: var(--t-shadow-sm); }
+.t-tooltip { position: fixed; z-index: var(--t-z-toast); max-width: 18rem; padding: 0.3rem 0.55rem; border-radius: var(--t-radius-md); background: var(--t-overlay-bg); color: var(--t-text); border: var(--t-border-w) solid var(--t-disabled); font-size: 0.78rem; line-height: 1.3; white-space: pre-line; pointer-events: none; box-shadow: var(--t-shadow-sm); }
 [data-mode="light"] .t-tooltip { background: var(--t-text); color: var(--t-canvas); border-color: var(--t-text); }
 .t-help { position: relative; display: inline-block; }
 .t-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.1em; height: 1.1em; padding: 0; border: 1.5px solid var(--t-tone); border-radius: 50%; background: transparent; color: var(--t-tone); font-size: 0.8em; font-weight: 700; line-height: 1; opacity: 0.8; cursor: help; vertical-align: middle; }

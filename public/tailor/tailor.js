@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.7.1 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -377,7 +377,7 @@
     const wrap = document.createElement("span"); wrap.className = "t-select-wrap";
     if (sel.dataset.width) wrap.dataset.width = sel.dataset.width;
     const btn = document.createElement("button"); btn.type = "button"; btn.className = "t-select t-select-btn"; btn.setAttribute("aria-haspopup", "listbox"); btn.setAttribute("aria-expanded", "false");
-    for (const a of ["data-size", "aria-label", "aria-describedby", "aria-invalid"]) if (sel.hasAttribute(a)) btn.setAttribute(a, sel.getAttribute(a));
+    for (const a of ["data-size", "data-tip", "data-tip-at", "aria-label", "aria-describedby", "aria-invalid"]) if (sel.hasAttribute(a)) btn.setAttribute(a, sel.getAttribute(a));
     const list = document.createElement("ul"); list.className = "t-menu-list t-select-list"; list.setAttribute("role", "listbox"); list.hidden = true; list.tabIndex = -1;
     const id = sel.id || `t-sel-${Math.random().toString(36).slice(2, 8)}`; list.id = id + "-list"; btn.setAttribute("aria-controls", list.id);
     const lbl = sel.id && document.querySelector(`label[for="${sel.id}"]`); if (lbl) btn.setAttribute("aria-labelledby", lbl.id || (lbl.id = id + "-label"));
@@ -706,7 +706,7 @@
   /* ── upgrade: wire everything in root ─────────────────────────────────────── */
   T.upgrade = (root = document) => { ["tabs", "listbox", "menus", "dialogs", "times", "tooltips", "help", "copy", "truncate", "dismiss", "filters", "sortable", "selects", "numbers", "files", "forms", "dates", "clocks", "colors"].forEach((k) => T[k](root)); return T; };
   T.esc = esc;
-  T.version = "0.7.0";
+  T.version = "0.7.1";
   window.Tailor = T;
   const me = document.currentScript;
   if (!me || me.dataset.tailor !== "manual") on(document, "DOMContentLoaded", () => T.upgrade(document));
