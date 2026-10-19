@@ -37,8 +37,8 @@
   const icon = (name, cls) => `<svg class="t-icon${cls ? ` ${cls}` : ''}" aria-hidden="true"><use href="/tailor/icons.svg#bi-${name}"/></svg>`;
   const tone = (t, html) => t === 'neutral' ? `<span class="t-muted">${html}</span>` : `<span class="t-tone-text" data-tone="${t}">${html}</span>`;
   const sub = (html) => `<span class="t-stat-sub">${html}</span>`;
-  const badge = (t, html, title) => `<span class="t-badge" data-variant="tint" data-tone="${t}"${title ? ` title="${esc(title)}"` : ''}>${html}</span>`;
-  const dot = (status, title) => `<span class="t-dot" data-status="${status}"${title ? ` title="${esc(title)}"` : ''}></span>`;
+  const badge = (t, html, title) => `<span class="t-badge" data-variant="tint" data-tone="${t}"${title ? ` data-tip="${esc(title)}"` : ''}>${html}</span>`;
+  const dot = (status, title) => `<span class="t-dot" data-status="${status}"${title ? ` data-tip="${esc(title)}"` : ''}></span>`;
   const setBadge = (el, t) => { el.className = 't-badge'; el.dataset.variant = 'tint'; el.dataset.tone = t; };
   const NONE = tone('neutral', '—');
 
@@ -122,11 +122,11 @@
     const mb = f('mode-badge');
     setBadge(mb, known ? (onConfigured ? 'success' : 'warning') : 'neutral');
     mb.querySelector('.t-dot').dataset.status = known ? (onConfigured ? 'running' : 'degraded') : 'muted';
-    mb.title = onConfigured ? 'running on its configured primary' : known ? `failed over to ${svc.mode} (configured primary: ${svc.primary})` : 'primary unknown';
+    mb.dataset.tip = onConfigured ? 'running on its configured primary' : known ? `failed over to ${svc.mode} (configured primary: ${svc.primary})` : 'primary unknown';
     f('mode').textContent = known ? svc.mode : 'unknown';
     const link = f('url');
     link.hidden = !svc.url;
-    if (svc.url) { link.href = svc.url; link.title = `Open ${name} (${svc.url})`; }
+    if (svc.url) { link.href = svc.url; link.dataset.tip = `Open ${name} (${svc.url})`; link.setAttribute('aria-label', `Open ${name}`); }
     f('since').textContent = svc.since ? `primary since ${new Date(svc.since).toLocaleString()} (${fmtAgo(svc.since)})` : (d.note ? d.note : 'since: n/a');
 
     // hosts of this service, coloured by role
@@ -136,7 +136,7 @@
       const cls = ((hd || {}).classes || {})[name];
       const configured = h === svc.primary ? 'configured primary' : 'configured standby';
       const hu = (svc.host_urls || {})[h];
-      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" title="Open ${esc(name)} on ${esc(h)}">${esc(h)} ${icon('box-arrow-up-right', 't-muted')}</a>` : esc(h);
+      const hostCell = hu ? `<a href="${esc(hu)}" target="_blank" rel="noopener" data-tip="Open ${esc(name)} on ${esc(h)}">${esc(h)} ${icon('box-arrow-up-right', 't-muted')}</a>` : esc(h);
       return `<tr data-role="${role.role}"><th class="t-nowrap">${dot(role.dot)} ${hostCell}</th>` +
         `<td>${badge(role.tone, esc(role.label), configured)}</td>` +
         `<td>${serviceCell(((hd || {}).services || {})[name])}</td>` +
@@ -264,7 +264,7 @@
     const pf = $('flag-peers');
     setBadge(pf, others.length && peers.length === others.length ? 'success' : peers.length ? 'yellow' : 'neutral');
     $('peers-value').textContent = others.length ? `${peers.length}/${others.length}${d.majority ? ` · majority ${d.majority}` : ''}` : '—';
-    pf.title = peers.length ? `reachable: ${peers.join(', ')}` : 'no peer reachable';
+    pf.dataset.tip = peers.length ? `reachable: ${peers.join(', ')}` : 'no peer reachable';
     $('flag-hold').hidden = !d.hold;
     const tr = $('flag-transition');
     tr.hidden = !d.transition;
@@ -280,7 +280,7 @@
     const body = hostNames.map((h) => {
       const hd = d.hosts[h] || {};
       const probes = Object.entries(hd.probes || {}).filter(([, v]) => v)
-        .map(([p, v]) => `<span class="t-tone-text" data-tone="${upDown(v)}" title="${esc(p)} ${esc(v)}">${esc(p)}</span>`).join(' ');
+        .map(([p, v]) => `<span class="t-tone-text" data-tone="${upDown(v)}" data-tip="${esc(p)} ${esc(v)}">${esc(p)}</span>`).join(' ');
       const peer = h === d.node ? tone('neutral', 'self')
         : peers.includes(h) ? tone('success', 'reachable') : tone('danger', 'unreachable');
       const roles = svcNames.filter((s) => d.services[s].primary === h || d.services[s].standby === h)
@@ -305,7 +305,7 @@
 
   function renderEvents(events) {
     const rows = (events || []).filter((e) => e.kind !== 'heartbeat').slice(0, 15).map((e) =>
-      `<tr><td class="t-stat-sub t-nowrap" title="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
+      `<tr><td class="t-stat-sub t-nowrap" data-tip="${esc(e.at)}">${fmtAgo(e.at)}</td>` +
       `<td class="t-nowrap">${badge(kindTone[e.kind] || 'neutral', esc(e.kind))}</td>` +
       `<td>${e.service ? sub(`${esc(e.service)} · `) : ''}${esc(e.message)}</td></tr>`);
     $('events').innerHTML = rows.join('');

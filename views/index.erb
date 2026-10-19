@@ -1,12 +1,12 @@
 <header class="t-page-header">
   <h1 class="t-page-title">sentinel · <span id="node-name"><%= @host %></span></h1>
-  <span id="flag-quorum" class="t-badge" data-variant="tint" data-tone="neutral" data-size="lg" title="Majority agreement across the cluster nodes"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-diagram-3"/></svg> quorum <span id="quorum-value">…</span></span>
-  <span id="flag-peers" class="t-badge" data-variant="tint" data-tone="neutral" title="Peer sentinels this node heard from in the last cycle"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-broadcast"/></svg> peers <span id="peers-value">—</span></span>
-  <span id="flag-hold" class="t-badge" data-variant="tint" data-tone="yellow" hidden title="state/hold is present on this node: automatic failback is paused"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-pause-circle"/></svg> hold</span>
+  <span id="flag-quorum" class="t-badge" data-variant="tint" data-tone="neutral" data-size="lg" data-tip="Majority agreement across the cluster nodes"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-diagram-3"/></svg> quorum <span id="quorum-value">…</span></span>
+  <span id="flag-peers" class="t-badge" data-variant="tint" data-tone="neutral" data-tip="Peer sentinels this node heard from in the last cycle"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-broadcast"/></svg> peers <span id="peers-value">—</span></span>
+  <span id="flag-hold" class="t-badge" data-variant="tint" data-tone="yellow" hidden data-tip="state/hold is present on this node: automatic failback is paused"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-pause-circle"/></svg> hold</span>
   <span id="flag-transition" class="t-badge" data-variant="solid" data-tone="warning" hidden></span>
-  <span id="flag-routes" class="t-badge" data-variant="tint" data-tone="info" hidden title="Where the public HA hostnames point"></span>
+  <span id="flag-routes" class="t-badge" data-variant="tint" data-tone="info" hidden data-tip="Where the public HA hostnames point"></span>
   <div class="t-page-actions">
-    <span class="nav-meta t-nowrap" id="cluster-meta" title="Last cycle of this node's loop"></span>
+    <span class="nav-meta t-nowrap" id="cluster-meta" data-tip="Last cycle of this node's loop"></span>
     <span class="nav-meta t-nowrap">v<%= @version %></span>
   </div>
 </header>
@@ -63,7 +63,7 @@
   <div>
     <section class="t-card service-card">
       <div class="t-card-header">
-        <h2 class="t-card-title"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-box"/></svg><span data-f="name"></span> <a data-f="url" class="t-small" hidden target="_blank" rel="noopener" title="Open the service"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-box-arrow-up-right"/></svg></a></h2>
+        <h2 class="t-card-title"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-box"/></svg><span data-f="name"></span> <a data-f="url" class="t-small" hidden target="_blank" rel="noopener" aria-label="Open the service" data-tip="Open the service"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-box-arrow-up-right"/></svg></a></h2>
         <span class="t-badge" data-variant="tint" data-tone="neutral" data-f="mode-badge"><span class="t-dot" data-status="muted"></span> primary: <span data-f="mode"></span></span>
       </div>
       <div class="t-card-body t-stack" data-gap="2">
