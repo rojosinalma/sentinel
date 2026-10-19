@@ -1,4 +1,4 @@
-/* managed by tailor v0.6.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.7.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -67,7 +67,7 @@
         const to = cur.mode === "light" ? "dark" : "light";
         b.disabled = !modes.includes(to);
         b.setAttribute("aria-label", b.disabled ? `${theme.labelOf(cur.mode)} only` : `Switch to ${to} mode`);
-        b.title = b.getAttribute("aria-label");
+        b.dataset.tip = b.getAttribute("aria-label"); refreshTip(b);
         b.dataset.modeTo = to;
         b.innerHTML = theme.modeIcon(to);
       });
@@ -98,8 +98,8 @@
         const want = (box.dataset.tailorPickers || "mode skin palette").split(/\s+/);
         const parts = [];
         if (want.includes("mode")) parts.push(`<button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-icon="only" data-tailor-mode-toggle></button>`);
-        if (want.includes("skin") && theme.skins.filter((s) => s !== "none").length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin" title="Skin"></select>`);
-        if (want.includes("palette") && theme.palettes.length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="palette" aria-label="Palette" title="Palette"></select>`);
+        if (want.includes("skin") && theme.skins.filter((s) => s !== "none").length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin"></select>`);
+        if (want.includes("palette") && theme.palettes.length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="palette" aria-label="Palette"></select>`);
         box.classList.add("t-pickers");
         box.innerHTML = parts.join("");
       });
@@ -231,27 +231,40 @@
     const paint = () => $$("time.t-time[data-relative]", root).forEach((t) => {
       if (t.dataset.ago !== undefined && !t.getAttribute("datetime")) t.setAttribute("datetime", new Date(Date.now() - Number(t.dataset.ago) * 1000).toISOString());
       const d = new Date(t.getAttribute("datetime")); if (isNaN(d)) return;
-      t.textContent = T.relativeTime(d); if (!t.title) t.title = d.toLocaleString();
+      t.textContent = T.relativeTime(d); if (!t.dataset.tip) t.dataset.tip = d.toLocaleString();
     });
     paint(); if (!T.times._timer) T.times._timer = setInterval(paint, 60000);
   };
 
   /* ── tooltips ─────────────────────────────────────────────────────────────── */
-  let tip;
+  // The only tooltip: data-tip (title= is never used — browser-native). Delegated at the document level, so elements
+  // added or re-labelled later (theme toggle, relative times, injected markup) need no re-run; T.tooltips(root) stays
+  // for API compatibility and only installs the delegation once.
+  let tip, tipFor = null;
+  const describedBy = (el, add) => { const ids = (el.getAttribute("aria-describedby") || "").split(/\s+/).filter((x) => x && x !== "t-tooltip"); if (add) ids.push("t-tooltip"); ids.length ? el.setAttribute("aria-describedby", ids.join(" ")) : el.removeAttribute("aria-describedby"); };
   const showTip = (el) => {
+    if (!el.dataset.tip) return hideTip();
     if (!tip) { tip = document.createElement("div"); tip.className = "t-tooltip"; tip.id = "t-tooltip"; tip.setAttribute("role", "tooltip"); tip.hidden = true; document.body.appendChild(tip); }
-    tip.textContent = el.dataset.tip; tip.hidden = false; el.setAttribute("aria-describedby", "t-tooltip");
+    if (tipFor && tipFor !== el) describedBy(tipFor, false);
+    tipFor = el; tip.textContent = el.dataset.tip; tip.hidden = false; describedBy(el, true);
     const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, at = el.dataset.tipAt || "top", g = 6;
     let x = r.left + r.width / 2 - w / 2, y = r.top - h - g;
     if (at === "bottom") y = r.bottom + g; if (at === "left") { x = r.left - w - g; y = r.top + r.height / 2 - h / 2; } if (at === "right") { x = r.right + g; y = r.top + r.height / 2 - h / 2; }
     tip.style.left = Math.max(4, Math.min(innerWidth - w - 4, x)) + "px"; tip.style.top = Math.max(4, y) + "px";
   };
-  const hideTip = (el) => { if (tip) tip.hidden = true; el?.removeAttribute("aria-describedby"); };
-  T.tooltips = (root = document) => $$("[data-tip]", root).forEach((el) => {
-    if (!mark(el, "Tip")) return;
-    on(el, "mouseenter", () => showTip(el)); on(el, "mouseleave", () => hideTip(el));
-    on(el, "focus", () => showTip(el)); on(el, "blur", () => hideTip(el));
-  });
+  const hideTip = () => { if (tip) tip.hidden = true; if (tipFor) describedBy(tipFor, false); tipFor = null; };
+  const refreshTip = (el) => { if (tipFor === el && tip && !tip.hidden) showTip(el); };
+  const tipTarget = (e) => (e.target instanceof Element ? e.target.closest("[data-tip]") : null);
+  let tipsWired = false;
+  T.tooltips = () => {
+    if (tipsWired) return; tipsWired = true;
+    on(document, "mouseover", (e) => { const el = tipTarget(e); if (el && el !== tipFor) showTip(el); });
+    on(document, "mouseout", (e) => { const el = tipTarget(e); if (el && el === tipFor && !(e.relatedTarget instanceof Element && el.contains(e.relatedTarget))) hideTip(); });
+    on(document, "focusin", (e) => { const el = tipTarget(e); if (el) showTip(el); });
+    on(document, "focusout", (e) => { const el = tipTarget(e); if (el && el === tipFor) hideTip(); });
+    on(document, "keydown", (e) => { if (e.key === "Escape") hideTip(); });
+    on(window, "scroll", () => { if (tipFor && !tipFor.matches(":hover, :focus-within")) hideTip(); }, { passive: true });
+  };
 
   /* ── help popover ─────────────────────────────────────────────────────────── */
   T.help = (root = document) => $$(".t-help", root).forEach((h) => {
@@ -338,10 +351,362 @@
     sections.forEach((s) => io.observe(s));
   };
 
+  /* ── popups shared by the drawn controls (select, pickers): one open at a time ── */
+  let openPopup = null;
+  T.popup = {
+    // open(panel, trigger, close): positions `panel` under (or above) `trigger`, closes the previous one
+    open(panel, trigger, close) {
+      if (openPopup && openPopup.panel !== panel) openPopup.close();
+      openPopup = { panel, trigger, close };
+      panel.hidden = false;
+      const r = trigger.getBoundingClientRect(), h = panel.offsetHeight;
+      panel.dataset.at = r.bottom + h + 8 > innerHeight && r.top - h - 8 > 0 ? "top" : "bottom";
+    },
+    close() { if (openPopup) { const o = openPopup; openPopup = null; o.close(); } },
+    current: () => openPopup,
+  };
+  on(document, "pointerdown", (e) => { if (openPopup && !openPopup.panel.contains(e.target) && !openPopup.trigger.contains(e.target)) T.popup.close(); });
+  on(document, "keydown", (e) => { if (e.key === "Escape" && openPopup) { const t = openPopup.trigger; T.popup.close(); t.focus(); } });
+
+  // Programmatic value changes on an upgraded control: Tailor.sync(el) refreshes what tailor draws for it.
+  T.sync = (el) => emit(el, "sync");
+
+  /* ── select: the native <select> stays for forms/value, tailor draws the button + list ── */
+  T.selects = (root = document) => $$("select.t-select:not([multiple]):not([data-native])", root).forEach((sel) => {
+    if (!mark(sel, "Select")) return;
+    const wrap = document.createElement("span"); wrap.className = "t-select-wrap";
+    if (sel.dataset.width) wrap.dataset.width = sel.dataset.width;
+    const btn = document.createElement("button"); btn.type = "button"; btn.className = "t-select t-select-btn"; btn.setAttribute("aria-haspopup", "listbox"); btn.setAttribute("aria-expanded", "false");
+    for (const a of ["data-size", "aria-label", "aria-describedby", "aria-invalid"]) if (sel.hasAttribute(a)) btn.setAttribute(a, sel.getAttribute(a));
+    const list = document.createElement("ul"); list.className = "t-menu-list t-select-list"; list.setAttribute("role", "listbox"); list.hidden = true; list.tabIndex = -1;
+    const id = sel.id || `t-sel-${Math.random().toString(36).slice(2, 8)}`; list.id = id + "-list"; btn.setAttribute("aria-controls", list.id);
+    const lbl = sel.id && document.querySelector(`label[for="${sel.id}"]`); if (lbl) btn.setAttribute("aria-labelledby", lbl.id || (lbl.id = id + "-label"));
+    sel.tabIndex = -1; sel.setAttribute("aria-hidden", "true"); sel.dataset.tSelectNative = "";
+    sel.replaceWith(wrap); wrap.append(sel, btn, list);
+    const options = () => $$("option", sel);
+    const render = () => {
+      const cur = sel.selectedOptions[0];
+      btn.textContent = cur ? cur.textContent : (sel.dataset.placeholder || "\u00a0");
+      btn.classList.toggle("t-select-placeholder", !cur || cur.value === "" && !!sel.dataset.placeholder);
+      btn.disabled = sel.disabled;
+      let html = "", group = null;
+      options().forEach((o, i) => {
+        if (o.parentElement.tagName === "OPTGROUP" && o.parentElement !== group) { group = o.parentElement; html += `<li class="t-menu-header">${esc(group.label)}</li>`; }
+        html += `<li><button type="button" class="t-menu-item" role="option" id="${list.id}-${i}" data-index="${i}" aria-selected="${o.selected}"${o.disabled ? " disabled" : ""}>${esc(o.textContent)}</button></li>`;
+      });
+      list.innerHTML = html;
+    };
+    const items = () => $$("[role=option]:not(:disabled)", list);
+    const close = () => { list.hidden = true; btn.setAttribute("aria-expanded", "false"); btn.removeAttribute("aria-activedescendant"); };
+    const open = () => {
+      if (sel.disabled) return;
+      render(); T.popup.open(list, btn, close); btn.setAttribute("aria-expanded", "true");
+      (items().find((b) => b.getAttribute("aria-selected") === "true") || items()[0])?.focus();
+    };
+    const pick = (i) => {
+      if (sel.selectedIndex !== i) { sel.selectedIndex = i; sel.dispatchEvent(new Event("input", { bubbles: true })); sel.dispatchEvent(new Event("change", { bubbles: true })); }
+      T.popup.close(); btn.focus(); render();
+    };
+    const step = (d) => { const os = options().filter((o) => !o.disabled), i = os.indexOf(sel.selectedOptions[0]); const n = os[Math.min(Math.max(i + d, 0), os.length - 1)]; if (n) pick(options().indexOf(n)); };
+    let typed = "", typedAt = 0;
+    const typeAhead = (key, from) => {
+      const now = Date.now(); typed = now - typedAt < 600 ? typed + key : key; typedAt = now;
+      const os = options(), start = typed.length > 1 ? from : from + 1;
+      for (let k = 0; k < os.length; k++) { const o = os[(start + k) % os.length]; if (!o.disabled && o.textContent.trim().toLowerCase().startsWith(typed.toLowerCase())) return os.indexOf(o); }
+      return -1;
+    };
+    on(btn, "click", () => (list.hidden ? open() : T.popup.close()));
+    on(btn, "keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); e.altKey ? open() : step(e.key === "ArrowDown" ? 1 : -1); }
+      else if (e.key === " " || e.key === "Enter") { e.preventDefault(); open(); }
+      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { const i = typeAhead(e.key, sel.selectedIndex); if (i >= 0) pick(i); }
+    });
+    on(list, "click", (e) => { const b = e.target.closest("[role=option]"); if (b && !b.disabled) pick(+b.dataset.index); });
+    on(list, "keydown", (e) => {
+      const its = items(), i = its.indexOf(document.activeElement);
+      const go = (j) => { its[j].focus(); btn.setAttribute("aria-activedescendant", its[j].id); };
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); go((i + (e.key === "ArrowDown" ? 1 : -1) + its.length) % its.length); }
+      else if (e.key === "Home" || e.key === "End") { e.preventDefault(); go(e.key === "Home" ? 0 : its.length - 1); }
+      else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (i >= 0) pick(+its[i].dataset.index); }
+      else if (e.key === "Tab") { T.popup.close(); }
+      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { const k = typeAhead(e.key, i >= 0 ? +its[i].dataset.index : -1); const b = k >= 0 && $(`[data-index="${k}"]`, list); if (b) go(its.indexOf(b)); }
+    });
+    on(sel, "change", render); on(sel, "t:sync", render);
+    new MutationObserver(render).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "selected", "label"] });
+    render();
+  });
+
+  /* ── number: native spinners hidden by base.css; tailor adds − / + steppers in a .t-input-group ── */
+  T.numbers = (root = document) => $$('.t-input[type="number"]:not([data-steppers="none"])', root).forEach((input) => {
+    if (!mark(input, "Number")) return;
+    // reuse an enclosing .t-input-group (e.g. .t-duration) so the steppers fuse with the unit select; else wrap
+    let group = input.parentElement?.classList.contains("t-input-group") ? input.parentElement : null;
+    if (!group) { group = document.createElement("div"); group.className = "t-input-group"; if (input.dataset.size) group.dataset.size = input.dataset.size; input.replaceWith(group); group.appendChild(input); }
+    group.classList.add("t-number");
+    const mk = (dir) => { const b = document.createElement("button"); b.type = "button"; b.className = "t-btn t-number-step"; b.dataset.variant = "ghost"; b.dataset.icon = "only"; b.dataset.step = dir; b.tabIndex = -1; b.setAttribute("aria-label", dir > 0 ? "Increase" : "Decrease"); b.innerHTML = `<span class="t-icon" aria-hidden="true">${dir > 0 ? "+" : "−"}</span>`; return b; };
+    const minus = mk(-1), plus = mk(1);
+    input.before(minus); input.after(plus);
+    const num = (s, d) => { const n = parseFloat(s); return isNaN(n) ? d : n; };
+    const bounds = () => ({ min: num(input.min, -Infinity), max: num(input.max, Infinity), step: input.step === "any" ? 1 : num(input.step, 1) || 1 });
+    const paint = () => {
+      const { min, max } = bounds(), v = num(input.value, NaN), off = input.disabled || input.readOnly;
+      minus.disabled = off || (!isNaN(v) && v <= min); plus.disabled = off || (!isNaN(v) && v >= max);
+    };
+    const step = (dir) => {
+      const { min, max, step } = bounds(); let v = num(input.value, NaN);
+      if (isNaN(v)) v = Math.min(Math.max(0, min), max); else v += dir * step;
+      v = Math.min(Math.max(v, min), max);
+      const dec = Math.max((String(step).split(".")[1] || "").length, (input.value.split(".")[1] || "").length);
+      const next = v.toFixed(dec); if (next === input.value) return paint();
+      input.value = next; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); paint();
+    };
+    let hold, repeat;
+    const stop = () => { clearTimeout(hold); clearInterval(repeat); hold = repeat = null; };
+    [minus, plus].forEach((b) => {
+      on(b, "pointerdown", (e) => { if (e.button !== 0 || b.disabled) return; e.preventDefault(); const d = +b.dataset.step; step(d); hold = setTimeout(() => { repeat = setInterval(() => (b.disabled ? stop() : step(d)), 60); }, 400); });
+      ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => on(b, ev, stop));
+    });
+    on(input, "input", paint); on(input, "change", paint); on(input, "t:sync", paint);
+    new MutationObserver(paint).observe(input, { attributes: true, attributeFilter: ["min", "max", "step", "disabled", "readonly", "value"] });
+    paint();
+  });
+
+  /* ── file: the native input stays (hidden) inside a .t-file label; tailor draws button + name or a drop zone ── */
+  T.files = (root = document) => $$('.t-input[type="file"]', root).forEach((input) => {
+    if (!mark(input, "File")) return;
+    const label = document.createElement("label"); label.className = "t-file";
+    const drop = input.dataset.variant === "drop"; if (drop) label.dataset.variant = "drop";
+    if (input.dataset.size) label.dataset.size = input.dataset.size;
+    const btn = document.createElement("span"); btn.className = "t-btn t-file-btn"; if (input.dataset.size) btn.dataset.size = input.dataset.size;
+    btn.textContent = input.dataset.label || (input.multiple ? "Choose files…" : "Choose file…");
+    const name = document.createElement("span"); name.className = "t-file-name";
+    input.replaceWith(label); label.appendChild(input);
+    if (drop) { const zone = document.createElement("span"); zone.className = "t-file-drop"; zone.append(btn, name); label.appendChild(zone); } else label.append(btn, name);
+    const placeholder = () => input.dataset.placeholder || (drop ? "or drop it here" : "No file chosen");
+    const render = () => {
+      const fs = input.files ? [...input.files] : [];
+      name.textContent = fs.length === 0 ? placeholder() : fs.length === 1 ? fs[0].name : `${fs.length} files`;
+      if (fs.length) label.dataset.filled = ""; else delete label.dataset.filled;
+    };
+    const accepts = (f) => { const acc = (input.accept || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean); if (!acc.length) return true; const ext = "." + f.name.split(".").pop().toLowerCase(), type = (f.type || "").toLowerCase(); return acc.some((a) => a === ext || a === type || (a.endsWith("/*") && type.startsWith(a.slice(0, -1)))); };
+    on(label, "dragenter", (e) => { e.preventDefault(); if (!input.disabled) label.dataset.dragover = ""; });
+    on(label, "dragover", (e) => { e.preventDefault(); if (!input.disabled) { e.dataTransfer.dropEffect = "copy"; label.dataset.dragover = ""; } });
+    on(label, "dragleave", (e) => { if (!label.contains(e.relatedTarget)) delete label.dataset.dragover; });
+    on(label, "drop", (e) => {
+      e.preventDefault(); delete label.dataset.dragover; if (input.disabled) return;
+      const picked = [...e.dataTransfer.files].filter(accepts); if (!picked.length) return;
+      const dt = new DataTransfer(); (input.multiple ? picked : picked.slice(0, 1)).forEach((f) => dt.items.add(f));
+      input.files = dt.files; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    on(input, "change", render); on(input, "t:sync", render);
+    render();
+  });
+
+  /* ── forms: drawn validation, no native bubbles ───────────────────────────── */
+  // Every <form> without data-native-validation gets novalidate; on submit tailor runs checkValidity() per control,
+  // sets aria-invalid, writes validationMessage into the control's .t-feedback[data-tone=danger] (created after the
+  // control inside its .t-field when absent, linked with aria-describedby), focuses the first invalid control and
+  // stops the submit. Clears on input/change; data-validate="live" on the form also validates on blur.
+  const formControls = (form) => $$("input, select, textarea", form).filter((c) => c.willValidate && c.type !== "hidden");
+  const feedbackFor = (c, create) => {
+    const field = c.closest(".t-field");
+    let fb = c._tFeedback?.isConnected ? c._tFeedback : field ? $(".t-feedback[data-tone=danger]", field) : null;
+    if (!fb && create) {
+      fb = document.createElement("p"); fb.className = "t-feedback"; fb.dataset.tone = "danger"; fb.hidden = true;
+      const anchor = (field && [...field.children].find((ch) => ch.contains(c))) || c.closest(".t-check, .t-input-group, .t-duration") || c;
+      anchor.after(fb);
+    }
+    if (fb) { if (!fb.id) fb.id = "t-fb-" + Math.random().toString(36).slice(2, 8); c._tFeedback = fb; }
+    return fb;
+  };
+  const linkFeedback = (c, fb, link) => { const ids = (c.getAttribute("aria-describedby") || "").split(/\s+/).filter((x) => x && x !== fb.id); if (link) ids.push(fb.id); ids.length ? c.setAttribute("aria-describedby", ids.join(" ")) : c.removeAttribute("aria-describedby"); };
+  const paintControl = (c, ok) => {
+    if (ok) { c.removeAttribute("aria-invalid"); const fb = feedbackFor(c, false); if (fb) { fb.hidden = true; linkFeedback(c, fb, false); } return; }
+    c.setAttribute("aria-invalid", "true");
+    const fb = feedbackFor(c, true); fb.textContent = c.validationMessage; fb.hidden = false; linkFeedback(c, fb, true);
+  };
+  const validateControl = (c) => { const ok = c.checkValidity(); paintControl(c, ok); return ok; };
+  // Tailor.validate(form) → boolean: paints every control, focuses the first invalid one, emits t:invalid {controls}.
+  T.validate = (form) => {
+    const bad = formControls(form).filter((c) => !validateControl(c));
+    if (bad.length) { bad[0].focus(); emit(form, "invalid", { controls: bad }); }
+    return !bad.length;
+  };
+  T.forms = (root = document) => $$("form", root).forEach((form) => {
+    if (form.hasAttribute("data-native-validation") || !mark(form, "Form")) return;
+    form.noValidate = true;
+    on(form, "submit", (e) => { if (!T.validate(form)) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+    const clear = (e) => { const c = e.target; if (c.getAttribute?.("aria-invalid") === "true" && c.checkValidity()) paintControl(c, true); };
+    on(form, "input", clear); on(form, "change", clear);
+    if (form.dataset.validate === "live") on(form, "focusout", (e) => { const c = e.target; if (c.willValidate && c.form === form && (c.value !== "" || c.getAttribute("aria-invalid") === "true")) validateControl(c); });
+  });
+
+  /* ── pickers: date / time / colour (tier-2 date, time, color) ─────────────── */
+  // Progressive enhancement over the native input: the input stays in the DOM (.t-picker-native, 1px, opacity 0) so
+  // forms submit and .value works; a .t-input-styled button opens a .t-picker popup drawn from tokens (T.popup: one
+  // open at a time, click outside / Escape close, flips above via data-at="top"). Picking sets input.value and fires
+  // native input + change. Tailor.sync(input) repaints after a programmatic set.
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const fire = (input, v) => { input.value = v; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); };
+  const pickerWrap = (input, key, glyph) => {
+    if (!mark(input, key)) return null;
+    const wrap = document.createElement("span"); wrap.className = "t-picker-wrap"; if (input.dataset.width) wrap.dataset.width = input.dataset.width;
+    const btn = document.createElement("button"); btn.type = "button"; btn.className = "t-input t-picker-btn";
+    btn.setAttribute("aria-haspopup", "dialog"); btn.setAttribute("aria-expanded", "false"); btn.disabled = input.disabled;
+    for (const a of ["data-size", "aria-label", "aria-describedby", "aria-invalid"]) if (input.hasAttribute(a)) btn.setAttribute(a, input.getAttribute(a));
+    const id = input.id || `t-pick-${Math.random().toString(36).slice(2, 8)}`;
+    const lbl = input.id && $(`label[for="${input.id}"]`); if (lbl) btn.setAttribute("aria-labelledby", lbl.id || (lbl.id = id + "-label"));
+    btn.innerHTML = `<span class="t-picker-value"></span><span class="t-icon" aria-hidden="true">${glyph}</span>`;
+    const pop = document.createElement("div"); pop.className = "t-picker"; pop.id = id + "-picker"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.tabIndex = -1;
+    if (lbl) pop.setAttribute("aria-labelledby", lbl.id); btn.setAttribute("aria-controls", pop.id);
+    input.tabIndex = -1; input.setAttribute("aria-hidden", "true"); input.classList.add("t-picker-native");
+    input.replaceWith(wrap); wrap.append(input, btn, pop);
+    on(input, "focus", () => btn.focus());
+    const hooks = {};
+    const close = () => { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+    const open = () => { if (input.disabled) return; hooks.render?.(); T.popup.open(pop, btn, close); btn.setAttribute("aria-expanded", "true"); hooks.focus?.(); emit(input, "open"); };
+    const done = () => { T.popup.close(); btn.focus(); };
+    on(btn, "click", () => (pop.hidden ? open() : T.popup.close()));
+    on(btn, "keydown", (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === " ") { e.preventDefault(); open(); } });
+    on(pop, "keydown", (e) => { // Tab past the last (or Shift+Tab before the first) focusable control leaves the popup
+      if (e.key !== "Tab") return; const f = $$("button, input", pop).filter((el) => !el.disabled && el.tabIndex >= 0);
+      if ((e.shiftKey && e.target === f[0]) || (!e.shiftKey && e.target === f[f.length - 1])) T.popup.close();
+    });
+    const paint = (text, empty) => { $(".t-picker-value", btn).textContent = text; empty ? (btn.dataset.empty = "") : delete btn.dataset.empty; };
+    return { wrap, btn, pop, hooks, open, done, paint, isOpen: () => !pop.hidden };
+  };
+
+  const isoOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const parseISO = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+  const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7].map((d) => new Date(2024, 0, d).toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2)); // 2024-01-01 is a Monday
+  T.dates = (root = document) => $$('.t-input[type="date"]', root).forEach((input) => {
+    const p = pickerWrap(input, "Date", "▾"); if (!p) return;
+    const { pop } = p; let view = null, focusIso = null;
+    const paintBtn = () => p.paint(input.value || input.placeholder || "YYYY-MM-DD", !input.value);
+    const inRange = (iso) => (!input.min || iso >= input.min) && (!input.max || iso <= input.max);
+    const dayAt = (iso) => $(`.t-cal-day[data-date="${iso}"]`, pop);
+    const render = () => {
+      const sel = input.value, today = isoOf(new Date());
+      if (!view) { const d = parseISO(sel) || new Date(); view = new Date(d.getFullYear(), d.getMonth(), 1); }
+      const y = view.getFullYear(), m = view.getMonth(), ym = `${y}-${pad2(m + 1)}`, start = new Date(y, m, 1 - ((view.getDay() + 6) % 7));
+      const title = view.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      const focus = [focusIso, sel, today].find((x) => x && x.slice(0, 7) === ym) || ym + "-01";
+      let cells = "";
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), iso = isoOf(d);
+        cells += `<button type="button" class="t-cal-day" role="gridcell" data-date="${iso}" aria-selected="${iso === sel}" tabindex="${iso === focus ? 0 : -1}"${d.getMonth() !== m ? " data-outside" : ""}${iso === today ? " data-today" : ""}${inRange(iso) ? "" : " disabled"}>${d.getDate()}</button>`;
+      }
+      pop.innerHTML = `<div class="t-cal-head"><button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-icon="only" data-nav="-1" aria-label="Previous month">‹</button><span class="t-cal-title" aria-live="polite">${esc(title)}</span><button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-icon="only" data-nav="1" aria-label="Next month">›</button></div>`
+        + `<div class="t-cal-grid" role="grid" aria-label="${esc(title)}">${WEEKDAYS.map((w) => `<span class="t-cal-wd" aria-hidden="true">${esc(w)}</span>`).join("")}${cells}</div>`
+        + `<div class="t-cal-foot"><button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-act="today">Today</button><button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-act="clear">Clear</button></div>`;
+      return focus;
+    };
+    const show = (iso) => { const d = parseISO(iso); view = new Date(d.getFullYear(), d.getMonth(), 1); focusIso = iso; render(); dayAt(iso)?.focus(); };
+    const pick = (iso) => { if (input.value !== iso) { fire(input, iso); paintBtn(); } p.done(); };
+    const shift = (iso, days, months = 0) => { const d = parseISO(iso); if (months) { const day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + months); d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); } d.setDate(d.getDate() + days); return isoOf(d); };
+    p.hooks.render = () => { view = null; focusIso = null; render(); };
+    p.hooks.focus = () => dayAt($(".t-cal-day[tabindex='0']", pop)?.dataset.date)?.focus();
+    on(pop, "click", (e) => {
+      const nav = e.target.closest("[data-nav]"), act = e.target.closest("[data-act]"), day = e.target.closest(".t-cal-day");
+      if (nav) { view.setMonth(view.getMonth() + Number(nav.dataset.nav)); focusIso = null; render(); }
+      else if (act) pick(act.dataset.act === "today" ? isoOf(new Date()) : "");
+      else if (day && !day.disabled) pick(day.dataset.date);
+    });
+    on(pop, "keydown", (e) => {
+      const day = e.target.closest(".t-cal-day"); if (!day) return;
+      const iso = day.dataset.date, dow = (parseISO(iso).getDay() + 6) % 7;
+      const next = { ArrowLeft: shift(iso, -1), ArrowRight: shift(iso, 1), ArrowUp: shift(iso, -7), ArrowDown: shift(iso, 7), PageUp: shift(iso, 0, -1), PageDown: shift(iso, 0, 1), Home: shift(iso, -dow), End: shift(iso, 6 - dow) }[e.key];
+      if (next) { e.preventDefault(); show(next); }
+      else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!day.disabled) pick(iso); }
+    });
+    on(input, "t:sync", () => { paintBtn(); if (p.isOpen()) p.hooks.render(); });
+    paintBtn();
+  });
+
+  T.clocks = (root = document) => $$('.t-input[type="time"]', root).forEach((input) => {
+    const p = pickerWrap(input, "Time", "◷"); if (!p) return;
+    const { pop } = p, step = Math.max(1, Number(input.step) || 300), secs = step < 60;
+    const minStep = !secs && 60 % (step / 60) === 0 ? step / 60 : 1, secStep = secs && 60 % step === 0 ? step : 1;
+    const range = (n, s) => Array.from({ length: Math.ceil(n / s) }, (_, i) => i * s);
+    const cols = [["Hours", range(24, 1)], ["Minutes", range(60, minStep)], ...(secs ? [["Seconds", range(60, secStep)]] : [])];
+    const parts = () => { const m = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(input.value); return m ? [+m[1], +m[2], +(m[3] || 0)] : null; };
+    const paintBtn = () => p.paint(input.value || input.placeholder || (secs ? "HH:MM:SS" : "HH:MM"), !input.value);
+    let pending = [0, 0, 0];
+    const render = () => {
+      pending = parts() || [0, 0, 0];
+      pop.innerHTML = `<div class="t-clock">${cols.map(([name, vals], ci) => `<div class="t-clock-col" role="listbox" aria-label="${name}" data-col="${ci}">${vals.map((v) => `<button type="button" class="t-menu-item" role="option" data-value="${v}" aria-selected="${v === pending[ci]}" tabindex="${v === pending[ci] ? 0 : -1}">${pad2(v)}</button>`).join("")}</div>`).join("")}</div>`;
+      $$(".t-clock-col", pop).forEach((col) => { const sel = $('[aria-selected="true"]', col); if (sel) col.scrollTop = sel.offsetTop - col.clientHeight / 2 + sel.offsetHeight / 2; });
+    };
+    const select = (col, opt) => { $$("[role=option]", col).forEach((o) => { const onIt = o === opt; o.setAttribute("aria-selected", onIt); o.tabIndex = onIt ? 0 : -1; }); pending[Number(col.dataset.col)] = Number(opt.dataset.value); opt.focus(); };
+    const value = () => pending.slice(0, cols.length).map(pad2).join(":");
+    const commit = (close) => { if (input.value !== value()) { fire(input, value()); paintBtn(); } if (close) p.done(); };
+    p.hooks.render = render;
+    p.hooks.focus = () => $('.t-clock-col [aria-selected="true"]', pop)?.focus();
+    on(pop, "click", (e) => { const o = e.target.closest("[role=option]"); if (o) { select(o.parentNode, o); commit(false); } });
+    on(pop, "keydown", (e) => {
+      const o = e.target.closest("[role=option]"); if (!o) return;
+      const col = o.parentNode, os = $$("[role=option]", col), i = os.indexOf(o);
+      const n = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: os.length - 1, PageDown: i + 5, PageUp: i - 5 }[e.key];
+      if (n !== undefined) { e.preventDefault(); select(col, os[Math.max(0, Math.min(os.length - 1, n))]); }
+      else if (e.key === "Enter") { e.preventDefault(); commit(true); }
+      else if (e.key === " ") { e.preventDefault(); commit(false); }
+      else if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); $(`.t-clock-col[data-col="${Number(col.dataset.col) + (e.key === "ArrowRight" ? 1 : -1)}"] [aria-selected="true"]`, pop)?.focus(); }
+    });
+    on(input, "t:sync", () => { paintBtn(); if (p.isOpen()) render(); });
+    paintBtn();
+  });
+
+  // palette swatches: the semantic tokens + every --t-hue-* on :root, resolved to #rrggbb through a probe element
+  const HUES = ["red", "orange", "yellow", "green", "cyan", "purple", "pink", "blue", "teal", "magenta"];
+  let probe;
+  const toHex = (css) => {
+    if (/^#[0-9a-f]{6}$/i.test(css)) return css.toLowerCase();
+    if (!probe) { probe = document.createElement("span"); probe.className = "t-picker-native"; probe.setAttribute("aria-hidden", "true"); document.body.appendChild(probe); }
+    probe.style.color = ""; probe.style.color = css;
+    const n = (getComputedStyle(probe).color.match(/[\d.]+/g) || []).slice(0, 3).map((x) => pad2(Math.round(Number(x)).toString(16)));
+    return n.length === 3 ? "#" + n.join("") : null;
+  };
+  const paletteTokens = () => {
+    const names = ["accent", "success", "warning", "danger", "info"].map((n) => "--t-" + n), hues = new Set(HUES.map((h) => "--t-hue-" + h));
+    try { for (const sh of document.styleSheets) for (const r of sh.cssRules || []) if (r.style && /(^|,)\s*(:root|html)\b/.test(r.selectorText || "")) for (const prop of r.style) if (prop.startsWith("--t-hue-")) hues.add(prop); } catch (_) {}
+    const cs = getComputedStyle(html), out = [];
+    for (const n of [...names, ...hues]) { // same value under two tokens (dracula accent = purple) → one dot, both names
+      const v = cs.getPropertyValue(n).trim(); if (!v) continue; const hex = toHex(v); if (!hex) continue;
+      const dup = out.find((t) => t.hex === hex); if (dup) dup.name += " · " + n.replace(/^--t-(hue-)?/, ""); else out.push({ name: n.replace(/^--t-(hue-)?/, ""), token: n, hex });
+    }
+    return out;
+  };
+  T.colors = (root = document) => $$('.t-input[type="color"]', root).forEach((input) => {
+    const p = pickerWrap(input, "Color", "▾"); if (!p) return;
+    const { pop, btn } = p, name = "t-color-" + Math.random().toString(36).slice(2, 8), withHex = input.dataset.hex !== "none";
+    const sw = document.createElement("span"); sw.className = "t-swatch"; sw.setAttribute("aria-hidden", "true"); btn.prepend(sw);
+    const current = () => (input.value || "#000000").toLowerCase();
+    const paintBtn = () => { sw.style.setProperty("--t-tone", current()); p.paint(current(), false); };
+    const render = () => {
+      const tokens = paletteTokens(), cur = current(), hit = tokens.find((t) => t.hex === cur);
+      pop.innerHTML = `<fieldset class="t-swatches"><legend class="t-visually-hidden">Palette</legend>${tokens.map((t) => `<label class="t-swatch" data-tip="${esc(t.name)}" style="--t-tone: var(${t.token})"><input type="radio" name="${name}" value="${t.hex}" aria-label="${esc(t.name)}"${t.hex === cur ? " checked" : ""}></label>`).join("")}</fieldset>`
+        + `<div class="t-picker-name">${esc(hit ? hit.name : "custom")} <span class="t-mono">${esc(cur)}</span></div>`
+        + (withHex ? `<div class="t-input-group t-picker-hex" data-size="sm"><span class="t-input-addon">#</span><input class="t-input" type="text" autocomplete="off" spellcheck="false" maxlength="6" pattern="[0-9a-fA-F]{6}" aria-label="Hex value" value="${esc(cur.slice(1))}"></div>` : "");
+      T.tooltips(pop);
+    };
+    const pick = (hex, close) => { if (hex !== current()) { fire(input, hex); paintBtn(); } close ? p.done() : render(); };
+    const applyHex = (field, close) => { const v = field.value.trim().replace(/^#/, ""); if (/^[0-9a-f]{6}$/i.test(v)) pick("#" + v.toLowerCase(), close); else field.setAttribute("aria-invalid", "true"); };
+    p.hooks.render = render;
+    p.hooks.focus = () => ($(".t-swatches input:checked", pop) || $(".t-swatches input", pop))?.focus();
+    on(pop, "change", (e) => { const r = e.target.closest(".t-swatch input"); if (r) { pick(r.value, false); $(".t-swatches input:checked", pop)?.focus(); } const f = e.target.closest(".t-picker-hex .t-input"); if (f) applyHex(f, false); });
+    on(pop, "click", (e) => { const l = e.target.closest(".t-swatch"); if (l && e.detail > 0) pick($("input", l).value, true); }); // detail 0 = the click a radio synthesises on arrow keys
+    on(pop, "keydown", (e) => {
+      if (e.target.closest(".t-swatch input") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick(e.target.value, true); }
+      else if (e.target.closest(".t-picker-hex .t-input") && e.key === "Enter") { e.preventDefault(); applyHex(e.target, true); }
+    });
+    on(input, "t:sync", () => { paintBtn(); if (p.isOpen()) render(); });
+    paintBtn();
+  });
+
   /* ── upgrade: wire everything in root ─────────────────────────────────────── */
-  T.upgrade = (root = document) => { ["tabs", "listbox", "menus", "dialogs", "times", "tooltips", "help", "copy", "truncate", "dismiss", "filters", "sortable"].forEach((k) => T[k](root)); return T; };
+  T.upgrade = (root = document) => { ["tabs", "listbox", "menus", "dialogs", "times", "tooltips", "help", "copy", "truncate", "dismiss", "filters", "sortable", "selects", "numbers", "files", "forms", "dates", "clocks", "colors"].forEach((k) => T[k](root)); return T; };
   T.esc = esc;
-  T.version = "0.4.0";
+  T.version = "0.7.0";
   window.Tailor = T;
   const me = document.currentScript;
   if (!me || me.dataset.tailor !== "manual") on(document, "DOMContentLoaded", () => T.upgrade(document));

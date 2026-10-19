@@ -1,4 +1,4 @@
-/* managed by tailor v0.6.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.7.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/base.css — the unskinned baseline.
  * Reset + readable typography + the minimum that makes every component FUNCTION (hidden panels, dialog
@@ -228,6 +228,16 @@ legend.t-label { padding: 0; margin-bottom: 0.35rem; }
 .t-input-addon { display: inline-flex; align-items: center; padding: 0 0.75rem; background: var(--t-selection); border: var(--t-border-w) solid var(--t-disabled); color: var(--t-text); font-size: var(--t-text-md); }
 .t-field[data-size="sm"] :is(.t-input, .t-select, .t-textarea), :is(.t-input, .t-select, .t-textarea)[data-size="sm"], .t-input-group[data-size="sm"] > :is(.t-input, .t-select, .t-input-addon, .t-btn) { min-height: var(--t-control-h-sm); padding-top: 0.2rem; padding-bottom: 0.2rem; font-size: var(--t-text-sm); }
 .t-duration .t-select { flex: 0 0 auto; width: 5.6rem; }
+/* drawn select (Tailor.selects): the native <select> stays in the DOM for forms, visually gone; the button carries .t-select so skins paint it */
+.t-select-wrap { position: relative; display: block; min-width: 0; } .t-select-wrap[data-width="auto"] { display: inline-block; }
+.t-select-wrap > select[data-t-select-native] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
+.t-select-btn { display: flex; align-items: center; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .t-select-btn:disabled { cursor: not-allowed; }
+.t-select-btn.t-select-placeholder { color: var(--t-muted); }
+.t-select-list { top: calc(100% + 4px); left: 0; right: 0; min-width: 100%; max-height: 18rem; overflow-y: auto; } .t-select-list[data-at="top"] { top: auto; bottom: calc(100% + 4px); }
+.t-select-list [role="option"][aria-selected="true"] { color: var(--t-accent); font-weight: 600; } .t-select-list [role="option"][aria-selected="true"]::before { content: "\2713"; margin-right: 0.4rem; }
+.t-select-list [role="option"]:focus-visible { outline: none; background: var(--t-selection); }
+.t-input-group > .t-select-wrap { flex: 0 0 auto; } .t-input-group > .t-select-wrap > .t-select-btn { height: 100%; border-radius: inherit; }
+.t-duration .t-select-wrap { width: 5.6rem; } .t-duration .t-select-wrap .t-select { width: 100%; }
 .t-check-group { border: 0; margin: 0; padding: 0; min-width: 0; }
 .t-check { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.35rem; cursor: pointer; font-size: var(--t-text-md); }
 .t-check-input { margin: 0.25em 0 0; width: 1em; height: 1em; accent-color: var(--t-accent); flex-shrink: 0; }
@@ -390,3 +400,69 @@ details.t-card > .t-card-header { cursor: pointer; user-select: none; }
 @keyframes t-toast-in { from { opacity: 0; transform: translateY(-1.25rem); } to { opacity: 1; transform: none; } }
 @keyframes t-toast-out { to { opacity: 0; transform: translateY(-1.25rem); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* ── number (tier 2): no native spinners; Tailor.numbers() adds − / + steppers ─ */
+.t-input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.t-input[type="number"]::-webkit-inner-spin-button, .t-input[type="number"]::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+.t-number > .t-input[type="number"] { font-variant-numeric: tabular-nums; }
+.t-number > .t-btn.t-number-step[data-variant] { flex-shrink: 0; border-color: var(--t-disabled); background: var(--t-selection); color: var(--t-text); font-size: 1.1em; line-height: 1; }
+.t-number > .t-btn.t-number-step[data-variant]:hover { background: var(--t-inset); color: var(--t-accent); }
+.t-number > .t-btn.t-number-step[data-variant]:disabled { background: var(--t-selection); border-color: var(--t-disabled); color: var(--t-disabled); opacity: 1; cursor: not-allowed; }
+.t-input-group[data-size="sm"] > .t-number-step { width: var(--t-control-h-sm); }
+
+/* ── file (tier 2): native input hidden, Tailor.files() draws button + name / drop zone ─ */
+.t-file { display: inline-flex; align-items: center; gap: 0.6rem; position: relative; max-width: 100%; cursor: pointer; font-size: var(--t-text-md); color: var(--t-text); }
+.t-file > .t-input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; margin: 0; padding: 0; border: 0; }
+.t-file-btn { flex-shrink: 0; }
+.t-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-muted); }
+.t-file[data-filled] .t-file-name { color: var(--t-text); }
+.t-file:has(.t-input:focus-visible) .t-file-btn { outline: none; border-color: var(--t-accent); box-shadow: 0 0 0 2px var(--t-focus-ring); }
+.t-file:has(.t-input:disabled) { cursor: not-allowed; opacity: 0.55; }
+.t-file[data-variant="drop"] { display: flex; }
+.t-file-drop { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; min-height: 6rem; padding: 1rem; text-align: center; border: 2px dashed var(--t-border); border-radius: var(--t-radius-lg); background: var(--t-surface); transition: border-color var(--t-duration), background var(--t-duration); }
+.t-file:hover .t-file-drop, .t-file[data-dragover] .t-file-drop { border-color: var(--t-accent); }
+.t-file[data-dragover] .t-file-drop { background: color-mix(in srgb, var(--t-accent) 10%, var(--t-surface)); }
+.t-file-drop .t-file-name { white-space: normal; }
+
+/* ── form (Tailor.forms): drawn validation — the browser bubble never shows (novalidate), feedback is the .t-feedback ── */
+.t-form { display: flex; flex-direction: column; gap: var(--t-space-3); min-width: 0; }
+
+/* ── pickers (tier 2 date / time / color, Tailor.dates / clocks / colors): native input hidden, drawn button + .t-picker popup ─ */
+.t-picker-wrap { position: relative; display: block; min-width: 0; } .t-picker-wrap[data-width="auto"] { display: inline-block; }
+.t-picker-native { position: absolute !important; top: 0; left: 0; width: 1px !important; height: 1px !important; min-width: 0 !important; min-height: 0 !important; margin: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; overflow: hidden; clip: rect(0 0 0 0); }
+.t-picker-btn { display: flex; align-items: center; gap: var(--t-space-2); text-align: left; cursor: pointer; font-variant-numeric: tabular-nums; } .t-picker-btn:disabled { cursor: not-allowed; }
+.t-picker-btn > .t-picker-value { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t-picker-btn[data-empty] > .t-picker-value, .t-picker-btn > .t-icon { color: var(--t-muted); }
+.t-picker-btn > .t-swatch { width: 1em; height: 1em; flex-shrink: 0; border-radius: var(--t-radius-sm); border-color: var(--t-border); transform: none; }
+.t-picker { position: absolute; top: calc(100% + 4px); left: 0; z-index: var(--t-z-overlay); width: max-content; max-width: min(22rem, 92vw); padding: var(--t-space-2); background: var(--t-inset); border: var(--t-border-w) solid var(--t-border); border-radius: var(--t-radius-lg); box-shadow: var(--t-shadow-md); color: var(--t-text); }
+.t-picker[data-at="top"] { top: auto; bottom: calc(100% + 4px); }
+.t-picker:focus { outline: none; }
+/* calendar */
+.t-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--t-space-1); margin-bottom: var(--t-space-1); }
+.t-cal-title { font-size: var(--t-text-sm); font-weight: 600; }
+.t-cal-grid { display: grid; grid-template-columns: repeat(7, 2.2rem); gap: 2px; }
+.t-cal-wd { padding: 0.2rem 0; text-align: center; font-size: var(--t-text-xs); color: var(--t-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.t-cal-day { height: 2.2rem; padding: 0; border: var(--t-border-w) solid transparent; border-radius: var(--t-radius-sm); background: transparent; color: var(--t-text); font: inherit; font-size: var(--t-text-sm); font-variant-numeric: tabular-nums; cursor: pointer; }
+.t-cal-day:hover:not(:disabled) { background: var(--t-selection); }
+.t-cal-day[data-outside] { color: var(--t-muted); opacity: 0.6; }
+.t-cal-day[data-today] { border-color: var(--t-accent); }
+.t-cal-day[aria-selected="true"] { background: var(--t-accent); color: var(--t-canvas); opacity: 1; }
+.t-cal-day:disabled { opacity: 0.3; cursor: not-allowed; }
+.t-cal-day:focus-visible { outline: 2px solid var(--t-accent); outline-offset: 1px; }
+.t-cal-foot { display: flex; justify-content: space-between; margin-top: var(--t-space-1); }
+/* clock columns */
+.t-clock { display: flex; gap: var(--t-space-1); }
+.t-clock-col { min-width: 3.6rem; max-height: 13rem; overflow-y: auto; scrollbar-width: thin; }
+.t-clock-col > .t-menu-item { justify-content: center; font-variant-numeric: tabular-nums; cursor: pointer; }
+.t-clock-col > .t-menu-item[aria-selected="true"] { background: var(--t-accent); color: var(--t-canvas); }
+.t-clock-col > .t-menu-item:focus-visible { outline: 2px solid var(--t-accent); outline-offset: -2px; }
+/* colour: swatch-picker (tier 2) baseline so the dots render without a skin; skins may restyle */
+.t-swatches { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; border: 0; margin: 0; padding: 0; min-width: 0; } .t-swatches > legend { flex-basis: 100%; }
+.t-swatch { position: relative; display: inline-block; width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; background: var(--t-tone); cursor: pointer; transition: border-color var(--t-duration), transform var(--t-duration); }
+.t-swatch > input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.t-swatch:hover, .t-swatch:has(input:checked) { border-color: var(--t-text); transform: scale(1.15); }
+.t-swatch:has(input:focus-visible) { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+.t-picker .t-swatches { max-width: 14rem; }
+.t-picker-name { margin-top: var(--t-space-2); font-size: var(--t-text-xs); color: var(--t-muted); } .t-picker-name .t-mono { color: var(--t-text); }
+.t-picker-hex { margin-top: var(--t-space-2); max-width: 9rem; }
+.t-picker-hex > .t-input[aria-invalid="true"] { border-color: var(--t-danger); }
