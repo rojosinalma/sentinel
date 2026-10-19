@@ -1,4 +1,4 @@
-/* managed by tailor v0.5.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.6.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -53,19 +53,35 @@
     },
     paintPickers() {
       const cur = theme.get();
+      const modes = theme.modes[cur.palette] || ["dark"];
       $$("[data-tailor-picker]").forEach((el) => {
         const what = el.dataset.tailorPicker;
         if (el.tagName === "SELECT" && !el.options.length) theme.fillPicker(el, what);
-        const val = what === "mode" ? cur.choice : cur[what];
+        const val = what === "mode" ? cur.mode : cur[what];
         if (el.tagName === "SELECT" || el.tagName === "INPUT") el.value = val;
         else $$("[data-value]", el).forEach((b) => { const onIt = b.dataset.value === val; b.setAttribute(b.hasAttribute("aria-selected") ? "aria-selected" : "aria-pressed", onIt); });
-        if (what === "mode") { const modes = theme.modes[cur.palette] || ["dark"]; $$("option, [data-value]", el).forEach((o) => { const v = o.value ?? o.dataset.value; o.disabled = v !== "auto" && !modes.includes(v); }); }
+        if (what === "mode") $$("option, [data-value]", el).forEach((o) => { o.disabled = !modes.includes(o.value ?? o.dataset.value); });
       });
+      // sun/moon toggle: shows the mode a click switches to; disabled when the palette offers one mode only
+      $$("[data-tailor-mode-toggle]").forEach((b) => {
+        const to = cur.mode === "light" ? "dark" : "light";
+        b.disabled = !modes.includes(to);
+        b.setAttribute("aria-label", b.disabled ? `${theme.labelOf(cur.mode)} only` : `Switch to ${to} mode`);
+        b.title = b.getAttribute("aria-label");
+        b.dataset.modeTo = to;
+        b.innerHTML = theme.modeIcon(to);
+      });
+    },
+    labelOf: (m) => (m === "light" ? "Light" : "Dark"),
+    // Icon for the toggle: the consumer sprite (bi:sun / bi:moon-stars, always bundled by `tailor apply`) or a text glyph.
+    modeIcon(to) {
+      const name = to === "light" ? "bi-sun" : "bi-moon-stars";
+      return theme.icons ? `<svg class="t-icon" aria-hidden="true"><use href="${esc(theme.icons)}#${name}"/></svg>` : `<span class="t-icon" aria-hidden="true">${to === "light" ? "☼" : "☾"}</span>`;
     },
     // Options for a picker: every id the config offers, sorted alphabetically by label; the "none" skin last.
     options(what) {
       const labels = (theme.labels || {})[what === "skin" ? "skins" : "palettes"] || {};
-      if (what === "mode") return [["dark", "Dark"], ["light", "Light"], ["auto", "Auto"]];
+      if (what === "mode") return [["dark", "Dark"], ["light", "Light"]];
       const ids = (what === "skin" ? theme.skins : theme.palettes).filter((id) => id !== "none");
       const rows = ids.map((id) => [id, labels[id] || id]).sort((a, b) => a[1].localeCompare(b[1], undefined, { sensitivity: "base" }));
       if (what === "skin" && theme.skins.includes("none")) rows.push(["none", "No skin"]);
@@ -74,21 +90,24 @@
     fillPicker(sel, what) {
       sel.innerHTML = theme.options(what).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
     },
-    // <div data-tailor-pickers> → skin + palette + mode selects (skin/palette only when there is a choice).
+    // <div data-tailor-pickers> → sun/moon toggle + skin + palette selects (selects only when there is a choice).
+    // data-tailor-pickers="mode" | "skin palette" | … limits the parts (settings page gets the selects, footer the toggle).
     renderPickers(root = document) {
       $$("[data-tailor-pickers]", root).forEach((box) => {
         if (!mark(box, "Pickers")) return;
+        const want = (box.dataset.tailorPickers || "mode skin palette").split(/\s+/);
         const parts = [];
-        if (theme.skins.filter((s) => s !== "none").length > 1) parts.push(["skin", "Skin"]);
-        if (theme.palettes.length > 1) parts.push(["palette", "Palette"]);
-        parts.push(["mode", "Mode"]);
+        if (want.includes("mode")) parts.push(`<button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-icon="only" data-tailor-mode-toggle></button>`);
+        if (want.includes("skin") && theme.skins.filter((s) => s !== "none").length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin" title="Skin"></select>`);
+        if (want.includes("palette") && theme.palettes.length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="palette" aria-label="Palette" title="Palette"></select>`);
         box.classList.add("t-pickers");
-        box.innerHTML = parts.map(([w, l]) => `<select class="t-select" data-size="sm" data-tailor-picker="${w}" aria-label="${l}" title="${l}"></select>`).join("");
+        box.innerHTML = parts.join("");
       });
     },
     init(opts = {}) {
       Object.assign(theme, opts);
       if (opts.defaults) theme.defaults = { ...theme.defaults, ...opts.defaults };
+      if (theme.icons === undefined && theme.base) theme.icons = theme.base + "icons.svg";
       theme.renderPickers();
       const q = new URLSearchParams(location.search);
       const pick = (k) => q.get(k) || theme.read(k) || theme.defaults[k];
@@ -97,7 +116,7 @@
         if (el.tagName === "SELECT" || el.tagName === "INPUT") on(el, "change", () => theme.set({ [el.dataset.tailorPicker]: el.value }));
         else on(el, "click", (e) => { const b = e.target.closest("[data-value]"); if (b) theme.set({ [el.dataset.tailorPicker]: b.dataset.value }); });
       });
-      $$("[data-tailor-mode-toggle]").forEach((b) => on(b, "click", () => theme.set({ mode: html.dataset.mode === "light" ? "dark" : "light" })));
+      $$("[data-tailor-mode-toggle]").forEach((b) => on(b, "click", () => theme.set({ mode: b.dataset.modeTo || (html.dataset.mode === "light" ? "dark" : "light") })));
       matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (theme.get().choice === "auto") theme.set({}); });
     },
   };

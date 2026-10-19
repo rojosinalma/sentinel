@@ -1,4 +1,4 @@
-/* managed by tailor v0.5.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.6.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tokens.css — THE token contract.
  *
@@ -120,7 +120,7 @@
   --t-footer-h:      32px;
   --t-sidebar-w:     220px;
   --t-gutter:        clamp(1rem, 3vw, 3rem);
-  --t-content-max:   1400px;
+  --t-content-max:   none;        /* .t-page width cap; full width by default, set e.g. 1400px to cap */
   --t-z-sticky:      100;
   --t-z-overlay:     900;
   --t-z-dialog:      1000;

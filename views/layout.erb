@@ -10,7 +10,7 @@
   <link href="/css/app.css" rel="stylesheet">
 </head>
 <body>
-<div class="t-shell" data-sidebar="none">
+<div class="t-shell">
   <header class="t-navbar t-shell-nav">
     <a class="t-navbar-brand" href="/"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-shield-shaded"/></svg>sentinel</a>
     <span class="t-badge" data-tone="info" data-variant="tint" title="Which instance of this page answered"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-hdd-network"/></svg> served by <%= @host %></span>
@@ -29,8 +29,8 @@
       <a class="footer-link" href="<%= @other_url %>" title="Open the instance running on the other host"><svg class="t-icon" aria-hidden="true"><use href="/tailor/icons.svg#bi-arrow-left-right"/></svg> <%= @other_name.empty? ? "other instance" : "#{@other_name} instance" %></a>
     <% end %>
     <div class="t-footer-end">
-      <span class="t-footer-version">sentinel <%= @version %><% unless @built_at.empty? %> · built <%= @built_at %><% end %> · <%= @host %></span>
       <div data-tailor-pickers></div>
+      <span class="t-footer-version">sentinel <%= @version %><% unless @built_at.empty? %> · built <%= @built_at %><% end %> · <%= @host %></span>
     </div>
   </footer>
 </div>
