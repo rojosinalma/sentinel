@@ -31,8 +31,8 @@ GEM
     sequel (5.109.0)
       bigdecimal
     simpleidn (0.3.0)
-    sqlite3 (2.9.6-aarch64-linux-gnu)
-    sqlite3 (2.9.6-x86_64-linux-gnu)
+    sqlite3 (2.10.0-aarch64-linux-gnu)
+    sqlite3 (2.10.0-x86_64-linux-gnu)
     tilt (2.9.0)
 
 PLATFORMS
