@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.8] - 2026-10-19
+
+### Changed
+- Dashboard on tailor 0.7.1: the shell spans the full width of the window; every palette ships a
+  dark and a light mode and the footer's sun/moon toggle switches between them (the first visit
+  follows the system); skin and palette pickers sit in the footer, sorted alphabetically.
+- Nothing browser-native in the UI: selects, number fields, file inputs and the date/time and
+  colour pickers are drawn by tailor, hover texts moved from `title=` to `data-tip`, confirms
+  go through `Tailor.confirm`.
+
+### Fixed
+- Commit `2f9ca15` (tailor 0.6.1) was made from a stale tree and reverted the whole of 0.5.7 —
+  the `/peer/view` live overlay, its tests, the changelog entry and the version bump. All of it is
+  restored; the code in `lib/` is identical to v0.5.7, so witnesses may stay on 0.5.7.
+
 ## [0.5.7] - 2026-10-16
 
 ### Fixed
