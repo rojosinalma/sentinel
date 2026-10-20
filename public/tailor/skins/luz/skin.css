@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.0 — skin luz — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.1 — skin luz — do not edit, run `tailor sync` */
 /*
  * tailor skin — luz — @d00m-gui/luz 0.5.0 translated onto the t-* vocabulary (0.1.0)
  *
@@ -227,7 +227,7 @@ kbd { background: var(--luz-d2); border: var(--t-border-w) solid var(--luz-borde
 /* luz colours invalid text, not just the border */
 :is(.t-input, .t-select, .t-textarea)[aria-invalid="true"] { border-color: color-mix(in srgb, var(--t-danger) 60%, transparent); color: color-mix(in srgb, var(--t-danger) 70%, var(--t-text)); }
 :is(.t-input, .t-select, .t-textarea)[aria-invalid="true"]:focus-visible { outline-color: color-mix(in srgb, var(--t-danger) 50%, transparent); }
-.t-select { background-image: linear-gradient(45deg, transparent 50%, var(--t-muted) 50%), linear-gradient(135deg, var(--t-muted) 50%, transparent 50%); background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+.t-select { padding-right: 2rem; background-image: linear-gradient(45deg, transparent 50%, var(--t-muted) 50%), linear-gradient(135deg, var(--t-muted) 50%, transparent 50%); background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
 .t-input[type="file"]::file-selector-button { background: color-mix(in srgb, var(--t-muted) 20%, transparent); border: 0; color: var(--t-text); border-radius: 0; }
 .t-hint { color: color-mix(in srgb, var(--t-text) 65%, transparent); }
 .t-feedback { color: color-mix(in srgb, var(--t-tone) 60%, var(--t-text)); font-weight: 500; }

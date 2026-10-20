@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.0 — skin daisyui — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.1 — skin daisyui — do not edit, run `tailor sync` */
 /*
  * tailor skin — daisyui — daisyUI 5.7.50 (MIT, https://daisyui.com)
  * Styles the t-* vocabulary (core/components.json) in daisyUI 5's look: pill buttons (600 weight,
@@ -177,6 +177,7 @@ h1, h2, h3 { font-weight: 700; }
 /* field — daisy fieldset/input: canvas-filled controls, soft 20 % border, legend-style labels */
 .t-label { color: var(--t-text); font-size: var(--t-text-sm); font-weight: 600; text-transform: none; letter-spacing: 0; }
 .t-input, .t-select, .t-textarea { background: var(--t-canvas); border: var(--t-border-w) solid var(--dy-border-soft); border-radius: var(--t-radius-md); color: var(--t-text); font-size: 0.875rem; padding: 0.375rem 0.75rem; transition: border-color var(--t-duration) var(--dy-ease), box-shadow var(--t-duration) var(--dy-ease); }
+.t-select { padding-right: 2rem; }
 :is(.t-input, .t-select, .t-textarea):focus-visible { outline: 2px solid color-mix(in srgb, var(--t-accent) 70%, transparent); outline-offset: 2px; border-color: var(--t-accent); box-shadow: 0 1px color-mix(in srgb, var(--t-text) 10%, transparent); }
 :is(.t-input, .t-select, .t-textarea):disabled { background: var(--t-inset); border-color: color-mix(in srgb, var(--t-text) 10%, transparent); color: color-mix(in srgb, var(--t-text) 40%, transparent); }
 :is(.t-input, .t-select, .t-textarea)::placeholder { color: color-mix(in srgb, var(--t-text) 40%, transparent); }

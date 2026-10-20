@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.1 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
