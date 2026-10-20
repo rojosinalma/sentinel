@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin bootstrap — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin bootstrap — do not edit, run `tailor sync` */
 /*
  * tailor skin — bootstrap — Bootstrap 5.3 metrics in the Dracula look (0.1.0)
  *
@@ -58,7 +58,7 @@ kbd { background: var(--t-selection); color: var(--t-text); border-radius: var(-
 .t-navbar-sep { background: var(--t-disabled); }
 
 /* sidebar (sidebar.css) */
-.t-sidebar-group { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--t-muted); padding: 0.75rem 0.75rem 0.25rem; }
+.t-sidebar-group { font-size: var(--t-text-base); font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--t-text); padding: 1rem 0.75rem 0.25rem; }
 .t-sidebar-group:first-child { padding-top: 0.25rem; }
 .t-sidebar-item { gap: 0.6rem; margin-bottom: 3px; padding: 0.6rem 0.75rem; background: transparent; border: 0; border-radius: var(--t-radius-md); color: var(--t-muted); font-size: 0.95rem; text-decoration: none; }
 .t-sidebar-item:hover:not([aria-disabled="true"]):not(:disabled) { background: var(--t-selection); color: var(--t-text); text-decoration: none; }
@@ -424,7 +424,7 @@ details.t-card > .t-card-header .t-sidebar-chevron { color: var(--t-disabled); t
 
 /* help-popover (codeblock.css .qm/.helpbox) */
 :where(.t-help) { --t-tone: var(--t-accent); }
-.t-help-btn { background: none; border: 1.5px solid var(--t-tone); color: var(--t-tone); opacity: 0.8; cursor: help; font-size: 0.8em; }
+.t-help-btn { background: none; border: 1px solid var(--t-tone); color: var(--t-tone); opacity: 0.8; font-size: 0.7em; }
 .t-help-btn:hover, .t-help-btn[aria-expanded="true"] { opacity: 1; }
 .t-help-btn:focus-visible { outline: 2px solid var(--t-tone); outline-offset: 1px; }
 .t-help-box { background: var(--t-inset); border: var(--t-border-w) solid var(--t-tone); border-radius: var(--t-radius-xl); padding: 0.7rem 0.9rem; font-size: 0.8rem; color: var(--t-muted); box-shadow: var(--t-shadow-md); line-height: 1.5; }

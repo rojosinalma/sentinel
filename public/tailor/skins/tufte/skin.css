@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin tufte — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin tufte — do not edit, run `tailor sync` */
 /*
  * tailor skin — tufte — Tufte CSS 1.9.0 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in Tufte CSS's long-form book look: et-book /
@@ -64,7 +64,7 @@ hr { width: 55%; border-top-color: var(--tu-rule); }
 .t-footer-repo { color: var(--tu-ink); opacity: 0.6; }
 
 /* sidebar: a table of contents — no fills, the current entry is ink with a left hairline */
-.t-sidebar-group { text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); font-style: italic; color: var(--t-muted); }
+.t-sidebar-group { text-transform: none; letter-spacing: 0; font-size: var(--t-text-base); font-weight: 700; font-style: italic; color: var(--t-text); }
 .t-sidebar-item { border-radius: 0; border-left: var(--t-border-w) solid transparent; color: var(--t-muted); text-decoration: none; margin-bottom: 0; }
 .t-sidebar-item:hover:not([aria-disabled="true"]) { background: transparent; color: var(--tu-ink); border-left-color: var(--tu-rule); }
 .t-sidebar-item[aria-current="page"] { background: transparent; color: var(--tu-ink); border-left-color: var(--tu-ink); font-style: italic; }

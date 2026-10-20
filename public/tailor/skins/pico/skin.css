@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin pico — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin pico — do not edit, run `tailor sync` */
 /*
  * tailor skin — pico — Pico CSS 2.1.1 (MIT, https://picocss.com)
  * Styles the t-* vocabulary (core/components.json) in Pico's look: one small radius everywhere, generous
@@ -168,7 +168,7 @@ hr { border-top: var(--pico-border-width) solid var(--pico-muted-border-color); 
 .t-footer-repo { color: var(--pico-muted-color); opacity: 1; } .t-footer-repo:hover { color: var(--pico-primary); }
 
 /* sidebar */
-.t-sidebar-group { color: var(--pico-muted-color); font-weight: 600; letter-spacing: 0.06em; }
+.t-sidebar-group { color: var(--pico-color); font-weight: 700; letter-spacing: 0.06em; font-size: var(--t-text-base); }
 .t-sidebar-item { color: var(--pico-color); border-radius: var(--pico-border-radius); padding: 0.5rem 0.75rem; margin-bottom: 2px; transition: background-color var(--pico-transition), color var(--pico-transition); }
 .t-sidebar-item:hover:not([aria-disabled="true"]) { background: var(--pico-dropdown-hover-background-color); color: var(--pico-color); }
 .t-sidebar-item[aria-current="page"] { background: var(--pico-card-sectioning-background-color); color: var(--pico-primary); font-weight: 600; }

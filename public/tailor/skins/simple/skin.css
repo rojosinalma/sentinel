@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin simple — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin simple — do not edit, run `tailor sync` */
 /*
  * tailor skin — simple — Simple.css 2.3.7 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in Simple.css's look: flat surfaces, 1px solid
@@ -48,7 +48,7 @@
 .t-sidebar-item { border: var(--t-border-w) solid transparent; border-radius: var(--t-radius-md); color: var(--s-text-light); }
 .t-sidebar-item:hover:not([aria-disabled="true"]) { background: transparent; border-color: var(--s-accent); color: var(--s-accent); }
 .t-sidebar-item[aria-current="page"] { background: transparent; border-color: var(--s-accent); color: var(--s-accent); }
-.t-sidebar-group { color: var(--s-text-light); text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); font-weight: 700; }
+.t-sidebar-group { color: var(--s-text); text-transform: none; letter-spacing: 0; font-size: var(--t-text-base); font-weight: 700; }
 .t-sidebar-divider { border-top-color: var(--s-border); }
 
 /* page / section: plain document headings, no coloured titles */

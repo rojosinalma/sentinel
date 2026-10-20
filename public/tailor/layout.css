@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/layout.css — layout primitives. System-agnostic: CSS grid/flex + --t-* tokens only.
  * Owns geometry (app shell, page, section, toolbar, grid, stack/cluster, split). Skins colour these
@@ -8,12 +8,15 @@
 
 /* ── app shell ─────────────────────────────────────────────────────────────── */
 /* Full width by default; the side column exists only while a .t-shell-side child is present.
-   data-sidebar="none" hides an existing sidebar, "collapsed" narrows it. */
+   data-sidebar="none" hides an existing sidebar, "collapsed" narrows it.
+   The shell is viewport-bound: header and footer stay put, .t-shell-main and .t-shell-side scroll themselves,
+   so no scrollbar ever runs beside the fixed bars. The document itself never scrolls while a shell is present. */
 .t-shell {
-  min-height: 100vh;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: var(--t-nav-h) 1fr var(--t-footer-h);
+  grid-template-rows: var(--t-nav-h) minmax(0, 1fr) var(--t-footer-h);
   grid-template-areas:
     "nav"
     "main"
@@ -29,14 +32,18 @@
 .t-shell[data-sidebar="none"] > .t-shell-side { display: none; }
 .t-shell[data-sidebar="collapsed"] { --t-sidebar-w: 3.5rem; }
 
-.t-shell-nav  { grid-area: nav;  position: sticky; top: 0; z-index: var(--t-z-sticky); }
-.t-shell-side { grid-area: side; position: sticky; top: var(--t-nav-h); align-self: start; max-height: calc(100vh - var(--t-nav-h) - var(--t-footer-h)); overflow-y: auto; padding: var(--t-space-3); }
-.t-shell-main { grid-area: main; min-width: 0; }
-.t-shell-foot { grid-area: foot; position: sticky; bottom: 0; z-index: var(--t-z-sticky); }
+.t-shell-nav  { grid-area: nav;  min-width: 0; z-index: var(--t-z-sticky); }
+.t-shell-side { grid-area: side; position: relative; min-height: 0; overflow-y: auto; padding: var(--t-space-3); }
+.t-shell-main { grid-area: main; position: relative; min-width: 0; min-height: 0; overflow-y: auto; scroll-padding-top: var(--t-space-4); }
+.t-shell-foot { grid-area: foot; min-width: 0; z-index: var(--t-z-sticky); }
+/* anchor targets land --t-space-4 below the header: scroll-padding-top on the scroller does it, and Tailor.scrollspy
+   reads that value for its activation line (no scroll-margin on :target — the two would add up) */
 
+/* Stacked (<992px): the sidebar sits above the main area and stays put; it keeps its content height up to 40% of
+   the viewport, then scrolls inside itself, so a long nav never squeezes the main scroller to nothing. */
 @media (max-width: 991.98px) {
-  .t-shell:has(> .t-shell-side):not([data-sidebar="none"]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "nav" "side" "main" "foot"; grid-template-rows: var(--t-nav-h) auto 1fr var(--t-footer-h); }
-  .t-shell-side { position: static; max-height: none; }
+  .t-shell:has(> .t-shell-side):not([data-sidebar="none"]) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "nav" "side" "main" "foot"; grid-template-rows: var(--t-nav-h) auto minmax(0, 1fr) var(--t-footer-h); }
+  .t-shell-side { max-height: 40vh; max-height: 40dvh; }
 }
 
 /* ── navbar / footer geometry (colours in skins) ───────────────────────────── */
@@ -57,7 +64,7 @@
   height: var(--t-footer-h); padding: 0 var(--t-space-5); position: relative;
 }
 .t-footer-end { position: absolute; right: var(--t-space-5); display: flex; align-items: center; gap: var(--t-space-3); }
-/* skin/palette/mode pickers ([data-tailor-pickers], rendered by Tailor.theme): footer when the layout has one, else navbar end */
+/* pickers ([data-tailor-pickers], rendered by Tailor.theme) in the order skin, palette, [kit], sun/moon mode toggle last; footer when the layout has one, else navbar end */
 .t-pickers { display: inline-flex; align-items: center; gap: var(--t-space-2); }
 /* inside a settings row the selects stack and take the control width (two side by side would truncate) */
 .t-setting-control > .t-pickers { display: flex; flex-wrap: wrap; } .t-setting-control > .t-pickers > .t-select { flex: 1 1 100%; }
@@ -78,6 +85,13 @@
 .t-toolbar[data-gap="1"] { gap: var(--t-space-1); } .t-toolbar[data-gap="3"] { gap: var(--t-space-3); } .t-toolbar[data-gap="4"] { gap: var(--t-space-4); }
 .t-toolbar[data-align="end"] { justify-content: flex-end; } .t-toolbar[data-align="center"] { justify-content: center; }
 .t-toolbar-spacer { flex: 1 1 auto; }
+
+/* ── sibling gaps ──────────────────────────────────────────────────────────── */
+/* A bare toolbar or cluster placed right before a sibling (table, list, card…) gets a minimum bottom gap so the two
+   never touch. Inside a gapped primitive (.t-stack/.t-cluster/.t-grid/.t-toolbar) the parent's gap already does it,
+   so the rule steps aside there. .t-page-header and .t-section-title carry their own margin-bottom above.
+   Adjacent .t-btn siblings have no implicit gap: put them in .t-toolbar, .t-cluster or .t-btn-group. */
+:is(.t-toolbar, .t-cluster):has(+ *):not(:is(.t-stack, .t-cluster, .t-grid, .t-toolbar) > *) { margin-bottom: var(--t-space-3); }
 
 /* ── grid ──────────────────────────────────────────────────────────────────── */
 .t-grid { --t-grid-min: 16rem; display: grid; gap: var(--t-space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--t-grid-min)), 1fr)); }

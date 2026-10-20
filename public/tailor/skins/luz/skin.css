@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin luz — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin luz — do not edit, run `tailor sync` */
 /*
  * tailor skin — luz — @d00m-gui/luz 0.5.0 translated onto the t-* vocabulary (0.1.0)
  *
@@ -81,7 +81,7 @@ kbd { background: var(--luz-d2); border: var(--t-border-w) solid var(--luz-borde
 .t-navbar-sep { background: var(--luz-border); }
 
 /* sidebar = luz nav ul.list > a.list-row */
-.t-sidebar-group { color: color-mix(in srgb, var(--t-text) 65%, transparent); font-weight: 600; }
+.t-sidebar-group { color: var(--t-text); font-weight: 700; font-size: var(--t-text-base); }
 .t-sidebar-item { border-radius: var(--t-radius-md); color: var(--t-muted); padding: 0.55rem 0.8rem; }
 .t-sidebar-item:hover:not([aria-disabled="true"]) { background: var(--t-selection); color: var(--t-text); }
 .t-sidebar-item[aria-current="page"] { background: color-mix(in srgb, var(--t-accent) 16%, transparent); color: color-mix(in srgb, var(--t-accent) 55%, var(--t-text)); font-weight: 600; }

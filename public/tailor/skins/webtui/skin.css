@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin webtui — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin webtui — do not edit, run `tailor sync` */
 /*
  * tailor skin — webtui — WebTUI (@webtui/css 0.1.10, MIT) translated
  * Styles the t-* vocabulary (core/components.json) in WebTUI's terminal look: monospace character grid,
@@ -72,7 +72,7 @@ kbd { background: var(--t-selection); padding: 0 0.5ch; }
 /* sidebar: a box-="square" frame (border half a cell inside, padding 1lh 1ch) */
 .t-sidebar { position: relative; isolation: isolate; padding: 1lh 1ch; }
 .t-sidebar::before { content: ""; position: absolute; inset: 0.5lh 0.5ch; border: var(--t-border-w) solid var(--t-wt-frame); z-index: -1; pointer-events: none; }
-.t-sidebar-group { text-transform: none; letter-spacing: 0; font-size: var(--t-text-sm); color: var(--t-disabled); padding: 0.5lh 1ch 0; }
+.t-sidebar-group { text-transform: none; letter-spacing: 0; font-size: var(--t-text-base); font-weight: 700; color: var(--t-text); padding: 0.5lh 1ch 0; }
 .t-sidebar-group::before { content: "── "; }
 .t-sidebar-item { margin-bottom: 0; padding: 0 1ch; min-height: 1lh; color: var(--t-muted); border-radius: 0; }
 .t-sidebar-item:hover:not([aria-disabled="true"]) { background: var(--t-selection); color: var(--t-text); }

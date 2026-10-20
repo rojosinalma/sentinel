@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -26,30 +26,32 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const T = {};
 
-  /* ── theme: skin × palette × mode ─────────────────────────────────────────── */
+  /* ── theme: skin × palette × mode (× kit: which rendering of the vocabulary, "tailor" markup by default) ── */
   const html = document.documentElement;
   const theme = {
-    project: "tailor", skins: ["none"], palettes: ["dracula"], modes: { dracula: ["dark", "light"] }, defaults: { skin: "none", palette: "dracula", mode: "dark" },
+    project: "tailor", skins: ["none"], palettes: ["dracula"], modes: { dracula: ["dark", "light"] }, kits: ["tailor"], defaults: { skin: "none", palette: "dracula", mode: "dark", kit: "tailor" },
     key: (k) => `${theme.project}.${k}`,
     store: (k, v) => { try { localStorage.setItem(theme.key(k), v); } catch (_) {} },
     read: (k) => { try { return localStorage.getItem(theme.key(k)); } catch (_) { return null; } },
-    get: () => ({ skin: html.dataset.skin || theme.defaults.skin, palette: html.dataset.palette || theme.defaults.palette, mode: html.dataset.mode || theme.defaults.mode, choice: html.dataset.modeChoice || html.dataset.mode || theme.defaults.mode }),
+    get: () => ({ skin: html.dataset.skin || theme.defaults.skin, palette: html.dataset.palette || theme.defaults.palette, mode: html.dataset.mode || theme.defaults.mode, choice: html.dataset.modeChoice || html.dataset.mode || theme.defaults.mode, kit: html.dataset.kit || theme.defaults.kit }),
     resolveMode(choice, palette) {
       const modes = theme.modes[palette] || ["dark"];
       let m = choice === "auto" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : choice;
       return modes.includes(m) ? m : modes[0];
     },
-    set({ skin, palette, mode } = {}, { persist = true } = {}) {
+    set({ skin, palette, mode, kit } = {}, { persist = true } = {}) {
       const cur = theme.get();
+      if (kit !== undefined && theme.kits.includes(kit)) { html.dataset.kit = kit; if (persist) theme.store("kit", kit); }
       if (skin !== undefined && theme.skins.includes(skin)) { html.dataset.skin = skin; if (persist) theme.store("skin", skin); }
       if (palette !== undefined && theme.palettes.includes(palette)) { html.dataset.palette = palette; if (persist) theme.store("palette", palette); }
       if (mode !== undefined && /^(dark|light|auto)$/.test(mode)) { html.dataset.modeChoice = mode; if (persist) theme.store("mode", mode); }
       const next = theme.get();
+      if (!html.dataset.kit) html.dataset.kit = next.kit;
       html.dataset.mode = theme.resolveMode(next.choice, next.palette);
       const ls = $("#t-skin"); if (ls) { ls.href = next.skin === "none" ? "" : ls.dataset.base + next.skin + "/skin.css"; ls.disabled = next.skin === "none"; }
       const lp = $("#t-palette"); if (lp) lp.href = lp.dataset.base + next.palette + ".css";
       theme.paintPickers();
-      if (cur.skin !== next.skin || cur.palette !== next.palette || cur.mode !== html.dataset.mode) emit(html, "theme", theme.get());
+      if (cur.skin !== next.skin || cur.palette !== next.palette || cur.mode !== html.dataset.mode || cur.kit !== next.kit) emit(html, "theme", theme.get());
     },
     paintPickers() {
       const cur = theme.get();
@@ -80,8 +82,9 @@
     },
     // Options for a picker: every id the config offers, sorted alphabetically by label; the "none" skin last.
     options(what) {
-      const labels = (theme.labels || {})[what === "skin" ? "skins" : "palettes"] || {};
+      const labels = (theme.labels || {})[what === "skin" ? "skins" : what === "kit" ? "kits" : "palettes"] || {};
       if (what === "mode") return [["dark", "Dark"], ["light", "Light"]];
+      if (what === "kit") return theme.kits.map((id) => [id, labels[id] || id]);
       const ids = (what === "skin" ? theme.skins : theme.palettes).filter((id) => id !== "none");
       const rows = ids.map((id) => [id, labels[id] || id]).sort((a, b) => a[1].localeCompare(b[1], undefined, { sensitivity: "base" }));
       if (what === "skin" && theme.skins.includes("none")) rows.push(["none", "No skin"]);
@@ -90,16 +93,20 @@
     fillPicker(sel, what) {
       sel.innerHTML = theme.options(what).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
     },
-    // <div data-tailor-pickers> → sun/moon toggle + skin + palette selects (selects only when there is a choice).
+    // <div data-tailor-pickers> → skin + palette selects (only when there is a choice), then the sun/moon toggle LAST (rightmost).
     // data-tailor-pickers="mode" | "skin palette" | … limits the parts (settings page gets the selects, footer the toggle).
+    // Controls are data-size="xs" inside a .t-footer (the footer is --t-footer-h tall), "sm" elsewhere.
     renderPickers(root = document) {
       $$("[data-tailor-pickers]", root).forEach((box) => {
         if (!mark(box, "Pickers")) return;
-        const want = (box.dataset.tailorPickers || "mode skin palette").split(/\s+/);
+        const want = (box.dataset.tailorPickers || "mode skin palette kit").split(/\s+/);
+        const size = box.closest(".t-footer") ? "xs" : "sm";
         const parts = [];
-        if (want.includes("mode")) parts.push(`<button type="button" class="t-btn" data-variant="ghost" data-size="sm" data-icon="only" data-tailor-mode-toggle></button>`);
-        if (want.includes("skin") && theme.skins.filter((s) => s !== "none").length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="skin" aria-label="Skin"></select>`);
-        if (want.includes("palette") && theme.palettes.length > 1) parts.push(`<select class="t-select" data-size="sm" data-tailor-picker="palette" aria-label="Palette"></select>`);
+        if (want.includes("skin") && theme.skins.filter((s) => s !== "none").length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="skin" aria-label="Skin"></select>`);
+        if (want.includes("palette") && theme.palettes.length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="palette" aria-label="Palette"></select>`);
+        // kit select (showcase: tailor markup vs a component kit rendering the same demos) — only when there is a choice
+        if (want.includes("kit") && theme.kits.length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="kit" aria-label="Kit"></select>`);
+        if (want.includes("mode")) parts.push(`<button type="button" class="t-btn" data-variant="ghost" data-size="${size}" data-icon="only" data-tailor-mode-toggle></button>`);
         box.classList.add("t-pickers");
         box.innerHTML = parts.join("");
       });
@@ -111,7 +118,7 @@
       theme.renderPickers();
       const q = new URLSearchParams(location.search);
       const pick = (k) => q.get(k) || theme.read(k) || theme.defaults[k];
-      theme.set({ skin: pick("skin"), palette: pick("palette"), mode: pick("mode") }, { persist: false });
+      theme.set({ skin: pick("skin"), palette: pick("palette"), mode: pick("mode"), kit: pick("kit") }, { persist: false });
       $$("[data-tailor-picker]").forEach((el) => {
         if (el.tagName === "SELECT" || el.tagName === "INPUT") on(el, "change", () => theme.set({ [el.dataset.tailorPicker]: el.value }));
         else on(el, "click", (e) => { const b = e.target.closest("[data-value]"); if (b) theme.set({ [el.dataset.tailorPicker]: b.dataset.value }); });
@@ -123,14 +130,17 @@
   T.theme = theme;
 
   /* ── toasts ───────────────────────────────────────────────────────────────── */
-  const ICONS = { success: "✓", warning: "▲", danger: "✕", info: "ⓘ" };
+  // tone icons for toasts/confirm: sprite symbols (always in the consumer sprite) when the theme knows one, else text glyphs
+  const ICONS = { success: ["bi-check-circle", "✓"], warning: ["bi-exclamation-triangle", "▲"], danger: ["bi-x-circle", "✕"], info: ["bi-info-circle", "ⓘ"], question: ["bi-question-circle", "?"] };
+  const spriteIcon = (name, glyph, cls = "") => theme.icons ? `<svg class="t-icon ${cls}" aria-hidden="true"><use href="${esc(theme.icons)}#${name}"/></svg>` : `<span class="t-icon ${cls}" aria-hidden="true">${glyph}</span>`;
+  const toneIcon = (tone, cls = "") => { const [name, glyph] = ICONS[tone] || ["", ""]; return spriteIcon(name, glyph, cls); };
   T.toast = (tone, msg, { timeout = 2500 } = {}) => {
     if (tone === "error") tone = "danger";
     let region = $("#t-toasts");
     if (!region) { region = document.createElement("div"); region.id = "t-toasts"; region.className = "t-toasts"; region.setAttribute("aria-live", "polite"); region.setAttribute("aria-atomic", "false"); document.body.appendChild(region); }
     const el = document.createElement("div");
     el.className = "t-toast"; el.dataset.tone = tone; el.setAttribute("role", "status");
-    el.innerHTML = `<span class="t-icon t-toast-icon" aria-hidden="true">${ICONS[tone] || ""}</span><span class="t-toast-body"></span>`;
+    el.innerHTML = `${toneIcon(tone, "t-toast-icon")}<span class="t-toast-body"></span>`;
     el.lastChild.textContent = msg;
     region.appendChild(el);
     const leave = () => { if (el.dataset.leaving !== undefined) return; el.dataset.leaving = ""; on(el, "animationend", () => el.remove(), { once: true }); setTimeout(() => el.remove(), 600); };
@@ -177,14 +187,18 @@
   /* ── menus (details) ──────────────────────────────────────────────────────── */
   T.menus = (root = document) => $$("details.t-menu", root).forEach((m) => {
     if (!mark(m, "Menu")) return;
+    const list = $(".t-menu-list", m), summary = $("summary", m);
+    // the open menu is the current T.popup: opening another popup, Escape or an outside pointerdown closes it
+    if (list && summary) on(m, "toggle", () => {
+      if (m.open) T.popup.open(list, summary, () => { m.open = false; });
+      else { delete list.dataset.at; delete list.dataset.align; if (T.popup.current()?.panel === list) T.popup.close(); }
+    });
     on(m, "click", (e) => {
       const it = e.target.closest(".t-menu-item"); if (!it) return;
       if (it.getAttribute("role") === "menuitemcheckbox") { it.setAttribute("aria-checked", it.getAttribute("aria-checked") !== "true"); emit(m, "change", { item: it }); }
       else m.removeAttribute("open");
     });
   });
-  on(document, "click", (e) => $$("details.t-menu[open]").forEach((m) => { if (!m.contains(e.target)) m.removeAttribute("open"); }));
-  on(document, "keydown", (e) => { if (e.key === "Escape") $$("details.t-menu[open]").forEach((m) => m.removeAttribute("open")); });
 
   /* ── dialogs / drawers ────────────────────────────────────────────────────── */
   T.dialogs = (root = document) => {
@@ -201,7 +215,7 @@
     const d = $("#t-confirm"); if (!d) return Promise.reject(new Error("#t-confirm dialog missing"));
     const h = $("#t-confirm-title", d), ok = $("#t-confirm-ok", d);
     d.dataset.tone = danger ? "danger" : "neutral";
-    const icon = $(".t-icon", h); if (icon) icon.textContent = danger ? "▲" : "?";
+    const icon = $(".t-icon", h); if (icon) icon.outerHTML = toneIcon(danger ? "warning" : "question");
     (h.querySelector("span:not(.t-icon)") || h).textContent = title;
     $("#t-confirm-body", d).innerHTML = bodyHtml;
     ok.textContent = label; ok.dataset.variant = danger ? "danger" : "primary";
@@ -263,7 +277,8 @@
     on(document, "focusin", (e) => { const el = tipTarget(e); if (el) showTip(el); });
     on(document, "focusout", (e) => { const el = tipTarget(e); if (el && el === tipFor) hideTip(); });
     on(document, "keydown", (e) => { if (e.key === "Escape") hideTip(); });
-    on(window, "scroll", () => { if (tipFor && !tipFor.matches(":hover, :focus-within")) hideTip(); }, { passive: true });
+    // capture-phase scroll on document fires for every scroller (the .t-shell-main container as well as the window)
+    on(document, "scroll", () => { if (tipFor && !tipFor.matches(":hover, :focus-within")) hideTip(); }, { passive: true, capture: true });
   };
 
   /* ── help popover ─────────────────────────────────────────────────────────── */
@@ -272,17 +287,20 @@
     const b = $(".t-help-btn", h), box = $(".t-help-box", h); if (!b || !box) return;
     if (!box.id) box.id = "t-help-" + Math.random().toString(36).slice(2, 8); b.setAttribute("aria-controls", box.id);
     let t;
-    const open = (pin) => { box.hidden = false; b.setAttribute("aria-expanded", "true"); if (pin) box.dataset.pinned = ""; };
-    const close = () => { box.hidden = true; delete box.dataset.pinned; b.setAttribute("aria-expanded", "false"); };
-    h._tClose = close;
-    on(b, "click", (e) => { e.stopPropagation(); clearTimeout(t); box.dataset.pinned !== undefined ? close() : open(true); });
-    on(b, "mouseenter", () => { t = setTimeout(() => { if (box.hidden) open(false); }, 1000); });
+    // hover shows the box unregistered (closes on mouseleave); a click pins it and registers it with T.popup, so it
+    // behaves like any other popup: one open at a time, Escape / outside pointerdown close it
+    const show = () => { box.hidden = false; b.setAttribute("aria-expanded", "true"); };
+    const close = () => { box.hidden = true; delete box.dataset.pinned; delete box.dataset.at; delete box.dataset.align; b.setAttribute("aria-expanded", "false"); };
+    const pin = () => { box.dataset.pinned = ""; T.popup.open(box, b, close); b.setAttribute("aria-expanded", "true"); };
+    const unpin = () => (T.popup.current()?.panel === box ? T.popup.close() : close());
+    h._tClose = () => { if (box.dataset.pinned === undefined) close(); };
+    on(b, "click", (e) => { e.stopPropagation(); clearTimeout(t); box.dataset.pinned !== undefined ? unpin() : pin(); });
+    on(b, "mouseenter", () => { t = setTimeout(() => { if (box.hidden) show(); }, 1000); });
     on(b, "mouseleave", () => { clearTimeout(t); setTimeout(() => { if (box.dataset.pinned === undefined && !box.matches(":hover")) close(); }, 200); });
     on(box, "mouseleave", () => { if (box.dataset.pinned === undefined) close(); });
     on(box, "click", (e) => e.stopPropagation());
   });
-  on(document, "click", () => $$(".t-help").forEach((h) => h._tClose?.()));
-  on(document, "keydown", (e) => { if (e.key === "Escape") $$(".t-help").forEach((h) => h._tClose?.()); });
+  on(document, "keydown", (e) => { if (e.key === "Escape") $$(".t-help").forEach((h) => h._tClose?.()); }); // hover-shown boxes; pinned ones close via T.popup
 
   /* ── code: copy + tabs ────────────────────────────────────────────────────── */
   T.copy = (root = document) => {
@@ -340,18 +358,40 @@
   });
 
   /* ── scrollspy ────────────────────────────────────────────────────────────── */
+  // Scroll root = the .t-shell-main that holds the sections (the window when there is no shell). Active = the last
+  // section whose top has passed the activation line (top of the scroller + a small offset); when the scroller sits at
+  // its end the last section wins, so the final item of a group is reachable even when it shares the viewport with
+  // the one before it. Passive scroll listener, one update per frame; the active link is kept in view in its sidebar.
   T.scrollspy = (nav = $(".t-sidebar"), sections) => {
-    if (!nav || !("IntersectionObserver" in window)) return;
+    if (!nav) return;
     const links = new Map($$('a[href^="#"]', nav).map((a) => [a.getAttribute("href").slice(1), a]));
-    sections = sections || [...links.keys()].map((id) => document.getElementById(id)).filter(Boolean);
-    const io = new IntersectionObserver((entries) => {
-      const hit = entries.find((e) => e.isIntersecting); if (!hit) return;
-      links.forEach((a, id) => (id === hit.target.id ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
-    }, { rootMargin: "-80px 0px -60% 0px" });
-    sections.forEach((s) => io.observe(s));
+    sections = (sections || [...links.keys()].map((id) => document.getElementById(id))).filter(Boolean);
+    if (!sections.length) return;
+    const root = sections[0].closest(".t-shell-main"), scroller = root || window;
+    const pad = root ? parseFloat(getComputedStyle(root).scrollPaddingTop) || 0 : 0;
+    const line = () => (root ? root.getBoundingClientRect().top : 0) + pad + 8;
+    const atEnd = () => root ? root.scrollTop + root.clientHeight >= root.scrollHeight - 2 : scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+    const reveal = (a) => {
+      const box = a.closest(".t-shell-side") || nav, r = a.getBoundingClientRect(), b = box.getBoundingClientRect();
+      if (r.top < b.top || r.bottom > b.bottom) a.scrollIntoView({ block: "nearest" });
+    };
+    let cur = null, queued = false;
+    const update = () => {
+      queued = false;
+      const shown = sections.filter((s) => s.offsetParent !== null); if (!shown.length) return;
+      let active = shown[0];
+      if (atEnd()) active = shown[shown.length - 1];
+      else { const y = line(); shown.forEach((s) => { if (s.getBoundingClientRect().top <= y) active = s; }); }
+      if (active === cur) return; cur = active;
+      links.forEach((a, id) => { if (id === active.id) { a.setAttribute("aria-current", "page"); reveal(a); } else a.removeAttribute("aria-current"); });
+    };
+    const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+    on(scroller, "scroll", schedule, { passive: true });
+    on(window, "resize", schedule, { passive: true });
+    update();
   };
 
-  /* ── popups shared by the drawn controls (select, pickers): one open at a time ── */
+  /* ── popups shared by the drawn controls (select, pickers, menu, pinned help): one open at a time ── */
   let openPopup = null;
   T.popup = {
     // open(panel, trigger, close): positions `panel` under (or above) `trigger`, closes the previous one
@@ -359,8 +399,10 @@
       if (openPopup && openPopup.panel !== panel) openPopup.close();
       openPopup = { panel, trigger, close };
       panel.hidden = false;
-      const r = trigger.getBoundingClientRect(), h = panel.offsetHeight;
+      delete panel.dataset.align;
+      const r = trigger.getBoundingClientRect(), h = panel.offsetHeight, w = panel.offsetWidth;
       panel.dataset.at = r.bottom + h + 8 > innerHeight && r.top - h - 8 > 0 ? "top" : "bottom";
+      if (r.left + w > innerWidth - 8) panel.dataset.align = "end"; // long panel near the right edge: hang it off the trigger's right side
     },
     close() { if (openPopup) { const o = openPopup; openPopup = null; o.close(); } },
     current: () => openPopup,
@@ -443,7 +485,7 @@
     let group = input.parentElement?.classList.contains("t-input-group") ? input.parentElement : null;
     if (!group) { group = document.createElement("div"); group.className = "t-input-group"; if (input.dataset.size) group.dataset.size = input.dataset.size; input.replaceWith(group); group.appendChild(input); }
     group.classList.add("t-number");
-    const mk = (dir) => { const b = document.createElement("button"); b.type = "button"; b.className = "t-btn t-number-step"; b.dataset.variant = "ghost"; b.dataset.icon = "only"; b.dataset.step = dir; b.tabIndex = -1; b.setAttribute("aria-label", dir > 0 ? "Increase" : "Decrease"); b.innerHTML = `<span class="t-icon" aria-hidden="true">${dir > 0 ? "+" : "−"}</span>`; return b; };
+    const mk = (dir) => { const b = document.createElement("button"); b.type = "button"; b.className = "t-btn t-number-step"; b.dataset.variant = "ghost"; b.dataset.icon = "only"; b.dataset.step = dir; b.tabIndex = -1; b.setAttribute("aria-label", dir > 0 ? "Increase" : "Decrease"); b.innerHTML = dir > 0 ? spriteIcon("bi-plus-lg", "+") : spriteIcon("bi-dash-lg", "−"); return b; };
     const minus = mk(-1), plus = mk(1);
     input.before(minus); input.after(plus);
     const num = (s, d) => { const n = parseFloat(s); return isNaN(n) ? d : n; };
@@ -556,7 +598,7 @@
     for (const a of ["data-size", "aria-label", "aria-describedby", "aria-invalid"]) if (input.hasAttribute(a)) btn.setAttribute(a, input.getAttribute(a));
     const id = input.id || `t-pick-${Math.random().toString(36).slice(2, 8)}`;
     const lbl = input.id && $(`label[for="${input.id}"]`); if (lbl) btn.setAttribute("aria-labelledby", lbl.id || (lbl.id = id + "-label"));
-    btn.innerHTML = `<span class="t-picker-value"></span><span class="t-icon" aria-hidden="true">${glyph}</span>`;
+    btn.innerHTML = `<span class="t-picker-value"></span>${spriteIcon(...glyph)}`;
     const pop = document.createElement("div"); pop.className = "t-picker"; pop.id = id + "-picker"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.tabIndex = -1;
     if (lbl) pop.setAttribute("aria-labelledby", lbl.id); btn.setAttribute("aria-controls", pop.id);
     input.tabIndex = -1; input.setAttribute("aria-hidden", "true"); input.classList.add("t-picker-native");
@@ -580,7 +622,7 @@
   const parseISO = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
   const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7].map((d) => new Date(2024, 0, d).toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2)); // 2024-01-01 is a Monday
   T.dates = (root = document) => $$('.t-input[type="date"]', root).forEach((input) => {
-    const p = pickerWrap(input, "Date", "▾"); if (!p) return;
+    const p = pickerWrap(input, "Date", ["bi-chevron-down", "▾"]); if (!p) return;
     const { pop } = p; let view = null, focusIso = null;
     const paintBtn = () => p.paint(input.value || input.placeholder || "YYYY-MM-DD", !input.value);
     const inRange = (iso) => (!input.min || iso >= input.min) && (!input.max || iso <= input.max);
@@ -624,7 +666,7 @@
   });
 
   T.clocks = (root = document) => $$('.t-input[type="time"]', root).forEach((input) => {
-    const p = pickerWrap(input, "Time", "◷"); if (!p) return;
+    const p = pickerWrap(input, "Time", ["bi-clock", "◷"]); if (!p) return;
     const { pop } = p, step = Math.max(1, Number(input.step) || 300), secs = step < 60;
     const minStep = !secs && 60 % (step / 60) === 0 ? step / 60 : 1, secStep = secs && 60 % step === 0 ? step : 1;
     const range = (n, s) => Array.from({ length: Math.ceil(n / s) }, (_, i) => i * s);
@@ -677,7 +719,7 @@
     return out;
   };
   T.colors = (root = document) => $$('.t-input[type="color"]', root).forEach((input) => {
-    const p = pickerWrap(input, "Color", "▾"); if (!p) return;
+    const p = pickerWrap(input, "Color", ["bi-chevron-down", "▾"]); if (!p) return;
     const { pop, btn } = p, name = "t-color-" + Math.random().toString(36).slice(2, 8), withHex = input.dataset.hex !== "none";
     const sw = document.createElement("span"); sw.className = "t-swatch"; sw.setAttribute("aria-hidden", "true"); btn.prepend(sw);
     const current = () => (input.value || "#000000").toLowerCase();

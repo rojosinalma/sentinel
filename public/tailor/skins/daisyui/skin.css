@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — skin daisyui — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — skin daisyui — do not edit, run `tailor sync` */
 /*
  * tailor skin — daisyui — daisyUI 5.7.50 (MIT, https://daisyui.com)
  * Styles the t-* vocabulary (core/components.json) in daisyUI 5's look: pill buttons (600 weight,
@@ -58,7 +58,7 @@ h1, h2, h3 { font-weight: 700; }
 .t-footer-repo { color: var(--t-muted); opacity: 1; } .t-footer-repo:hover { color: var(--t-text); }
 
 /* sidebar — daisy menu: rounded-field rows, menu-active = neutral fill */
-.t-sidebar-group { color: color-mix(in srgb, var(--t-text) 45%, transparent); font-weight: 600; text-transform: none; letter-spacing: 0.02em; font-size: var(--t-text-xs); }
+.t-sidebar-group { color: var(--t-text); font-weight: 700; text-transform: none; letter-spacing: 0.02em; font-size: var(--t-text-base); }
 .t-sidebar-item { border-radius: var(--t-radius-md); color: var(--t-text); font-size: var(--t-text-md); padding: 0.45rem 0.75rem; transition: background-color var(--t-duration) var(--dy-ease), color var(--t-duration) var(--dy-ease); }
 .t-sidebar-item:hover:not([aria-disabled="true"]) { background: var(--dy-hover); color: var(--t-text); }
 .t-sidebar-item[aria-current="page"] { background: var(--t-selection); color: var(--t-text); font-weight: 600; box-shadow: inset 0 1px color-mix(in srgb, var(--t-text) 4%, transparent); }

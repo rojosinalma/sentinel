@@ -1,4 +1,4 @@
-/* managed by tailor v0.7.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.8.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/base.css — the unskinned baseline.
  * Reset + readable typography + the minimum that makes every component FUNCTION (hidden panels, dialog
@@ -83,7 +83,8 @@ button { cursor: pointer; }
 
 /* sidebar */
 .t-sidebar ul { list-style: none; margin: 0; padding: 0; }
-.t-sidebar-group { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--t-muted); padding: var(--t-space-3) var(--t-space-3) var(--t-space-1); }
+/* group titles dominate the items they contain (items: --t-text-md, muted); skins keep title ≥ item */
+.t-sidebar-group { font-size: var(--t-text-base); font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--t-text); padding: var(--t-space-4) var(--t-space-3) var(--t-space-1); }
 .t-sidebar-group:first-child { padding-top: var(--t-space-1); }
 .t-sidebar-item {
   display: flex; align-items: center; gap: 0.6rem; width: 100%; margin-bottom: 3px; padding: 0.55rem var(--t-space-3);
@@ -126,7 +127,7 @@ details:not([open]) > .t-sidebar-item .t-sidebar-chevron, details:not([open]) > 
 .t-btn[data-size="sm"] { min-height: var(--t-control-h-sm); font-size: 0.75rem; padding: 0 0.7em; }
 .t-btn[data-size="lg"] { min-height: var(--t-control-h-lg); font-size: 1rem; padding: 0 1.1em; }
 .t-btn[data-icon="only"] { width: var(--t-control-h); padding: 0; }
-.t-btn[data-icon="only"][data-size="xs"] { width: var(--t-control-h-xs); } .t-btn[data-icon="only"][data-size="sm"] { width: var(--t-control-h-sm); } .t-btn[data-icon="only"][data-size="lg"] { width: var(--t-control-h-lg); font-size: 1.1rem; }
+.t-btn[data-icon="only"][data-size="xs"] { width: var(--t-control-h-xs); } .t-btn[data-icon="only"][data-size="xs"] > .t-icon { width: 0.9rem; height: 0.9rem; font-size: 0.9rem; } .t-btn[data-icon="only"][data-size="sm"] { width: var(--t-control-h-sm); } .t-btn[data-icon="only"][data-size="lg"] { width: var(--t-control-h-lg); font-size: 1.1rem; }
 .t-btn:disabled, .t-btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 .t-btn[aria-pressed="true"] { background: var(--t-selection); color: var(--t-text); border-color: var(--t-disabled); }
 .t-btn[aria-busy="true"]::before { content: ""; width: 0.9em; height: 0.9em; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: t-spin 0.7s linear infinite; }
@@ -152,7 +153,8 @@ details:not([open]) > .t-sidebar-item .t-sidebar-chevron, details:not([open]) > 
 .t-menu { position: relative; display: inline-block; }
 .t-menu > summary { list-style: none; } .t-menu > summary::-webkit-details-marker { display: none; }
 .t-menu-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: var(--t-z-overlay); min-width: 12rem; margin: 0; padding: var(--t-space-1); list-style: none; background: var(--t-inset); border: var(--t-border-w) solid var(--t-border); border-radius: var(--t-radius-lg); box-shadow: var(--t-shadow-md); }
-.t-menu[data-align="end"] .t-menu-list { left: auto; right: 0; }
+.t-menu[data-align="end"] .t-menu-list, .t-menu-list[data-align="end"], .t-picker[data-align="end"], .t-help-box[data-align="end"] { left: auto; right: 0; }
+.t-menu-list[data-at="top"] { top: auto; bottom: calc(100% + 4px); }
 .t-menu-item { display: flex; align-items: center; flex-wrap: wrap; gap: var(--t-space-2); width: 100%; padding: 0.4rem 0.75rem; border: 0; border-radius: var(--t-radius-sm); background: transparent; color: var(--t-text); font-size: var(--t-text-md); text-align: left; text-decoration: none; }
 .t-menu-item:hover { background: var(--t-selection); text-decoration: none; }
 .t-menu-item[role="menuitemcheckbox"]::before { content: ""; width: 1rem; flex-shrink: 0; text-align: center; color: var(--t-accent); font-weight: 700; }
@@ -227,13 +229,16 @@ legend.t-label { padding: 0; margin-bottom: 0.35rem; }
 .t-input-group > .t-input { flex: 1 1 auto; min-width: 0; } .t-input-group > .t-btn { flex-shrink: 0; }
 .t-input-addon { display: inline-flex; align-items: center; padding: 0 0.75rem; background: var(--t-selection); border: var(--t-border-w) solid var(--t-disabled); color: var(--t-text); font-size: var(--t-text-md); }
 .t-field[data-size="sm"] :is(.t-input, .t-select, .t-textarea), :is(.t-input, .t-select, .t-textarea)[data-size="sm"], .t-input-group[data-size="sm"] > :is(.t-input, .t-select, .t-input-addon, .t-btn) { min-height: var(--t-control-h-sm); padding-top: 0.2rem; padding-bottom: 0.2rem; font-size: var(--t-text-sm); }
+/* xs: footer pickers and other --t-control-h-xs rows; the drawn .t-select-btn carries .t-select + data-size, so it inherits this */
+.t-field[data-size="xs"] :is(.t-input, .t-select, .t-textarea), :is(.t-input, .t-select, .t-textarea)[data-size="xs"], .t-input-group[data-size="xs"] > :is(.t-input, .t-select, .t-input-addon, .t-btn) { min-height: var(--t-control-h-xs); padding: 0 0.5rem; font-size: var(--t-text-xs); }
+.t-select[data-size="xs"] { padding-right: 1.6rem; background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%; background-size: 4px 4px; }
 .t-duration .t-select { flex: 0 0 auto; width: 5.6rem; }
 /* drawn select (Tailor.selects): the native <select> stays in the DOM for forms, visually gone; the button carries .t-select so skins paint it */
 .t-select-wrap { position: relative; display: block; min-width: 0; } .t-select-wrap[data-width="auto"] { display: inline-block; }
 .t-select-wrap > select[data-t-select-native] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
 .t-select-btn { display: flex; align-items: center; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .t-select-btn:disabled { cursor: not-allowed; }
 .t-select-btn.t-select-placeholder { color: var(--t-muted); }
-.t-select-list { top: calc(100% + 4px); left: 0; right: 0; min-width: 100%; max-height: 18rem; overflow-y: auto; } .t-select-list[data-at="top"] { top: auto; bottom: calc(100% + 4px); }
+.t-select-list { top: calc(100% + 4px); left: 0; width: max-content; min-width: 100%; max-width: min(24rem, 92vw); max-height: 18rem; overflow-y: auto; } .t-select-list[data-at="top"] { top: auto; bottom: calc(100% + 4px); }
 .t-select-list [role="option"][aria-selected="true"] { color: var(--t-accent); font-weight: 600; } .t-select-list [role="option"][aria-selected="true"]::before { content: "\2713"; margin-right: 0.4rem; }
 .t-select-list [role="option"]:focus-visible { outline: none; background: var(--t-selection); }
 .t-input-group > .t-select-wrap { flex: 0 0 auto; } .t-input-group > .t-select-wrap > .t-select-btn { height: 100%; border-radius: inherit; }
@@ -311,7 +316,9 @@ button.t-badge { cursor: pointer; }
 
 /* card */
 .t-card { background: var(--t-surface); border: var(--t-border-w) solid var(--t-border); border-radius: var(--t-radius-lg); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
-.t-card:has(.t-help-box:not([hidden])), .t-card:has(.t-menu[open]) { overflow: visible; }
+/* floating panels inside a clipping container: let them escape while open, and lift the container above its
+   siblings (a skin that isolates the card would otherwise trap the panel under the next card) */
+:is(.t-card, .t-list, .t-table-wrap, .t-dialog-body):has(:is(.t-help-box, .t-select-list, .t-picker):not([hidden]), .t-menu[open]) { overflow: visible; position: relative; z-index: var(--t-z-overlay); }
 .t-card-header { display: flex; align-items: center; gap: var(--t-space-2); padding: 0.6rem 0.9rem; background: var(--t-inset); border-bottom: var(--t-border-w) solid var(--t-border); list-style: none; }
 .t-card-header::-webkit-details-marker { display: none; }
 .t-card-title { display: inline-flex; align-items: center; gap: 0.4em; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-text-base); color: var(--t-info); }
@@ -354,10 +361,11 @@ details.t-card > .t-card-header { cursor: pointer; user-select: none; }
 /* tooltip / help / code */
 .t-tooltip { position: fixed; z-index: var(--t-z-toast); max-width: 18rem; padding: 0.3rem 0.55rem; border-radius: var(--t-radius-md); background: var(--t-overlay-bg); color: var(--t-text); border: var(--t-border-w) solid var(--t-disabled); font-size: 0.78rem; line-height: 1.3; white-space: pre-line; pointer-events: none; box-shadow: var(--t-shadow-sm); }
 [data-mode="light"] .t-tooltip { background: var(--t-text); color: var(--t-canvas); border-color: var(--t-text); }
-.t-help { position: relative; display: inline-block; }
-.t-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.1em; height: 1.1em; padding: 0; border: 1.5px solid var(--t-tone); border-radius: 50%; background: transparent; color: var(--t-tone); font-size: 0.8em; font-weight: 700; line-height: 1; opacity: 0.8; cursor: help; vertical-align: middle; }
+.t-help { position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
+.t-help-btn { display: inline-flex; align-items: center; justify-content: center; width: 0.9em; height: 0.9em; padding: 0; border: 1px solid var(--t-tone); border-radius: 50%; background: transparent; color: var(--t-tone); font-size: 0.7em; font-weight: 700; line-height: 1; opacity: 0.8; vertical-align: middle; }
 .t-help-btn:hover, .t-help-btn[aria-expanded="true"] { opacity: 1; }
 .t-help-box { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--t-z-overlay); min-width: 18rem; max-width: 24rem; padding: 0.7rem 0.9rem; background: var(--t-inset); border: var(--t-border-w) solid var(--t-tone); border-radius: var(--t-radius-xl); font-size: var(--t-text-sm); color: var(--t-muted); line-height: 1.5; white-space: normal; box-shadow: var(--t-shadow-md); animation: t-help-in var(--t-duration) ease; text-align: left; }
+.t-help-box[data-at="top"] { top: auto; bottom: calc(100% + 4px); }
 .t-help-box :is(b, code) { color: var(--t-text); } .t-help-box p { margin: 0; } .t-help-box p + p { margin-top: 0.2rem; }
 .t-code { margin: 0; }
 .t-code-tabs { display: flex; gap: 6px; position: relative; z-index: 1; margin-bottom: -1px; }
