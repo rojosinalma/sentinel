@@ -35,7 +35,7 @@ Every run gets the node-wide variables plus the service's:
 | `SERVICE` | the service name (its cluster.yml key) |
 | `PRIMARY` / `STANDBY` | the two host names from the service entry |
 | `ACTING_NODE` | this node's `NODE_NAME` (always the service's standby) |
-| `STATE_DIR` | **this service's** state dir: `<node state dir>/<service>/` — `mode`, `mode.history`, `promote.lock`, `transition`, `promote-failed`, `failback-failed`, `last-*`, `stack` (legacy name `stack`), `hold` all live here |
+| `STATE_DIR` | **this service's** state dir: `<node state dir>/<service>/` — `mode`, `mode.history`, `promote.lock`, `transition`, `promote-failed`, `failback-failed`, `last-*`, `stack`, `hold` all live here |
 | `NODE_STATE_DIR` | the node root; its `hold` is the node-wide hold (covers every service — a hook honouring hold checks both) |
 | `SN_ENV` | path of the sentinel `.env` (secrets and any hook-specific variables — everything below the `Hook variables` line in `.env.example`); hooks `source` it |
 | `DRY_RUN` | `true` when invoked with `--dry-run` (print the plan, change nothing), else `false` |
@@ -52,7 +52,7 @@ goes into `.env`, never into the hook.
 | `demote` | `demote --yes --auto` (primary healthy and stable ≥ `failback_after_s`) | Reverse of promote: stop the standby's copy, carry the data back, start the primary, write `PRIMARY` to `mode`, routes back, notify. `--yes` skips the interactive confirmation; same lock/transition files (`demote <ts>`). Also accepts `--dry-run`. |
 | `health` | every `host_health_interval_s` while promoted and the primary's ssh port answers | Probe the primary host deeper than the sentinel can (ssh login, systemd units, docker). **Last line of stdout** is `up` or `down <reason>`; the loop reads that line, falling back to the exit code (0 = up). |
 | `replicate fence` | every `fence_interval_s` while promoted | Re-assert the fence on the primary and the routes. No-op (exit 0) while not promoted. |
-| `replicate stack` | every `stack_check_interval_s` while promoted | Repair the standby's own stack; write `$STATE_DIR/stack` (`healthy` \| `degraded: <what>`); the legacy name `stack` is read too. |
+| `replicate stack` | every `stack_check_interval_s` while promoted | Repair the standby's own stack; write `$STATE_DIR/stack` (`healthy` \| `degraded: <what>`). |
 | `replicate warm` | every `stack_check_interval_s` while the primary is primary | Warm-follower upkeep so the next promote is fast. No-op when the service has none. |
 
 A hook never decides *whether* to act — the loop, the lease and `hold` did that. Still, `demote`

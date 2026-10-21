@@ -169,7 +169,7 @@ class App < Roda
       end
 
       # The dashboard's cluster view: richer than /status, local node's perspective on one
-      # service (?service=<name>, default opencode).
+      # service (?service=<name>, default LEGACY_SERVICE).
       r.get "sentinel" do
         rt = sentinel!(r)
         response["cache-control"] = "no-store"

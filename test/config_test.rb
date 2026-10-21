@@ -65,6 +65,18 @@ class ConfigTest < Minitest::Test
     end
   end
 
+  def test_legacy_service_defaults_to_the_first_service
+    with_cluster_file(CLUSTER_YML + SECOND_SERVICE_YML) do
+      ENV["NODE_NAME"] = "node-b"
+      Sentinel::Config.reset!
+      assert_equal "opencode", Sentinel::Status.legacy_service, "empty LEGACY_SERVICE: first service in cluster.yml"
+      ENV["LEGACY_SERVICE"] = "beacon"
+      assert_equal "beacon", Sentinel::Status.legacy_service
+    end
+  ensure
+    ENV.delete("LEGACY_SERVICE")
+  end
+
   def test_service_probe_auto_promote_and_tunables
     with_cluster_file(CLUSTER_YML + SECOND_SERVICE_YML) do
       ENV["NODE_NAME"] = "node-b"

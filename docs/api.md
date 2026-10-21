@@ -54,10 +54,9 @@ Read this one from anything new. Hosts of a service whose primary is promoted ar
 
 `/status` is a **frozen contract**: same keys, same order, same types, compact JSON
 (`JSON.generate`, no spaces), `Cache-Control: no-store`. It describes exactly one service, the
-one named by `LEGACY_SERVICE` (default `opencode`), and its key names carry the host labels of
-the deployment the document was first written for: `primary_*` describe the **primary** host and
-service, `node_b_*` the **standby**. They are field names, not configuration — the values are your
-hosts. `test/fixtures/status_legacy.json` pins the exact output.
+one named by `LEGACY_SERVICE` (default: the first service in `cluster.yml`). `primary_*` keys
+describe the service's configured **primary** host, `standby_*` its **standby**; the values are
+your hosts. `test/fixtures/status_legacy.json` pins the exact output.
 
 ```
 mode since primary_service primary_service_version primary_host primary_host_health quorum classification
@@ -66,6 +65,20 @@ auto_promote auto_failback hold down_since promote_after_s promote_cooldown_left
 primary_stable_since failback_after_s failback_retry_left_s flips_in_window standby_stack route_mode
 route_primary ha_connectors checked_at status_age_s
 ```
+
+Before 0.6.0 six of these keys carried fixed labels (one per role, plus the original service
+name) instead of the role; 0.6.0 renamed them in place — same position, same type, same value:
+
+| 0.6.0 key | Before 0.6.0 (`<p>` / `<s>` = fixed primary / standby label, `<svc>` = fixed service label) |
+|---|---|
+| `primary_service` | `<p>_<svc>` |
+| `primary_service_version` | `<p>_<svc>_version` |
+| `primary_host` | `<p>_host` |
+| `primary_host_health` | `<p>_host_health` |
+| `primary_stable_since` | `<p>_stable_since` |
+| `standby_stack` | `<s>_stack` |
+
+[CHANGELOG.md](../CHANGELOG.md) → 0.6.0 has the upgrade note.
 
 | Legacy key | Meaning |
 |---|---|

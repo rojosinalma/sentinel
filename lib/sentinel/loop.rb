@@ -64,7 +64,8 @@ module Sentinel
     # gossip view (newest primary_at wins, with that node's per-service transition), then the
     # store's last agreed primary, then the configured primary. Only the acting node writes
     # the service's state files, so /status on every other node reads this instead
-    # (2026-10-16 drill: node-a's guard saw mode=node-a throughout node-b's promote).
+    # (a drill showed the primary host's guard reading its own name as the mode throughout the
+    # standby's promote).
     def replicated_primary(service)
       if (ps = @gossip.primary_state(service.name))
         { mode: ps[:host], since: ps[:at], transition: ps[:transition] }
@@ -78,9 +79,9 @@ module Sentinel
     # The document /peer/view serves: the last cycle's view with the live state of every
     # service this node acts for laid over it, read at request time. A transition hook runs
     # inside the cycle and may take minutes, so the cycle snapshot alone is frozen at the
-    # pre-hook primary for that long (2026-10-16 23:09 failback: node-b kept publishing
-    # primary=node-b after the demote hook had written mode=node-a, node-a's /status followed
-    # the gossip, its guard refused the start, the hook timed out and rolled back).
+    # pre-hook primary for that long (in one failback the standby kept publishing itself as
+    # primary after the demote hook had handed the mode back, the primary host's /status
+    # followed the gossip, its guard refused the start, the hook timed out and rolled back).
     # primary_at is the newer of the store's agreed value and the mode file's mtime, so the
     # hook's write wins the newest-at rule in Gossip#primary_state at once. Same keys as the
     # cycle view; a service without a mode file keeps the cycle values.
@@ -191,8 +192,8 @@ module Sentinel
         urls = carried.transform_values { |s| s.health[host.name] }
         probes = carried.transform_values(&:probe)
         # A service may need a laxer probe than the node-wide TCP timeout (cluster.yml
-        # tunables.probe_timeout_s): a loaded opencode answered /api/info in >3 s on
-        # 2026-10-13 and got classified degraded for half an hour.
+        # tunables.probe_timeout_s): a loaded service that answers its health URL in >3 s
+        # would otherwise be classified degraded for as long as the load lasts.
         timeouts = carried.transform_values { |s| s.tunables[:probe_timeout_s] || timeout }
         [host.name, lambda do
           @probes.host(host, service_urls: urls, service_probes: probes,

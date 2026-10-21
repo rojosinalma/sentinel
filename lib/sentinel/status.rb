@@ -7,15 +7,16 @@ module Sentinel
   # compact JSON (external guards read .mode, match the raw '"mode":"…"' substring and compare
   # route_primary with mode). test/fixtures/status_legacy.json pins it.
   #
-  # The legacy document describes one service (LEGACY_SERVICE, configurable; the default keeps the
-  # original name); `v1` is the generic multi-service document behind /api/v1/status.
+  # The legacy document describes one service (LEGACY_SERVICE, default: the first service in
+  # cluster.yml); `v1` is the generic multi-service document behind /api/v1/status.
   module Status
-    LEGACY_SERVICE = "opencode"
-
     module_function
 
     # The service the legacy document, the CLI and the MCP tools default to.
-    def legacy_service = Config.fetch(:LEGACY_SERVICE)
+    def legacy_service
+      name = Config.fetch(:LEGACY_SERVICE)
+      name.empty? ? Config.cluster.services.keys.first : name
+    end
 
     # loop: Sentinel::Loop (its #last may be nil before the first cycle); state: Sentinel::State;
     # config: the same tunables Hash the loop got; now: Time source; service: the service the
@@ -96,8 +97,8 @@ module Sentinel
     # Every other node has no state files for the service (only the acting node's hooks write
     # them), so it reports the acting node's gossip view — newest primary_at wins, its
     # per-service transition — then the store, then the configured primary
-    # (2026-10-16 drill: node-a's own /status said mode=node-a throughout node-b's promote and its
-    # guard started the unit mid-demote).
+    # (in a drill the primary host's own /status reported itself as the mode throughout the
+    # standby's promote, and its guard started the service mid-demote).
     def mode_source(loop:, service:, state:)
       if loop.acting?(service.name)
         sstate = state.for(service.name)

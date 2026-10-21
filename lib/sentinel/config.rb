@@ -52,7 +52,7 @@ module Sentinel
       "CF_API_TOKEN"            => "",
       "CF_ACCOUNT_ID"           => "",
       "ROUTE_TIMEOUT_S"         => 60,
-      "LEGACY_SERVICE"          => "opencode",
+      "LEGACY_SERVICE"          => "",
       "LEGACY_REDIRECT_FROM"    => "",
       "LEGACY_REDIRECT_TO"      => "",
       "LOG_LEVEL"               => "info"

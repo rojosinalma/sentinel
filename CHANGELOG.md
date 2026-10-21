@@ -24,10 +24,10 @@ All notable changes to this project are documented here. The format is
 ### Fixed
 - `/peer/view` was served from the document the loop built in its last cycle, and a transition
   hook runs synchronously inside that cycle: for the whole hook (minutes) the acting node kept
-  publishing the pre-hook primary. 2026-10-16 23:09 failback: node-b's view said `primary=node-b`
-  after the demote hook had written `mode=node-a`, node-a's `/status` (0.5.6, read from gossip)
-  still answered `mode=node-b`, its service-guard `ExecCondition` refused the start, the hook
-  timed out and rolled back. The served view now overlays the live state of every service this
+  publishing the pre-hook primary. In one failback the standby's view still named itself as
+  primary after the demote hook had handed the mode back to the primary host, that host's
+  `/status` (0.5.6, read from gossip) still answered with the standby, its guard's
+  `ExecCondition` refused the start, and the hook timed out and rolled back. The served view now overlays the live state of every service this
   node acts for at request time: `primary` from the mode file, `primary_at` the newer of the
   store's agreed value and the mode file's mtime (so the hook's write wins the newest-at rule in
   `Gossip#primary_state` on the next peer poll), `transitions`/`transition` and `hold` live.
@@ -38,9 +38,9 @@ All notable changes to this project are documented here. The format is
 ### Fixed
 - `/status` (and the per-service entries of `/api/v1/status`) on a node that does **not** act for
   the service — the primary host itself and every witness — reported `mode`/`since`/`transition`/
-  `promoting` from its own state files, which only the acting node's hooks ever write: node-a's
-  `/status` said `mode=node-a` throughout node-b's promote and its service-guard started the unit
-  mid-demote (2026-10-16 drill). Non-acting nodes now report the acting node's gossip view —
+  `promoting` from its own state files, which only the acting node's hooks ever write: in a
+  drill the primary host's `/status` named itself as the mode throughout the standby's promote,
+  and its guard started the service mid-demote. Non-acting nodes now report the acting node's gossip view —
   newest `primary_at` wins, `since` is that `primary_at`, `transition`/`promoting` are the acting
   node's per-service transition — falling back to the store's last agreed primary, then the
   configured primary. The acting node keeps the live state-file read from 0.4.5. The legacy
@@ -52,8 +52,8 @@ All notable changes to this project are documented here. The format is
   returns the winning host with its `primary_at` and that transition.
 
 ### Changed
-- Tests use `beacon` as the second-service fixture (was `beacon`); nothing in the core knows a
-  service name, so the rename of the homelab's beacon service is a `cluster.yml` change only.
+- Tests use a new name for the second-service fixture; nothing in the core knows a service
+  name, so renaming a service is a `cluster.yml` change only.
 
 ## [0.5.5] - 2026-10-16
 
@@ -93,7 +93,7 @@ All notable changes to this project are documented here. The format is
 
 ### Added
 - `LEGACY_SERVICE` selects the service that `GET /status`, the CLI and the MCP tools describe
-  when no `service` is given (default `opencode`, the name the frozen document was written for).
+  when no `service` is given.
 - `examples/acting-node/compose.yaml`: the acting node's compose with the mounts hooks typically
   need (docker socket, ssh, service directories, CA file) as placeholders.
 - `run-tests` workflow; OCI labels on the image; `CONTRIBUTING.md`, `docs/SDD.md`,

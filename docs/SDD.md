@@ -97,7 +97,7 @@ restart of either. The node root holds only `hold` (node-wide). Each service own
 | `transition` | hooks | `promote <ts>` / `demote <ts>` while running |
 | `promote-failed`, `failback-failed` | core | retry markers (`PROMOTE_RETRY_S`, `FAILBACK_RETRY_S`) |
 | `last-promote`, `last-demote` | core | cooldown anchors |
-| `stack` (legacy `stack`) | `replicate stack` | `healthy` / `degraded: <what>` |
+| `stack` | `replicate stack` | `healthy` / `degraded: <what>` |
 | `hold` | core / operator | per-service hold |
 
 On boot `State#migrate_legacy!` moves pre-multi-service root files into `<legacy service>/` once
@@ -210,10 +210,11 @@ complete reference is [configuration.md](configuration.md).
   and because the hook must fence a host that is still up.
 - **Flap damping and cooldowns** in the decider, not the hooks: timers are the controller's
   business; hooks stay idempotent and stateless beyond the mode file.
-- **The legacy `/status` document is frozen.** Its key names (`primary_*` for the primary side,
-  `node_b_*` for the standby side) come from the first deployment it described and stay
-  byte-identical so existing consumers keep working; `/api/v1/status` is the neutral document
-  for everything new, and `LEGACY_SERVICE` names which service `/status` reports.
+- **The legacy `/status` document is frozen.** Its keys, their order and their types stay
+  byte-identical so existing consumers keep working (`primary_*` for the primary side,
+  `standby_*` for the standby side; 0.6.0 renamed the keys once, to drop fixed host labels);
+  `/api/v1/status` is the neutral document for everything new, and `LEGACY_SERVICE` names which
+  service `/status` reports (default: the first service in `cluster.yml`).
 - **Actions forward to the acting node** rather than failing on the wrong node, so dashboards
   and MCP clients need one URL, not one per service.
 

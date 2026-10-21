@@ -46,7 +46,7 @@ module Sentinel
       end
     end
 
-    # What /status needs from the decider, bash field names on the right.
+    # What /status needs from the decider, legacy /status key names on the right.
     def snapshot(now: @now || Time.now)
       {
         classification: @classification.to_s,
@@ -54,7 +54,7 @@ module Sentinel
         down_since: @down_since && iso(@down_since),
         stable_since: @stable_since && iso(@stable_since),   # legacy key primary_stable_since
         host_health: @host_health,                           # legacy key primary_host_health
-        stack: @stack,                                       # legacy key standby_stack / standby_stack
+        stack: @stack,                                       # legacy key standby_stack
         flips_in_window: @flips,
         promote_cooldown_left_s: cooldown_left(now),
         promote_retry_left_s: promote_retry_left(now),

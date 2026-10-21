@@ -11,7 +11,8 @@
 #   bin/sentinel demote [...]     run the demote hook under a majority lease (asks for the word
 #                                 "demote" unless --yes; --dry-run skips the lease)
 #
-# --service <name> picks the service for status/promote/demote; the default is LEGACY_SERVICE
+# --service <name> picks the service for status/promote/demote; the default is LEGACY_SERVICE,
+# else the first service in cluster.yml
 # (the service the legacy /status document describes, see docs/api.md).
 
 require "dotenv"

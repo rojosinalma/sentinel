@@ -59,7 +59,7 @@ class AppTest < Minitest::Test
     assert_equal "no-store", res.headers["cache-control"]
     body = JSON.parse(res.body)
     assert_equal "node-a", body["mode"]
-    assert_includes res.body, '"mode":"node-a"', "compact for replica-guard"
+    assert_includes res.body, '"mode":"node-a"', "compact JSON for substring matchers"
   end
 
   def test_peer_view_route
@@ -93,7 +93,6 @@ class AppTest < Minitest::Test
     assert_equal "opencode", body["service"]
     assert_equal "witness", body["roles"]["witness-1"]
     assert body.key?("standby_stack")
-    refute body.key?("standby_stack")
   end
 
   def test_api_sentinel_and_mcp_cluster_hide_the_lease_token
@@ -145,7 +144,7 @@ class AppTest < Minitest::Test
     assert svc["acting"]
     assert_equal "node-a", svc["mode"]
     assert svc.key?("gates")
-    refute_match(/primary_|node_b_/, res.body.gsub(/"(node-a|node-b|witness-1)"/, ""), "neutral key names")
+    refute_match(/"(node-a|node-b|witness-1)_/, res.body, "no host name inside a key name")
   end
 
   def test_api_promote_unknown_service

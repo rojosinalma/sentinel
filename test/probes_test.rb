@@ -171,7 +171,7 @@ class ProbesTest < Minitest::Test
   # A one-shot HTTP server: accepts connections and writes a canned response.
 
   # tunables.probe_timeout_s: a service answering slower than the node-wide budget is still "up"
-  # when its own budget allows it (2026-10-13: a loaded opencode at >3 s read as degraded).
+  # when its own budget allows it (a loaded service at >3 s must not read as degraded).
   def test_per_service_timeout_lets_a_slow_service_pass
     with_slow_http_server(200, '{"version":"9.9.9"}', delay: 1.5) do |svc_port|
       host = FakeHost.new(name: "node-a", address: "127.0.0.1", sentinel_url: "",

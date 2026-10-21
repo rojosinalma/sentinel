@@ -501,7 +501,7 @@ class LoopTest < Minitest::Test
 
   # A hook that moves the mode but exits 2 (transitioned, health wait failed): the routes stay
   # put, the failure marker stays, and the operator hears about the degraded takeover (2026-10-13:
-  # rc=2 still routed the public hostnames to a node-b whose opencode never started).
+  # rc=2 still routed the public hostnames to a node-b whose service never started).
   def test_rc2_transition_keeps_routes_and_marker_and_notifies
     routes = RoutesStub.new
     h = build_loop(routes: routes, config: ROUTE_CONFIG)

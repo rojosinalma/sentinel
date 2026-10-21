@@ -58,7 +58,7 @@ An empty value means "use the default". Defaults live in `lib/sentinel/config.rb
 | | `OTHER_INSTANCE_URL`, `OTHER_INSTANCE_NAME` | — | footer link to another node's dashboard |
 | | `APP_VERSION`, `BUILD_TIME` | `dev`, — | set by the image build |
 | | `LEGACY_REDIRECT_FROM`, `LEGACY_REDIRECT_TO` | — | host-prefix 308 redirect (e.g. `standby.` → `sentinel.`); off when empty |
-| legacy | `LEGACY_SERVICE` | `opencode` | the service `GET /status`, the CLI and the MCP tools describe when no `service` is given (see [api.md](api.md)) |
+| legacy | `LEGACY_SERVICE` | first service in `cluster.yml` | the service `GET /status`, the CLI and the MCP tools describe when no `service` is given (see [api.md](api.md)) |
 | MCP / misc | `SENTINEL_MCP_TOKEN` | — | bearer for `POST /mcp`; empty disables the endpoint (404) |
 | | `LOG_LEVEL` | `info` | logger level |
 | | `RACK_ENV` | `production` | `development` enables code reloading |

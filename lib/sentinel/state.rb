@@ -41,7 +41,7 @@ module Sentinel
       end
     end
 
-    # One-off: the opencode-era files at the root move into <service>/ and `mode` becomes a
+    # One-off: the single-service files at the root move into <service>/ and `mode` becomes a
     # relative symlink to <service>/mode. No-op once done (or when there is nothing to move).
     # Returns the moved file names.
     def migrate_legacy!(service)
@@ -114,9 +114,8 @@ module Sentinel
 
     def clear_transition! = remove!("transition")
 
-    # The standby stack marker the replicate hook writes ("healthy" | "degraded: …"); the
-    # the legacy marker name is stack, the generic name is stack; both are read.
-    def stack = read("stack") || read("stack")
+    # The standby stack marker the replicate hook writes ("healthy" | "degraded: …").
+    def stack = read("stack")
 
     # A bash hook holds promote.lock via flock for its lifetime. flock locks conflict across
     # file descriptors, so probing with LOCK_NB is exact even from another process.

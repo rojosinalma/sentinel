@@ -49,7 +49,7 @@ class StatusTest < Minitest::Test
     { loop: loop_obj, state: state, config: config, clock: clock, store: store, gossip: gossip }
   end
 
-  # The fixture's service is _example; the live legacy document describes opencode.
+  # The fixture's service is _example (passed explicitly; the default is LEGACY_SERVICE).
   def build_status
     Sentinel::Status.build(loop: @h[:loop], state: @h[:state], config: @h[:config], now: @h[:clock].now,
                            service: "_example")
@@ -60,7 +60,7 @@ class StatusTest < Minitest::Test
     assert_equal BASH_KEYS, build_status.keys
   end
 
-  def test_compact_json_for_litestream_guard
+  def test_compact_json_for_substring_matchers
     @h[:loop].cycle!
     json = Sentinel::Status.to_json(build_status)
     assert_includes json, '"mode":"node-a"', "compact JSON, no space after the colon"
@@ -177,7 +177,7 @@ class StatusTest < Minitest::Test
     assert_equal false, e[:hold]
     refute v1.key?(:note)
     json = JSON.generate(v1)
-    refute_match(/primary_|node_b_/, json.gsub(/"(node-a|node-b|witness-1)"/, ""), "neutral key names only")
+    refute_match(/"(node-a|node-b|witness-1)_/, json, "no host name inside a key name")
   end
 
   def test_v1_before_first_cycle
@@ -240,8 +240,9 @@ class StatusTest < Minitest::Test
 
   # ------------------------------------------------------------ non-acting nodes (0.5.6)
   # Only the acting node's hooks write the service's state files; every other node (the primary
-  # host itself, the witnesses) reports what the acting node gossips (2026-10-16 drill: node-a's
-  # /status said mode=node-a throughout node-b's promote and its guard started the unit mid-demote).
+  # host itself, the witnesses) reports what the acting node gossips (in a drill the primary
+  # host's /status reported itself as the mode throughout the standby's promote, and its guard
+  # started the service mid-demote).
 
   def non_acting_harness
     gossip = ScriptedGossip.new
