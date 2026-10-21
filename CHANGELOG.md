@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-10-21
+
+### Breaking changes
+- The legacy `/status` document names its keys by role. Six keys that carried fixed host and
+  service labels are renamed in place — same position, same type, same value: the primary's
+  service state, service version, host probe, host health and stable-since keys are now
+  `primary_service`, `primary_service_version`, `primary_host`, `primary_host_health` and
+  `primary_stable_since`; the standby's stack marker is `standby_stack`. The map by position is
+  in [docs/api.md](docs/api.md) → "`GET /status`". `test/fixtures/status_legacy.json` pins the
+  new document.
+- `LEGACY_SERVICE` defaults to the first service in `cluster.yml` (it was a fixed service name).
+- The `replicate stack` marker is read from `$STATE_DIR/stack` only; the older marker name is no
+  longer read, and the one-off root-layout migration moves `stack`.
+
+### Upgrade notes
+- Peers never read `/status`: gossip and the lease use `/peer/view` and `/peer/lease`, which are
+  unchanged, so 0.5.x and 0.6.0 nodes run side by side in one cluster.
+- Switch every `/status` consumer that reads one of the six renamed keys to the new name, and
+  upgrade the nodes it reads together with it. `mode`, `since`, `promoting`, `transition`,
+  `hold`, `quorum`, `route_primary`, `ha_connectors` and the compact JSON (the raw
+  `"mode":"<host>"` substring) are unchanged.
+- A `replicate` hook that writes its marker under another name must write `$STATE_DIR/stack`
+  before the acting node runs 0.6.0; until then `standby_stack` reads `null`. The marker is
+  informational: no decision depends on it.
+- Set `LEGACY_SERVICE` in `.env` when `/status` must describe a service other than the first one
+  in `cluster.yml`.
+
+### Changed
+- Tests, comments and docs use neutral host and service names only.
+
 ## [0.5.8] - 2026-10-19
 
 ### Changed
