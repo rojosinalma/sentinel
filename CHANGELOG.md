@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-10-22
+
+### Changed
+- Dashboard on tailor 0.11.0: adds the `primer` skin (`?skin=primer` or the footer's skin picker).
+  Only `public/tailor/` changed; `lib/`, `config/` and `hooks/` are identical to v0.6.0, so
+  witnesses may stay on 0.6.0.
+
 ## [0.6.0] - 2026-10-21
 
 ### Breaking changes
