@@ -3,7 +3,7 @@
 # image is multi-arch from GHCR and kept locally (pull_policy missing).
 services:
   sentinel:
-    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.6.0}
+    image: ${SENTINEL_IMAGE:-ghcr.io/rojosinalma/sentinel}:${SENTINEL_TAG:-0.6.1}
     pull_policy: missing
     container_name: sentinel
     restart: unless-stopped
