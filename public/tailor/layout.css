@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/layout.css — layout primitives. System-agnostic: CSS grid/flex + --t-* tokens only.
  * Owns geometry (app shell, page, section, toolbar, grid, stack/cluster, split). Skins colour these
@@ -119,6 +119,10 @@
 /* ── stack / cluster ───────────────────────────────────────────────────────── */
 .t-stack { display: flex; flex-direction: column; gap: var(--t-space-3); min-width: 0; }
 .t-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--t-space-2); min-width: 0; }
+/* Children of a column keep their content height: in a height-bound scroller (.t-shell-main) a clipping child
+   (.t-card, .t-list, .t-table-wrap) would otherwise shrink to fit and cut its body while nothing scrolls.
+   Zero specificity, so any class rule that sets flex on a child (a pane that fills and scrolls) still wins. */
+:where(.t-stack, .t-split-pane) > * { flex-shrink: 0; }
 :is(.t-stack, .t-cluster)[data-gap="0"] { gap: 0; }
 :is(.t-stack, .t-cluster)[data-gap="1"] { gap: var(--t-space-1); }
 :is(.t-stack, .t-cluster)[data-gap="2"] { gap: var(--t-space-2); }

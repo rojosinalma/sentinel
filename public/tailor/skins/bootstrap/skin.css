@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — skin bootstrap — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — skin bootstrap — do not edit, run `tailor sync` */
 /*
  * tailor skin — bootstrap — Bootstrap 5.3 metrics in the Dracula look (0.1.0)
  *
@@ -353,6 +353,7 @@ img.t-avatar { border-color: var(--t-border); }
 .t-table thead th:hover, .t-table thead th > button:hover { color: var(--t-text); }
 .t-sort-icon { color: var(--t-accent); font-size: 0.7rem; }
 .t-table tbody tr:hover > td { background: var(--t-selection); color: var(--t-text); }
+.t-table tbody tr:hover > td.t-tone-text { color: var(--t-tone); }
 .t-table tbody tr:last-child > td { border-bottom: 0; }
 .t-table tr[aria-selected="true"] > td { background: color-mix(in srgb, var(--t-accent) 18%, transparent); }
 .t-table-group > td { background: var(--t-overlay-bg) !important; border-top: var(--t-border-w) solid var(--t-border); padding-top: 0.65rem !important; padding-bottom: 0.4rem !important; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--t-text); }
@@ -386,6 +387,7 @@ img.t-avatar { border-color: var(--t-border); }
 .t-card[data-variant~="stat"] .t-card-body { padding: 0.75rem 0.9rem 0.5rem; }
 .t-stat-label { font-size: 0.8rem; color: var(--t-info); }
 .t-stat-value { font-size: 0.85rem; color: var(--t-text); }
+.t-stat-value.t-tone-text { color: var(--t-tone); }
 .t-stat-sub { font-size: 0.7rem; color: var(--t-muted); }
 .t-stat-box[data-empty] { font-size: 0.75rem; color: var(--t-muted); }
 details.t-card > .t-card-header { cursor: pointer; user-select: none; }
@@ -393,6 +395,7 @@ details.t-card > .t-card-header .t-sidebar-chevron { color: var(--t-disabled); t
 .t-facts { font-size: 0.82rem; gap: 0.15rem 0.75rem; }
 .t-facts dt { color: var(--t-muted); font-weight: 400; }
 .t-facts dd { color: var(--t-text); }
+.t-facts dd.t-tone-text { color: var(--t-tone); }
 
 /* empty-state (cards-forms.css .empty-state) */
 .t-empty { text-align: center; color: var(--t-muted); padding: 2rem 1rem; }

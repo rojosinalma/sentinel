@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — skin simple — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — skin simple — do not edit, run `tailor sync` */
 /*
  * tailor skin — simple — Simple.css 2.3.7 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in Simple.css's look: flat surfaces, 1px solid
@@ -189,7 +189,7 @@
 .t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
 .t-card-thumb { background: var(--s-accent-bg); border-bottom-color: var(--s-border); }
 .t-card-footer { border-top-color: var(--s-border); }
-.t-stat-label { color: var(--s-text-light); } .t-stat-value { color: var(--s-text); } .t-stat-sub { color: var(--s-text-light); }
+.t-stat-label { color: var(--s-text-light); } .t-stat-value { color: var(--s-text); } .t-stat-value.t-tone-text { color: var(--t-tone); } .t-stat-sub { color: var(--s-text-light); }
 .t-facts dt { color: var(--s-text-light); }
 
 /* empty state */

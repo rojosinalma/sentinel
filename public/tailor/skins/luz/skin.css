@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — skin luz — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — skin luz — do not edit, run `tailor sync` */
 /*
  * tailor skin — luz — @d00m-gui/luz 0.5.0 translated onto the t-* vocabulary (0.1.0)
  *
@@ -10,7 +10,7 @@
  *   --element-background → the depth chain below (luz's OKLCH l-shift ≈ color-mix with text)
  *   state hover delta 8% → color-mix(in srgb, <bg> 92%, var(--t-text))
  *   pressed shift        → transform: translateY(0.1ch)
- * Depth nesting (luz _depth.css, depthSign 1 like Dracula): three enumerated
+ * Depth nesting (luz _depth.css, depthSign 1, as in the Dracula palette): three enumerated
  * :where() levels set --luz-el / --luz-field (one step deeper, for inputs & table heads);
  * the shifts decay (5.5% → +3.5% → +2.5% text into canvas), capped at 3 like luz's cap of 4.
  * Light palettes invert the shift direction (surfaces go slightly darker) — accepted
@@ -336,6 +336,7 @@ button.t-badge:hover { background: color-mix(in srgb, var(--t-tone) 26%, transpa
 .t-card-thumb { background: var(--t-canvas); border-bottom-color: var(--luz-border); }
 .t-stat-label { color: color-mix(in srgb, var(--t-text) 65%, transparent); text-transform: uppercase; font-size: var(--t-text-xs); letter-spacing: 0.08em; }
 .t-stat-value { font-size: 1.1rem; font-weight: 700; color: var(--t-text); }
+.t-stat-value.t-tone-text { color: var(--t-tone); }
 .t-stat-sub { color: color-mix(in srgb, var(--t-text) 55%, transparent); }
 .t-facts dt { color: color-mix(in srgb, var(--t-text) 60%, transparent); }
 

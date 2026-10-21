@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — skin pico — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — skin pico — do not edit, run `tailor sync` */
 /*
  * tailor skin — pico — Pico CSS 2.1.1 (MIT, https://picocss.com)
  * Styles the t-* vocabulary (core/components.json) in Pico's look: one small radius everywhere, generous
@@ -354,6 +354,7 @@ hr { border-top: var(--pico-border-width) solid var(--pico-muted-border-color); 
 /* table — Pico: horizontal rules only, sentence-case headers, optional stripes, no sticky tint */
 .t-table-wrap { border: var(--pico-border-width) solid var(--pico-table-border-color); border-radius: var(--pico-border-radius); background: var(--pico-card-background-color); box-shadow: var(--pico-card-box-shadow); }
 .t-table th, .t-table td { padding: calc(var(--pico-spacing) / 2) var(--pico-spacing); border-bottom: var(--pico-border-width) solid var(--pico-table-border-color); color: var(--pico-color); }
+.t-table td.t-tone-text { color: var(--t-tone); }
 .t-table thead th { font-size: var(--t-text-sm); font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--pico-muted-color); background: var(--pico-card-sectioning-background-color); border-bottom-color: var(--pico-table-border-color); }
 .t-table thead th > button:hover { color: var(--pico-color); }
 .t-sort-icon { color: var(--pico-primary); }
@@ -373,7 +374,7 @@ hr { border-top: var(--pico-border-width) solid var(--pico-muted-border-color); 
 .t-card-thumb { background: var(--pico-card-sectioning-background-color); border-bottom-color: var(--pico-card-border-color); }
 .t-card-meta { padding: 0.6rem var(--pico-block-spacing-horizontal); }
 .t-card[data-variant~="stat"] .t-card-body { padding: calc(var(--pico-block-spacing-vertical) * 0.75) var(--pico-block-spacing-horizontal) calc(var(--pico-block-spacing-vertical) * 0.5); }
-.t-stat-label { color: var(--pico-muted-color); font-weight: 500; } .t-stat-value { color: var(--pico-color); font-weight: 600; } .t-stat-sub { color: var(--pico-muted-color); }
+.t-stat-label { color: var(--pico-muted-color); font-weight: 500; } .t-stat-value { color: var(--pico-color); font-weight: 600; } .t-stat-value.t-tone-text { color: var(--t-tone); } .t-stat-sub { color: var(--pico-muted-color); }
 .t-facts dt { color: var(--pico-muted-color); }
 
 /* empty-state — dashed Pico box */

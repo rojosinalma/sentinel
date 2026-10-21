@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — skin daisyui — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — skin daisyui — do not edit, run `tailor sync` */
 /*
  * tailor skin — daisyui — daisyUI 5.7.50 (MIT, https://daisyui.com)
  * Styles the t-* vocabulary (core/components.json) in daisyUI 5's look: pill buttons (600 weight,
@@ -269,6 +269,7 @@ h1, h2, h3 { font-weight: 700; }
 .t-card-thumb { background: var(--t-inset); border-bottom-color: color-mix(in srgb, var(--t-border) 45%, transparent); }
 .t-stat-label { color: color-mix(in srgb, var(--t-text) 60%, transparent); font-weight: 500; }
 .t-stat-value { color: var(--t-text); font-weight: 800; }
+.t-stat-value.t-tone-text { color: var(--t-tone); }
 .t-stat-sub { color: var(--t-muted); }
 .t-facts dt { color: color-mix(in srgb, var(--t-text) 55%, transparent); }
 

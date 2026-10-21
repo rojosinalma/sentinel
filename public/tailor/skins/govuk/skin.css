@@ -1,4 +1,4 @@
-/* managed by tailor v0.8.1 — skin govuk — do not edit, run `tailor sync` */
+/* managed by tailor v0.9.2 — skin govuk — do not edit, run `tailor sync` */
 /*
  * tailor skin — govuk — GOV.UK Frontend 6.5.1 (translated, not vendored)
  * Styles the t-* vocabulary (core/components.json) in GOV.UK Frontend's look: square corners, 2px
@@ -304,7 +304,7 @@ button.t-badge:hover { background: color-mix(in srgb, var(--t-tone) 35%, var(--t
 .t-card[data-variant~="clickable"]:hover { border-color: var(--t-text); box-shadow: inset 0 0 0 1px var(--t-text); }
 .t-card[aria-selected="true"], .t-card[aria-selected="true"]:hover { border-color: var(--t-accent); box-shadow: inset 0 0 0 1px var(--t-accent); }
 .t-card-thumb { background: var(--t-inset); border-bottom-color: var(--t-border); }
-.t-stat-label { color: var(--t-muted); font-weight: 700; } .t-stat-value { color: var(--t-text); font-weight: 700; } .t-stat-sub { color: var(--t-muted); }
+.t-stat-label { color: var(--t-muted); font-weight: 700; } .t-stat-value { color: var(--t-text); font-weight: 700; } .t-stat-value.t-tone-text { color: var(--t-tone); } .t-stat-sub { color: var(--t-muted); }
 .t-facts dt { color: var(--t-text); font-weight: 700; }
 .t-facts { font-size: var(--t-text-md); }
 
