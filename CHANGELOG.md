@@ -45,7 +45,7 @@ All notable changes to this project are documented here. The format is
   go through `Tailor.confirm`.
 
 ### Fixed
-- Commit `2f9ca15` (tailor 0.6.1) was made from a stale tree and reverted the whole of 0.5.7 —
+- Commit `8e9f506` (tailor 0.6.1) was made from a stale tree and reverted the whole of 0.5.7 —
   the `/peer/view` live overlay, its tests, the changelog entry and the version bump. All of it is
   restored; the code in `lib/` is identical to v0.5.7, so witnesses may stay on 0.5.7.
 
