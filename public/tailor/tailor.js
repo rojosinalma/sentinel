@@ -1,4 +1,4 @@
-/* managed by tailor v0.9.2 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.11.0 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -93,7 +93,7 @@
     fillPicker(sel, what) {
       sel.innerHTML = theme.options(what).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
     },
-    // <div data-tailor-pickers> → skin + palette selects (only when there is a choice), then the sun/moon toggle LAST (rightmost).
+    // <div data-tailor-pickers> → [kit,] skin + palette selects (only when there is a choice), then the sun/moon toggle LAST (rightmost).
     // data-tailor-pickers="mode" | "skin palette" | … limits the parts (settings page gets the selects, footer the toggle).
     // Controls are data-size="xs" inside a .t-footer (the footer is --t-footer-h tall), "sm" elsewhere.
     renderPickers(root = document) {
@@ -102,10 +102,10 @@
         const want = (box.dataset.tailorPickers || "mode skin palette kit").split(/\s+/);
         const size = box.closest(".t-footer") ? "xs" : "sm";
         const parts = [];
+        // kit select first (showcase: the same demos in HTML or React) — only when there is a choice
+        if (want.includes("kit") && theme.kits.length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="kit" aria-label="Kit"></select>`);
         if (want.includes("skin") && theme.skins.filter((s) => s !== "none").length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="skin" aria-label="Skin"></select>`);
         if (want.includes("palette") && theme.palettes.length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="palette" aria-label="Palette"></select>`);
-        // kit select (showcase: tailor markup vs a component kit rendering the same demos) — only when there is a choice
-        if (want.includes("kit") && theme.kits.length > 1) parts.push(`<select class="t-select" data-size="${size}" data-tailor-picker="kit" aria-label="Kit"></select>`);
         if (want.includes("mode")) parts.push(`<button type="button" class="t-btn" data-variant="ghost" data-size="${size}" data-icon="only" data-tailor-mode-toggle></button>`);
         box.classList.add("t-pickers");
         box.innerHTML = parts.join("");
@@ -322,6 +322,8 @@
     set(group, seconds) { const n = Number(seconds) || 0, sel = $("select", group); const unit = [...sel.options].map((o) => Number(o.value)).sort((a, b) => b - a).find((u) => n % u === 0) || 1; sel.value = unit; $("input", group).value = n / unit; },
     get(group) { return Math.round((Number($("input", group).value) || 0) * Number($("select", group).value)); },
   };
+  // a .t-duration with data-value shows it on load (settingsAutoSave does the same for settings rows)
+  T.durations = (root = document) => $$(".t-duration[data-value]", root).forEach((g) => { if (mark(g, "Duration")) T.duration.set(g, g.dataset.value); });
   const settingValue = (el) => (el.classList.contains("t-duration") ? T.duration.get(el) : el.type === "checkbox" ? el.checked : el.value);
   const settingRevert = (el) => { const last = el.dataset.last; if (el.classList.contains("t-duration")) T.duration.set(el, last); else if (el.type === "checkbox") el.checked = last === "true"; else el.value = last; };
   T.settingsAutoSave = (root, save) => {
@@ -746,7 +748,7 @@
   });
 
   /* ── upgrade: wire everything in root ─────────────────────────────────────── */
-  T.upgrade = (root = document) => { ["tabs", "listbox", "menus", "dialogs", "times", "tooltips", "help", "copy", "truncate", "dismiss", "filters", "sortable", "selects", "numbers", "files", "forms", "dates", "clocks", "colors"].forEach((k) => T[k](root)); return T; };
+  T.upgrade = (root = document) => { ["tabs", "listbox", "menus", "dialogs", "durations", "times", "tooltips", "help", "copy", "truncate", "dismiss", "filters", "sortable", "selects", "numbers", "files", "forms", "dates", "clocks", "colors"].forEach((k) => T[k](root)); return T; };
   T.esc = esc;
   T.version = "0.7.1";
   window.Tailor = T;
