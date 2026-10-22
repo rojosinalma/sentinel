@@ -1,4 +1,4 @@
-/* managed by tailor v0.11.0 — core — do not edit, run `tailor sync` */
+/* managed by tailor v0.11.1 — core — do not edit, run `tailor sync` */
 /*
  * tailor — core/tailor.js — the behaviour layer. Vanilla, no dependencies, ~350 lines.
  * Exposes window.Tailor; auto-runs Tailor.upgrade(document) on DOMContentLoaded unless the <script>
@@ -46,7 +46,7 @@
       if (palette !== undefined && theme.palettes.includes(palette)) { html.dataset.palette = palette; if (persist) theme.store("palette", palette); }
       if (mode !== undefined && /^(dark|light|auto)$/.test(mode)) { html.dataset.modeChoice = mode; if (persist) theme.store("mode", mode); }
       const next = theme.get();
-      if (!html.dataset.kit) html.dataset.kit = next.kit;
+      if (!html.dataset.kit && next.kit) html.dataset.kit = next.kit;
       html.dataset.mode = theme.resolveMode(next.choice, next.palette);
       const ls = $("#t-skin"); if (ls) { ls.href = next.skin === "none" ? "" : ls.dataset.base + next.skin + "/skin.css"; ls.disabled = next.skin === "none"; }
       const lp = $("#t-palette"); if (lp) lp.href = lp.dataset.base + next.palette + ".css";
@@ -112,8 +112,10 @@
       });
     },
     init(opts = {}) {
+      const builtIn = theme.defaults;
       Object.assign(theme, opts);
-      if (opts.defaults) theme.defaults = { ...theme.defaults, ...opts.defaults };
+      theme.defaults = { ...builtIn, ...(opts.defaults || {}) };
+      if (!theme.kits.includes(theme.defaults.kit)) theme.defaults.kit = theme.kits[0];
       if (theme.icons === undefined && theme.base) theme.icons = theme.base + "icons.svg";
       theme.renderPickers();
       const q = new URLSearchParams(location.search);
