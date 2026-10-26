@@ -13,7 +13,7 @@ GEM
       regexp_parser (~> 2.0)
       simpleidn (~> 0.2)
     logger (1.7.0)
-    mcp (1.7.0)
+    mcp (1.8.1)
       json_schemer (>= 2.4)
     minitest (6.0.6)
       drb (~> 2.0)
@@ -31,8 +31,8 @@ GEM
     sequel (5.109.0)
       bigdecimal
     simpleidn (0.3.0)
-    sqlite3 (2.9.6-aarch64-linux-gnu)
-    sqlite3 (2.9.6-x86_64-linux-gnu)
+    sqlite3 (2.10.1-aarch64-linux-gnu)
+    sqlite3 (2.10.1-x86_64-linux-gnu)
     tilt (2.9.0)
 
 PLATFORMS
